@@ -1,0 +1,213 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Imports\ProgramsImport;
+use App\Models\Program;
+use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+
+class ProgramController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = Program::query();
+
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%'.$request->search.'%');
+        }
+
+        $sort_by = $request->get('sort_by', 'name');
+        $sort_order = $request->get('sort_order', 'asc');
+
+        $allowed_sorts = ['name', 'is_active', 'created_at'];
+        if (! in_array($sort_by, $allowed_sorts)) {
+            $sort_by = 'name';
+        }
+        if (! in_array($sort_order, ['asc', 'desc'])) {
+            $sort_order = 'asc';
+        }
+
+        $query->orderBy($sort_by, $sort_order);
+
+        $programs = $query->paginate(10)->withQueryString();
+
+        return view('configuration.programs.index', compact('programs', 'sort_by', 'sort_order'));
+    }
+
+    public function create()
+    {
+        return view('configuration.programs.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255|unique:programs,name',
+        ]);
+
+        $program = Program::create([
+            'name' => $request->name,
+            'is_active' => true,
+        ]);
+
+        if ($request->ajax()) {
+            return response()->json($program);
+        }
+
+        return redirect()->route('programs.index')->with('success', 'تمت الإضافة بنجاح');
+    }
+
+    public function edit($id)
+    {
+        $program = Program::findOrFail($id);
+
+        return view('configuration.programs.edit', compact('program'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $program = Program::findOrFail($id);
+
+        $request->validate([
+            'name' => 'required|string|max:255|unique:programs,name,'.$program->id,
+        ]);
+
+        $program->update([
+            'name' => $request->name,
+            'is_active' => $request->has('is_active'),
+        ]);
+
+        return redirect()->route('programs.index')->with('success', 'تم التحديث بنجاح');
+    }
+
+    public function destroy($id)
+    {
+        $program = Program::findOrFail($id);
+        $program->delete();
+
+        return redirect()->route('programs.index')->with('success', 'تم الحذف بنجاح');
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file_path' => 'required|string',
+        ]);
+
+        try {
+            $filePath = storage_path('app/'.$request->file_path);
+
+            if (! file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الملف غير موجود',
+                ]);
+            }
+
+            $import = new ProgramsImport;
+            Excel::import($import, $filePath);
+
+            // حذف الملف المؤقت
+            unlink($filePath);
+
+            return response()->json([
+                'success' => true,
+                'success_count' => $import->getSuccessCount(),
+                'error_count' => count($import->getErrors()),
+                'errors' => $import->getErrors(),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء الاستيراد: '.$e->getMessage(),
+            ]);
+        }
+    }
+
+    // عرض نموذج الاستيراد
+    public function showImportForm()
+    {
+        return view('configuration.programs.import');
+    }
+
+    // معالجة استيراد ملف Excel
+    public function importExcel(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv',
+        ]);
+
+        $import = new ProgramsImport;
+        Excel::import($import, $request->file('file'));
+
+        // افتراضياً، الدالة getErrors موجودة في كلاس الاستيراد لالتقاط الأخطاء
+        $errors = method_exists($import, 'getErrors') ? $import->getErrors() : [];
+
+        if (! empty($errors)) {
+            return redirect()
+                ->route('programs.import')
+                ->with('import_errors', $errors);
+        }
+
+        return redirect()
+            ->route('programs.index')
+            ->with('success', 'تم استيراد البيانات بنجاح');
+    }
+
+    public function preview(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:10240',
+        ]);
+
+        try {
+            // رفع الملف مؤقتًا
+            $file = $request->file('file');
+            $fileName = 'import_preview_'.time().'.'.$file->getClientOriginalExtension();
+            $filePath = $file->storeAs('temp', $fileName);
+
+            // تحليل الملف باستخدام Laravel Excel
+            $import = new ProgramsImport;
+            $previewData = $import->preview(storage_path('app/'.$filePath));
+
+            return response()->json([
+                'success' => true,
+                'preview' => $previewData,
+                'file_path' => $filePath,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء معالجة الملف: '.$e->getMessage(),
+            ]);
+        }
+    }
+
+    public function downloadTemplate()
+    {
+        $filePath = public_path('templates/programs_import_template.xlsx');
+
+        if (file_exists($filePath)) {
+            return response()->download($filePath, 'programs_import_template.xlsx');
+        }
+
+        return redirect()->back()->with('error', 'Template file not found');
+    }
+
+    // Add this method to your ProgramController
+    protected function getColumnNameAr($column)
+    {
+        $columns = [
+            'id' => 'المعرف',
+            'name' => 'اسم البرنامج',
+            'is_active' => 'الحالة (نشط/غير نشط)',
+            'created_at' => 'تاريخ الإنشاء',
+            'updated_at' => 'تاريخ التحديث',
+        ];
+
+        return $columns[$column] ?? $column;
+    }
+}

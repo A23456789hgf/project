@@ -1,0 +1,450 @@
+4- التقرير المالي للمشاريع
+	const filters = {
+	    company: "aaa",
+    filter_based_on: "Fiscal Year",
+    	period_start_date: "2026-01-01",
+    	period_end_date: "2026-12-31",
+    	from_fiscal_year: "2026",
+    	to_fiscal_year: "2026",
+    	periodicity: "Yearly",
+    	project: ["PROJ-0003"],
+    	show_account_details: "Summary",
+    	selected_view: "Report",
+    	include_default_book_entries: 1,
+    	accumulated_values: 1
+};
+
+
+fetch("/api/method/frappe.desk.query_report.run?" + new URLSearchParams({
+    report_name: "Profit and Loss Statement",
+    filters: JSON.stringify(filters)
+}))
+.then(response => {
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+})
+.then(data => {
+    console.log(data);
+})
+.catch(error => {
+    console.error("Error:", error);
+});
+
+
+إيرادات و مصروفات والفارق
+
+المفصل
+الجهة و المشروع و البند إجمالي المصروف لكل البنود 
+والإجمالي لكل مشروع لكل جهة 
+
+
+
+الخلاصة للربح والخسارة 
+
+const filters = {
+	    company: "وحدة الديزل",
+    filter_based_on: "Fiscal Year",
+    	period_start_date: "2026-01-01",
+    	period_end_date: "2026-12-31",
+    	from_fiscal_year: "2026",
+    	to_fiscal_year: "2026",
+    	periodicity: "Yearly",
+    	project: ["PROJ-0003"],
+    	show_account_details: "Summary",
+    	selected_view: "Report",
+    	include_default_book_entries: 1,
+    	accumulated_values: 1
+};
+
+
+fetch("/api/method/get_pl_summary?" + new URLSearchParams({
+    filters: JSON.stringify(filters)
+}))
+.then(response => {
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+})
+.then(data => {
+    console.log(data);
+})
+.catch(error => {
+    console.error("Error:", error);
+});
+
+يرجع ما يلي 
+{
+    "message": {
+        "report_summary": [
+            {
+                "value": 4000000,
+                "label": "Total Income This Year",
+                "datatype": "Currency",
+                "currency": "YER"
+            },
+            {
+                "value": 800000,
+                "label": "Total Expense This Year",
+                "datatype": "Currency",
+                "currency": "YER"
+            },
+            {
+                "value": 3200000,
+                "indicator": "Green",
+                "label": "Profit This Year",
+                "datatype": "Currency",
+                "currency": "YER"
+            }
+        ]
+    }
+}
+
+
+ملخص الإيرادات والنفقات حسب البنود
+const filters = {
+	    company: "وحدة الديزل",
+    filter_based_on: "Fiscal Year",
+    	period_start_date: "2026-01-01",
+    	period_end_date: "2026-12-31",
+    	from_fiscal_year: "2026",
+    	to_fiscal_year: "2026",
+    	periodicity: "Yearly",
+    	project: ["PROJ-0003"],
+    	show_account_details: "Summary",
+    	selected_view: "Report",
+    	include_default_book_entries: 1,
+    	accumulated_values: 1
+};
+
+
+fetch("/api/method/get_pl_expense_type_summary?" + new URLSearchParams({
+    filters: JSON.stringify(filters)
+}))
+.then(response => {
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+})
+.then(data => {
+    console.log(data);
+})
+.catch(error => {
+    console.error("Error:", error);
+});
+
+يرجع:
+
+{
+    "columns": [
+        {
+            "fieldname": "account",
+            "label": "Account",
+            "fieldtype": "Link",
+            "options": "Account",
+            "width": 300
+        },
+        {
+            "fieldname": "acc_name",
+            "label": "Account Name",
+            "fieldtype": "Data",
+            "width": 250,
+            "hidden": 1
+        },
+        {
+            "fieldname": "acc_number",
+            "label": "Account Number",
+            "fieldtype": "Data",
+            "width": 120,
+            "hidden": 1
+        },
+        {
+            "fieldname": "currency",
+            "label": "Currency",
+            "fieldtype": "Link",
+            "options": "Currency",
+            "hidden": 1
+        },
+        {
+            "fieldname": "dec_2026",
+            "label": "2026",
+            "fieldtype": "Currency",
+            "options": "currency",
+            "width": 150
+        },
+        {
+            "label": "Claim Expense Type",
+            "fieldname": "claim_expense_type",
+            "fieldtype": "Data",
+            "width": 180
+        }
+    ],
+    "result": [
+        {
+            "account": "الإيرادات - C219",
+            "parent_account": "",
+            "indent": 0,
+            "year_start_date": "2026-01-01",
+            "year_end_date": "2026-12-31",
+            "currency": "YER",
+            "include_in_gross": 0,
+            "account_type": "",
+            "is_group": 1,
+            "opening_balance": 0,
+            "account_name": "الإيرادات",
+            "acc_name": "الإيرادات",
+            "acc_number": "",
+            "dec_2026": 4000000,
+            "has_value": true,
+            "total": 4000000,
+            "claim_expense_type": ""
+        },
+        {
+            "account": "إيراد مباشر - C219",
+            "parent_account": "الإيرادات - C219",
+            "indent": 1,
+            "year_start_date": "2026-01-01",
+            "year_end_date": "2026-12-31",
+            "currency": "YER",
+            "include_in_gross": 0,
+            "account_type": "",
+            "is_group": 1,
+            "opening_balance": 0,
+            "account_name": "إيراد مباشر",
+            "acc_name": "إيراد مباشر",
+            "acc_number": "",
+            "dec_2026": 4000000,
+            "has_value": true,
+            "total": 4000000,
+            "claim_expense_type": ""
+        },
+        {
+            "account": "مبيعات - C219",
+            "parent_account": "إيراد مباشر - C219",
+            "indent": 2,
+            "year_start_date": "2026-01-01",
+            "year_end_date": "2026-12-31",
+            "currency": "YER",
+            "include_in_gross": 0,
+            "account_type": "",
+            "is_group": 0,
+            "opening_balance": 0,
+            "account_name": "مبيعات",
+            "acc_name": "مبيعات",
+            "acc_number": "",
+            "dec_2026": 4000000,
+            "has_value": true,
+            "total": 4000000,
+            "claim_expense_type": "No Expense Type found"
+        },
+        {
+            "account_name": "'Total Income (Credit)'",
+            "account": "'Total Income (Credit)'",
+            "currency": "YER",
+            "opening_balance": 0,
+            "dec_2026": 4000000,
+            "total": 4000000,
+            "claim_expense_type": "No Expense Type found"
+        },
+        {
+            "claim_expense_type": ""
+        },
+        {
+            "account": "النفقات - C219",
+            "parent_account": "",
+            "indent": 0,
+            "year_start_date": "2026-01-01",
+            "year_end_date": "2026-12-31",
+            "currency": "YER",
+            "include_in_gross": 0,
+            "account_type": "",
+            "is_group": 1,
+            "opening_balance": 0,
+            "account_name": "النفقات",
+            "acc_name": "النفقات",
+            "acc_number": "",
+            "dec_2026": 800000,
+            "has_value": true,
+            "total": 800000,
+            "claim_expense_type": ""
+        },
+        {
+            "account": "نفقات غير مباشرة - C219",
+            "parent_account": "النفقات - C219",
+            "indent": 1,
+            "year_start_date": "2026-01-01",
+            "year_end_date": "2026-12-31",
+            "currency": "YER",
+            "include_in_gross": 0,
+            "account_type": "",
+            "is_group": 1,
+            "opening_balance": 0,
+            "account_name": "نفقات غير مباشرة",
+            "acc_name": "نفقات غير مباشرة",
+            "acc_number": "",
+            "dec_2026": 800000,
+            "has_value": true,
+            "total": 800000,
+            "claim_expense_type": ""
+        },
+        {
+            "account": "ايجار مكتب - C219",
+            "parent_account": "نفقات غير مباشرة - C219",
+            "indent": 2,
+            "year_start_date": "2026-01-01",
+            "year_end_date": "2026-12-31",
+            "currency": "YER",
+            "include_in_gross": 0,
+            "account_type": "",
+            "is_group": 0,
+            "opening_balance": 0,
+            "account_name": "ايجار مكتب",
+            "acc_name": "ايجار مكتب",
+            "acc_number": "",
+            "dec_2026": 500000,
+            "has_value": true,
+            "total": 500000,
+            "claim_expense_type": "إيجار مكتب للمشروع وسكن"
+        },
+        {
+            "account": "نفقات إدارية - C219",
+            "parent_account": "نفقات غير مباشرة - C219",
+            "indent": 2,
+            "year_start_date": "2026-01-01",
+            "year_end_date": "2026-12-31",
+            "currency": "YER",
+            "include_in_gross": 0,
+            "account_type": "",
+            "is_group": 0,
+            "opening_balance": 0,
+            "account_name": "نفقات إدارية",
+            "acc_name": "نفقات إدارية",
+            "acc_number": "",
+            "dec_2026": 300000,
+            "has_value": true,
+            "total": 300000,
+            "claim_expense_type": "نفقات إدارية تنظيف مطبخ ضيافة صيانة مبنى"
+        },
+        {
+            "account_name": "'Total Expense (Debit)'",
+            "account": "'Total Expense (Debit)'",
+            "currency": "YER",
+            "opening_balance": 0,
+            "dec_2026": 800000,
+            "total": 800000,
+            "claim_expense_type": "No Expense Type found"
+        },
+        {
+            "claim_expense_type": ""
+        },
+        {
+            "account_name": "'Profit for the year'",
+            "account": "'Profit for the year'",
+            "warn_if_negative": true,
+            "currency": "YER",
+            "dec_2026": 3200000,
+            "total": 3200000,
+            "claim_expense_type": "No Expense Type found"
+        }
+    ],
+    "account_to_expense_type ": {
+        "نفقات إدارية - C219": "نفقات إدارية تنظيف مطبخ ضيافة صيانة مبنى",
+        "ايجار مكتب - C219": "إيجار مكتب للمشروع وسكن",
+        "طباعة وقرطاسية - C219": "طباعة وتصوير وقرطاسية",
+        "نفقات السفر - C219": "مصاريف السفر"
+    },
+    "report_summary": [
+        {
+            "value": 4000000,
+            "label": "Total Income This Year",
+            "datatype": "Currency",
+            "currency": "YER"
+        },
+        {
+            "value": 800000,
+            "label": "Total Expense This Year",
+            "datatype": "Currency",
+            "currency": "YER"
+        },
+        {
+            "value": 3200000,
+            "indicator": "Green",
+            "label": "Profit This Year",
+            "datatype": "Currency",
+            "currency": "YER"
+        }
+    ]
+}
+
+
+
+
+العمليات المالية حسب البنود
+
+const filters = {
+    company: "وحدة الديزل",
+    from_date: "2026-01-01",
+    to_date: "2026-12-31"
+};
+
+fetch("/api/method/get_gl_report?" + new URLSearchParams({
+    filters: JSON.stringify(filters)
+}))
+.then(response => {
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+})
+.then(data => {
+    const message = data.message || {};
+    
+    console.log("=== General Ledger (Mapped Columns) ===");
+    
+    // Process results for easier console viewing
+    const mappedRows = (message.result || [])
+        .map(row => ({
+            "Posting Date": row.posting_date,
+            "Voucher No": row.voucher_no,
+            "Account": row.account,
+            "Claim Expense Type": row.claim_expense_type,
+            "Debit": row.debit,
+            "Credit": row.credit,
+	“project”:row.project,
+	“cost_center”,
+            "Remarks": row.remarks
+        }));
+        
+    console.table(mappedRows);
+})
+.catch(error => {
+    console.error("Error:", error);
+});
+(index)	Posting Date	Voucher No	Account	project	cost center	Claim Expense Type	Debit	Credit	Remarks
+									
+0	undefined	undefined	"'Opening'"	''	undefined	'No Expense Type found'	0	0	undefined
+1	'2026-08-10'	'ACC-JV-2026-00001-1'	'ايجار مكتب - C219'	'PROJ-0003'	'رئيسي - C219'	'إيجار مكتب للمشروع وسكن'	500000	0	null
+2	'2026-08-10'	'ACC-JV-2026-00001-1'	'نقد - C219'	''	'رئيسي - C219'	'No Expense Type found'	0	500000	null
+3	'2026-08-10'	'ACC-JV-2026-00002'	'طباعة وقرطاسية - C219'	''	'رئيسي - C219'	'طباعة وتصوير وقرطاسية'	150000	0	null
+4	'2026-08-10'	'ACC-JV-2026-00002'	'نقد - C219'	''	'رئيسي - C219'	'No Expense Type found'	0	150000	null
+5	'2026-08-10'	'ACC-JV-2026-00003'	'رأس المال - C219'	''	'رئيسي - C219'	'No Expense Type found'	0	6000000	null
+6	'2026-08-10'	'ACC-JV-2026-00003'	'نقد - C219'	''	'رئيسي - C219'	'No Expense Type found'	6000000	0	null
+7	'2026-08-10'	'ACC-JV-2026-00004'	'نفقات إدارية - C219'	'PROJ-0003'	'رئيسي - C219'	'نفقات إدارية تنظيف مطبخ ضيافة صيانة مبنى'	300000	0	null
+8	'2026-08-10'	'ACC-JV-2026-00004'	'نقد - C219'	''	'رئيسي - C219'	'No Expense Type found'	0	300000	null
+9	'2026-08-10'	'ACC-JV-2026-00005'	'نفقات السفر - C219'	'PROJ-0002'	'رئيسي - C219'	'مصاريف السفر'	700000	0	null
+10	'2026-08-10'	'ACC-JV-2026-00005'	'نقد - C219'	''	'رئيسي - C219'	'No Expense Type found'	0	700000	null
+11	'2026-08-10'	'ACC-JV-2026-00006'	'مبيعات - C219'	'PROJ-0003'	'رئيسي - C219'	'No Expense Type found'	0	4000000	null
+12	'2026-08-10'	'ACC-JV-2026-00006'	'نقد - C219'	''	'رئيسي - C219'	'No Expense Type found'	4000000	0	null
+13	undefined	undefined	"'Total'"	''	undefined	'No Expense Type found'	11650000	11650000	undefined
+14	undefined	undefined	"'Closing (Opening + Total)'"	''	undefined	'No Expense Type found'	11650000	11650000	undefined
+									
+
+
+
+
+
+1.	Array(15)
+

@@ -1,0 +1,314 @@
+/* ==========================================================================
+   TABLES COMPONENT & COMPATIBILITY LAYER
+   ========================================================================== */
+
+/* 1. Base Tables Layout */
+.table-wrapper, .table-responsive {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-gray-200);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: var(--space-lg);
+    background: var(--color-white);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--color-white);
+    font-size: var(--font-size-sm);
+}
+
+.table thead {
+    background: var(--color-gray-50);
+    border-bottom: 2px solid var(--color-gray-200);
+}
+
+.table th {
+    padding: var(--space-md) var(--space-lg);
+    text-align: right; /* RTL */
+    font-weight: 700;
+    color: var(--color-primary);
+    white-space: nowrap;
+}
+
+.table td {
+    padding: var(--space-sm) var(--space-lg);
+    border-bottom: 1px solid var(--color-gray-100);
+    color: var(--color-gray-700);
+    vertical-align: middle;
+}
+
+.table tbody tr {
+    transition: background 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+
+.table tbody tr:nth-child(even) {
+    background: rgba(243, 244, 246, 0.3); /* Ultra-light zebra striping var(--color-gray-100) equivalent */
+}
+
+.table tbody tr:hover {
+    background: rgba(201, 169, 97, 0.04); /* Light gold hover tint */
+}
+
+/* 2. Compact Table System (compact-table.css) */
+.table-compact {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    width: 98%;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.table-compact thead th {
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 50%, var(--color-primary-light) 100%);
+    color: var(--color-white);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.5rem 0.4rem;
+    border: none;
+    border-bottom: 2px solid var(--color-accent);
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+    position: relative;
+    height: 36px;
+    box-shadow: 0 2px 6px rgba(15, 31, 61, 0.12);
+}
+
+.table-compact tbody tr {
+    background: var(--color-white);
+    transition: var(--transition-normal);
+    border-bottom: 1px solid var(--color-gray-100);
+    height: 40px;
+    position: relative;
+}
+
+.table-compact tbody tr::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    background: linear-gradient(180deg, var(--color-accent) 0%, var(--color-accent-light) 100%);
+    transition: width var(--transition-normal);
+    z-index: 1;
+}
+
+.table-compact tbody tr:hover {
+    background: linear-gradient(90deg, rgba(201, 169, 97, 0.05) 0%, rgba(201, 169, 97, 0.02) 50%, transparent 100%);
+}
+
+.table-compact tbody tr:hover::before {
+    width: 3px;
+}
+
+.table-compact tbody td {
+    padding: 0.35rem 0.4rem;
+    vertical-align: middle;
+    font-size: 0.75rem;
+    color: var(--color-gray-700);
+    border: none;
+    text-align: center;
+    height: 40px;
+    max-height: 40px;
+    overflow: hidden;
+}
+
+/* Compact Table Layout Helpers */
+.text-truncate-custom, .text-truncate-custom-lg {
+    display: inline-block;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.text-truncate-custom { max-width: 150px; margin: 0 auto; }
+.text-truncate-custom-lg { max-width: 250px; margin: 0 auto; }
+
+.user-name-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+}
+.user-name-cell .fw-medium {
+    color: var(--color-primary-dark);
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+
+.date-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.2;
+    align-items: center;
+}
+.date-main {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    direction: ltr;
+}
+.date-time {
+    font-size: 0.62rem;
+    color: var(--color-gray-500);
+    direction: ltr;
+    font-weight: 500;
+}
+
+.creator-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    text-align: center;
+    align-items: center;
+}
+.creator-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100px;
+    display: block;
+}
+.creator-entity {
+    font-size: 0.62rem;
+    color: var(--color-gray-500);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100px;
+    display: block;
+}
+
+/* 3. Project Table Layouts (project-tables.css) */
+.project-table-container {
+    background: var(--color-white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    margin-bottom: var(--space-lg);
+    border: 1px solid var(--color-gray-200);
+}
+
+.project-table-header {
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-gray-800) 100%);
+    color: var(--color-white);
+    padding: var(--space-sm) var(--space-lg);
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    border-bottom: 3px solid #059669; /* Keep emerald border accent */
+}
+
+.project-table-header i {
+    font-size: 1.1em;
+    color: #059669;
+}
+
+.project-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.project-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 4px;
+    margin: 0;
+    padding: var(--space-sm);
+}
+
+.project-table thead th {
+    background: transparent;
+    color: var(--color-gray-500);
+    font-size: 0.8rem;
+    padding: var(--space-sm) var(--space-md);
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 1px solid var(--color-gray-200);
+    white-space: nowrap;
+}
+
+.project-table tbody tr {
+    background: var(--color-white);
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+.project-table tbody tr:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 25px rgba(5, 150, 105, 0.08);
+    background-color: var(--color-gray-50);
+}
+
+.project-table tbody td {
+    vertical-align: middle;
+    padding: var(--space-sm) var(--space-md);
+    border: none;
+    text-align: center;
+    color: var(--color-gray-700);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Emerald Accent left highlights */
+.project-table tbody tr td:first-child {
+    border-inline-start: 3px solid transparent;
+}
+.project-table tbody tr:hover td:first-child {
+    border-inline-start-color: #059669;
+}
+
+/* 4. Auto-Fit Font Resizing (table-auto-fit.css) */
+.project-table {
+    font-size: clamp(0.65rem, 1.4vw, 0.78rem);
+    line-height: 1.3;
+}
+.project-table thead th {
+    font-size: clamp(0.6rem, 1.3vw, 0.72rem);
+}
+.project-table input.form-control,
+.project-table select.form-select,
+.project-table textarea.form-control {
+    font-size: clamp(0.62rem, 1.2vw, 0.72rem);
+    padding: 0.2rem 0.4rem;
+    height: auto;
+    min-height: 28px;
+}
+
+/* 5. Mobile Responsive Horizontal Scroll adjustments */
+@media (max-width: 768px) {
+    .table-responsive {
+        display: block !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        border: 1px solid var(--color-gray-200) !important;
+        border-radius: var(--radius-lg) !important;
+        background-color: var(--color-white) !important;
+        padding-bottom: 30px !important;
+    }
+    .table-responsive .table {
+        display: table !important;
+        width: 100% !important;
+        min-width: 750px !important;
+    }
+}

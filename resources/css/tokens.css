@@ -1,0 +1,150 @@
+/**
+ * Unified Arabic Design Tokens - Project Management System
+ * Primary Identity: Navy Blue (#1e3a5f), Gold (#c9a961), Sky Blue (#3a8fc7)
+ * Primary Fonts: Cairo & Tajawal
+ */
+
+:root {
+    /* ==========================================
+       1. COLOR PALETTE TOKENS
+       ========================================== */
+    
+    /* Primary Colors (Navy Blue) */
+    --primary: #1e3a5f;
+    --primary-light: #2d5a8f;
+    --primary-dark: #0f1f3d;
+    --primary-hover: #173050;
+    --primary-subtle: #eef4fb;
+
+    /* Accent & Gold Colors */
+    --accent: #c9a961;
+    --accent-light: #d4b876;
+    --accent-dark: #b89850;
+    --accent-hover: #bfa058;
+    --accent-subtle: #fbf8f0;
+
+    /* Secondary Accent (Sky Blue) */
+    --sky-blue: #3a8fc7;
+    --sky-blue-light: #5ba3d0;
+    --sky-blue-dark: #2a6f9d;
+    --sky-blue-subtle: #edf6fc;
+
+    /* Neutral & Grayscale Palette */
+    --white: #ffffff;
+    --black: #000000;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+
+    /* Semantic Status Colors */
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --success-dark: #047857;
+    
+    --warning: #f59e0b;
+    --warning-light: #fef3c7;
+    --warning-dark: #b45309;
+
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --danger-dark: #b91c1c;
+
+    --info: #3b82f6;
+    --info-light: #dbeafe;
+    --info-dark: #1d4ed8;
+
+    /* Backward Compatibility Aliases */
+    --primary-color: var(--primary);
+    --gold-color: var(--accent);
+    --ui-primary: var(--primary);
+    --ui-secondary: var(--sky-blue);
+    --ui-bg-main: var(--gray-50);
+    --ui-bg-surface: var(--white);
+    --ui-border-color: var(--gray-200);
+    --config-primary: var(--primary);
+    --config-primary-light: var(--primary-light);
+
+    /* ==========================================
+       2. TYPOGRAPHY TOKENS
+       ========================================== */
+    --font-sans: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-report: 'Tajawal', 'Cairo', sans-serif;
+    --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    /* Font Sizes */
+    --font-size-2xs: 0.6875rem; /* 11px */
+    --font-size-xs: 0.75rem;    /* 12px */
+    --font-size-sm: 0.875rem;   /* 14px */
+    --font-size-base: 1rem;     /* 16px */
+    --font-size-lg: 1.125rem;   /* 18px */
+    --font-size-xl: 1.25rem;    /* 20px */
+    --font-size-2xl: 1.5rem;    /* 24px */
+    --font-size-3xl: 1.875rem;  /* 30px */
+
+    /* Font Weights */
+    --font-weight-light: 300;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+
+    /* Line Heights */
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.625;
+
+    /* ==========================================
+       3. LAYOUT & CONTAINER METRICS
+       ========================================== */
+    --sidebar-width: 240px;
+    --sidebar-collapsed-width: 0px;
+    --header-height: 50px;
+    --content-max-width: 1400px;
+
+    /* ==========================================
+       4. SPACING & PADDING TOKENS
+       ========================================== */
+    --space-2xs: 0.125rem; /* 2px */
+    --space-xs: 0.25rem;   /* 4px */
+    --space-sm: 0.4rem;    /* 6.4px */
+    --space-md: 0.8rem;    /* 12.8px */
+    --space-lg: 1.2rem;    /* 19.2px */
+    --space-xl: 1.6rem;    /* 25.6px */
+    --space-2xl: 2.4rem;   /* 38.4px */
+
+    /* ==========================================
+       5. BORDER RADIUS & SHADOWS
+       ========================================== */
+    --radius-xs: 0.25rem;  /* 4px */
+    --radius-sm: 0.375rem; /* 6px */
+    --radius: 0.5rem;      /* 8px */
+    --radius-lg: 0.75rem;  /* 12px */
+    --radius-xl: 1rem;     /* 16px */
+    --radius-full: 9999px;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+    /* Transitions & Animations */
+    --transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    --transition-slow: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+
+    /* Z-Index Layers */
+    --z-navbar: 1000;
+    --z-sidebar: 900;
+    --z-dropdown: 1050;
+    --z-modal: 1080;
+    --z-toast: 1100;
+    --z-loader: 9999;
+}

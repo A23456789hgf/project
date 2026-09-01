@@ -1,0 +1,82 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>تقرير استيراد المجالات</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5>ملخص الاستيراد</h5>
+                        <ul>
+                            <li>إجمالي السجلات المعالجة: {{ $report['total'] }}</li>
+                            <li>عدد السجلات الناجحة: <span class="text-success">{{ $report['successful'] }}</span></li>
+                            <li>عدد السجلات الفاشلة: <span class="text-danger">{{ $report['failed'] }}</span></li>
+                        </ul>
+                    </div>
+
+                    @if($report['failed'] > 0)
+                    <div class="alert alert-warning">
+                        <h5>الأخطاء</h5>
+                        <p>حدثت أخطاء في بعض السجلات. يمكنك تحميل تقرير الأخطاء للتفاصيل.</p>
+
+                        <div class="mt-3">
+                            <a href="{{ route('domains.download-error-report') }}?format=xlsx" class="btn btn-outline-danger">تحميل تقرير الأخطاء (Excel)</a>
+                            <a href="{{ route('domains.download-error-report') }}?format=csv" class="btn btn-outline-danger">تحميل تقرير الأخطاء (CSV)</a>
+                        </div>
+
+                        <div class="mt-3">
+                            <button class="btn btn-sm btn-secondary" type="button" data-toggle="collapse" data-target="#errorDetails" aria-expanded="false" aria-controls="errorDetails">
+                                عرض تفاصيل الأخطاء
+                            </button>
+                        </div>
+
+                        <div class="collapse mt-3" id="errorDetails">
+                            <div class="card card-body">
+                                @foreach($errors as $rowNumber => $error)
+                                    <div class="mb-2">
+                                        <strong>الصف {{ $rowNumber }}:</strong>
+                                        <ul>
+                                            @foreach($error['errors'] as $errorMessage)
+                                                <li class="text-danger">{{ $errorMessage }}</li>
+                                            @endforeach
+                                        </ul>
+                                        <pre class="small">{{ json_encode($error['row_data'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
+                    @if($report['successful'] > 0)
+                    <div class="alert alert-success">
+                        <h5>الاستيراد الناجح</h5>
+                        <p>تم استيراد {{ $report['successful'] }} سجل بنجاح.</p>
+                        <p>اسم الملف المستورد: {{ $importedFile }}</p>
+
+                        @if($report['failed'] == 0)
+                        <div class="mt-3">
+                            <form action="{{ route('domains.undo-import', ['fileName' => $importedFile]) }}" method="POST" style="display: inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-outline-warning" onclick="return confirmAction(this, 'هل أنت متأكد من التراجع عن الاستيراد؟ سيتم حذف جميع السجلات المستوردة.')">تراجع عن الاستيراد</button>
+                            </form>
+                        </div>
+                        @endif
+                    </div>
+                    @endif
+
+                    <div class="mt-3">
+                        <a href="{{ route('domains.index') }}" class="btn btn-primary">العودة إلى قائمة المجالات</a>
+                        <a href="{{ route('domains.import') }}" class="btn btn-secondary">استيراد ملف آخر</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection

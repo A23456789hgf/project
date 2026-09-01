@@ -1,0 +1,282 @@
+/* ==========================================================================
+   DESIGN TOKENS & BACKWARD COMPATIBILITY LAYER
+   ========================================================================== */
+
+:root {
+    /* ----------------------------------------------------------------------
+       1. Core Design Tokens (New Standardized Scheme)
+       ---------------------------------------------------------------------- */
+    --color-primary: #1e3a5f;         /* Deep Navy */
+    --color-primary-light: #2d5a8f;   /* Medium Navy */
+    --color-primary-dark: #0f1f3d;    /* Dark Navy */
+    
+    --color-accent: #c9a961;          /* Gold Accent */
+    --color-accent-light: #d4b876;
+    --color-accent-dark: #b89850;
+    
+    --color-secondary-accent: #3a8fc7; /* Sky Blue Accent */
+    --color-secondary-accent-light: #5ba3d0;
+    --color-secondary-accent-dark: #2d5a8f;
+
+    /* Semantic States */
+    --color-success: #10b981;
+    --color-success-light: #34d399;
+    --color-success-bg: #ecfdf5;
+    
+    --color-warning: #f59e0b;
+    --color-warning-light: #fbbf24;
+    --color-warning-bg: #fffbeb;
+    
+    --color-danger: #ef4444;
+    --color-danger-light: #f87171;
+    --color-danger-bg: #fef2f2;
+    
+    --color-info: #3b82f6;
+    --color-info-light: #60a5fa;
+    --color-info-bg: #eff6ff;
+
+    /* Neutrals */
+    --color-white: #ffffff;
+    --color-gray-50: #f8fafc;
+    --color-gray-100: #f1f5f9;
+    --color-gray-200: #e2e8f0;
+    --color-gray-300: #cbd5e1;
+    --color-gray-400: #94a3b8;
+    --color-gray-500: #64748b;
+    --color-gray-600: #475569;
+    --color-gray-700: #334155;
+    --color-gray-800: #1e293b;
+    --color-gray-900: #0f172a;
+
+    /* Spacing Scale (Compact & Consistent) */
+    --space-xs: 0.25rem;  /* 4px */
+    --space-sm: 0.5rem;   /* 8px */
+    --space-md: 0.75rem;  /* 12px */
+    --space-lg: 1rem;     /* 16px */
+    --space-xl: 1.5rem;   /* 24px */
+    --space-2xl: 2rem;    /* 32px */
+    --space-3xl: 3rem;    /* 48px */
+
+    /* Typography */
+    --font-sans: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-size-xs: 0.75rem;     /* 12px */
+    --font-size-sm: 0.8125rem;   /* 13px */
+    --font-size-base: 0.875rem;  /* 14px */
+    --font-size-lg: 1rem;        /* 16px */
+    --font-size-xl: 1.125rem;    /* 18px */
+    --font-size-2xl: 1.25rem;    /* 20px */
+    --font-size-3xl: 1.5rem;     /* 24px */
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(15, 31, 61, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(15, 31, 61, 0.1), 0 2px 4px -1px rgba(15, 31, 61, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(15, 31, 61, 0.1), 0 4px 6px -2px rgba(15, 31, 61, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(15, 31, 61, 0.1);
+
+    /* Border Radii */
+    --radius-sm: 0.25rem;   /* 4px */
+    --radius-md: 0.375rem;  /* 6px */
+    --radius-lg: 0.5rem;    /* 8px */
+    --radius-xl: 0.75rem;   /* 12px */
+    --radius-2xl: 1rem;     /* 16px */
+
+    /* Transitions */
+    --transition-fast: all 0.15s ease-in-out;
+    --transition-normal: all 0.25s ease-in-out;
+    --transition-slow: all 0.35s ease-in-out;
+
+    /* Layout Dimensions */
+    --sidebar-width: 260px;
+    --header-height: 60px;
+
+    /* ----------------------------------------------------------------------
+       2. Backward Compatibility Layer (Aliases for Legacy CSS Files)
+       ---------------------------------------------------------------------- */
+    /* design-system.css Legacy Aliases */
+    --primary: var(--color-primary);
+    --primary-light: var(--color-primary-light);
+    --primary-dark: var(--color-primary-dark);
+    --accent: var(--color-accent);
+    --accent-light: var(--color-accent-light);
+    --accent-dark: var(--color-accent-dark);
+    --success: var(--color-success);
+    --warning: var(--color-warning);
+    --danger: var(--color-danger);
+    --info: var(--color-info);
+    --white: var(--color-white);
+    --gray-50: var(--color-gray-50);
+    --gray-100: var(--color-gray-100);
+    --gray-200: var(--color-gray-200);
+    --gray-300: var(--color-gray-300);
+    --gray-400: var(--color-gray-400);
+    --gray-500: var(--color-gray-500);
+    --gray-600: var(--color-gray-600);
+    --gray-700: var(--color-gray-700);
+    --gray-800: var(--color-gray-800);
+    --gray-900: var(--color-gray-900);
+    --radius: var(--radius-lg);
+
+    /* unified-arabic-design.css Legacy Aliases */
+    --primary-color: var(--color-primary);
+    --accent-color: var(--color-secondary-accent);
+    --accent-light: var(--color-secondary-accent-light);
+    --accent-dark: var(--color-secondary-accent-dark);
+    --gold-color: var(--color-accent);
+    --gold-light: var(--color-accent-light);
+    --gold-dark: var(--color-accent-dark);
+    --success-color: var(--color-success);
+    --success-light: var(--color-success-light);
+    --success-bg: var(--color-success-bg);
+    --warning-color: var(--color-warning);
+    --warning-light: var(--color-warning-light);
+    --warning-bg: var(--color-warning-bg);
+    --danger-color: var(--color-danger);
+    --danger-light: var(--color-danger-light);
+    --danger-bg: var(--color-danger-bg);
+    --info-color: var(--color-secondary-accent);
+    --info-light: var(--color-secondary-accent-light);
+    --info-bg: var(--color-info-bg);
+    --bg-primary: var(--color-gray-50);
+    --bg-secondary: var(--color-gray-100);
+    --bg-tertiary: var(--color-gray-200);
+    --bg-white: var(--color-white);
+    --bg-dark: var(--color-primary);
+    --bg-light-hover: var(--color-gray-50);
+    --bg-card: var(--color-white);
+    --text-primary: var(--color-primary);
+    --text-secondary: var(--color-gray-700);
+    --text-muted: var(--color-gray-500);
+    --text-light: var(--color-gray-400);
+    --text-white: var(--color-white);
+    --text-gold: var(--color-accent);
+    --text-accent: var(--color-secondary-accent);
+    --border-color: var(--color-gray-200);
+    --border-light: var(--color-gray-100);
+    --border-dark: var(--color-gray-300);
+    --border-width: 1px;
+    --border-radius-sm: var(--radius-md);
+    --border-radius-md: var(--radius-lg);
+    --border-radius-lg: var(--radius-xl);
+    --border-radius-xl: var(--radius-2xl);
+    --transition-normal: var(--transition-normal);
+    --spacing-xs: var(--space-sm);
+    --spacing-sm: var(--space-lg);
+    --spacing-md: var(--space-xl);
+    --spacing-lg: var(--space-2xl);
+    --spacing-xl: var(--space-3xl);
+    --font-xs: var(--font-size-xs);
+    --font-sm: var(--font-size-xs);
+    --font-base: var(--font-size-sm);
+    --font-md: var(--font-size-base);
+    --font-lg: var(--font-size-lg);
+    --font-xl: var(--font-size-xl);
+    --font-2xl: var(--font-size-2xl);
+    --font-3xl: var(--font-size-3xl);
+
+    /* configuration-styles.css Legacy Aliases */
+    --config-primary: var(--color-primary);
+    --config-primary-light: var(--color-primary-light);
+    --config-accent: var(--color-accent);
+    --config-accent-light: var(--color-accent-light);
+    --config-white: var(--color-white);
+    --config-gray-50: var(--color-gray-50);
+    --config-gray-100: var(--color-gray-100);
+    --config-gray-200: var(--color-gray-200);
+    --config-gray-300: var(--color-gray-300);
+    --config-gray-500: var(--color-gray-500);
+    --config-gray-700: var(--color-gray-700);
+    --config-shadow-sm: var(--shadow-sm);
+    --config-shadow: var(--shadow-md);
+    --config-shadow-md: var(--shadow-md);
+    --config-shadow-lg: var(--shadow-lg);
+    --config-radius: var(--radius-lg);
+    --config-radius-lg: var(--radius-xl);
+    --config-font-xs: var(--font-size-xs);
+    --config-font-sm: var(--font-size-sm);
+    --config-font-base: var(--font-size-base);
+    --config-font-lg: var(--font-size-lg);
+    --config-font-xl: var(--font-size-xl);
+    --config-font-2xl: var(--font-size-2xl);
+    --config-space-xs: var(--space-xs);
+    --config-space-sm: var(--space-sm);
+    --config-space-md: var(--space-md);
+    --config-space-lg: var(--space-lg);
+    --config-space-xl: var(--space-xl);
+    --config-transition: var(--transition-normal);
+
+    /* modern-reports.css Legacy Aliases */
+    --report-primary: #2c5f2d;
+    --report-secondary: #97bc62;
+    --report-success: #2c5f2d;
+    --report-info: #97bc62;
+    --report-danger: #e74a3b;
+    --report-dark: #1f2937;
+    --report-light: #f8f9fc;
+    --card-radius: 15px;
+    --card-shadow: 0 0.15rem 1.75rem 0 rgba(44, 95, 45, 0.08);
+    --hover-shadow: 0 0.5rem 2rem 0 rgba(44, 95, 45, 0.12);
+}
+
+/* --- Phase 4 Extracted Variables --- */
+:root {
+            /* Color Palette */
+            --primary: #1e3a5f;
+            --primary-light: #2d5a8f;
+            --primary-dark: #0f1f3d;
+            --primary-color: #1e3a5f; /* alias for unified-arabic-design.css compatibility */
+            --accent: #c9a961;
+            --accent-light: #d4b876;
+            --accent-dark: #b89850;
+            --sky-blue: #3a8fc7; /* Sky Blue - secondary accent */
+            --sky-blue-light: #5ba3d0;
+            --gold-color: #c9a961; /* Gold alias */
+
+            /* Neutrals */
+            --white: #ffffff;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+
+            /* Layout */
+            --sidebar-width: 240px;
+            --header-height: 50px;
+            --content-max-width: 1400px;
+
+            /* Spacing */
+            --space-xs: 0.25rem;
+            --space-sm: 0.4rem;
+            --space-md: 0.8rem;
+            --space-lg: 1.2rem;
+            --space-xl: 1.6rem;
+            --space-2xl: 2.4rem;
+
+            /* Typography */
+            --font-sans: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-size-xs: 0.75rem;
+            --font-size-sm: 0.875rem;
+            --font-size-base: 1rem;
+            --font-size-lg: 1.125rem;
+            --font-size-xl: 1.25rem;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+            /* Transitions */
+            --transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+            --transition-slow: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+
+            /* Border Radius */
+            --radius-sm: 0.375rem;
+            --radius: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;

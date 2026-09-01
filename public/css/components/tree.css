@@ -1,0 +1,143 @@
+/* ==========================================================================
+   INTERNAL ENTITIES HIERARCHY TREE
+   ========================================================================== */
+
+:root {
+    --tree-line-color: var(--color-gray-200);
+    --tree-hover-bg: var(--color-gray-50);
+    --tree-active-border: var(--color-info);
+}
+
+.tree-container {
+    padding: 10px;
+    border-radius: var(--radius-xl);
+    overflow-x: auto;
+    direction: rtl;
+}
+
+.tree-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.tree-item {
+    margin: 8px 0;
+    position: relative;
+}
+
+/* Node Styling */
+.tree-node {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 10px;
+    transition: var(--transition-normal);
+    position: relative;
+    z-index: 2;
+}
+
+.tree-node:hover {
+    background: var(--tree-hover-bg);
+    border-color: var(--color-gray-300);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Lines for children */
+.tree-children {
+    list-style: none;
+    padding: 0;
+    margin: 0 30px 0 0; /* RTL spacing */
+    border-right: 2px dashed var(--tree-line-color);
+    padding-right: 20px;
+    display: none; /* Hidden by default for logic to handle */
+}
+
+.tree-children.active {
+    display: block;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Toggle Button */
+.tree-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--color-gray-500);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    margin-left: 10px;
+    background: var(--color-gray-100);
+}
+
+.tree-toggle-btn:hover {
+    background: var(--color-gray-200);
+    color: var(--tree-active-border);
+}
+
+.tree-toggle-btn i {
+    transition: transform 0.3s ease;
+}
+
+.tree-toggle-btn.expanded i {
+    transform: rotate(-90deg); /* RTL rotation */
+}
+
+.tree-node-icon {
+    margin-left: 12px;
+    color: var(--tree-active-border);
+    font-size: 1.1rem;
+    background: var(--color-info-bg);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.tree-node-content {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tree-node-name {
+    font-weight: 600;
+    color: var(--color-gray-700);
+    font-size: 1rem;
+}
+
+.child-counter {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    background: var(--color-gray-100);
+    color: var(--color-gray-600);
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+/* Highlight for search */
+.highlight {
+    background-color: var(--color-warning-light);
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.d-none-search {
+    display: none !important;
+}

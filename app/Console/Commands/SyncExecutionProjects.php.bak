@@ -1,0 +1,134 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\Project;
+use App\Services\FrappeAPIService;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class SyncExecutionProjects extends Command
+{
+    /**
+     * اسم الأمر وسيطرته.
+     *
+     * @var string
+     */
+    protected $signature = 'projects:sync-execution
+                            {--force : إعادة مزامنة المشاريع حتى لو كانت مزامنة مسبقاً}
+                            {--dry-run : عرض المشاريع التي ستتم مزامنتها دون تنفيذ الفعلية}
+                            {--project-id= : مزامنة مشروع محدد فقط (اختياري)}';
+
+    /**
+     * وصف الأمر.
+     *
+     * @var string
+     */
+    protected $description = 'مزامنة المشاريع التي في مرحلة التنفيذ (in_execution) مع ERPNext (Frappe)';
+
+    protected FrappeAPIService $frappeService;
+
+    public function __construct(FrappeAPIService $frappeService)
+    {
+        parent::__construct();
+        $this->frappeService = $frappeService;
+    }
+
+    public function handle()
+    {
+        $this->info('بدء مزامنة المشاريع في مرحلة التنفيذ...');
+
+        $force = $this->option('force');
+        $dryRun = $this->option('dry-run');
+        $projectId = $this->option('project-id');
+
+        // بناء الاستعلام
+        $query = Project::with(['detail', 'cost', 'financings'])
+            ->where('status', 'in_execution');
+
+        // إذا لم يكن force مفعلًا، نأخذ فقط المشاريع غير المزامنة أو التي فشلت مزامنتها
+        if (!$force) {
+            $query->where(function ($q) {
+                $q->whereNull('frappe_synced_at')
+                  ->orWhere('frappe_sync_status', '!=', 'success')
+                  ->orWhereNull('erpnext_project_id');
+            });
+        }
+
+        if ($projectId) {
+            $query->where('id', $projectId);
+        }
+
+        $projects = $query->get();
+
+        if ($projects->isEmpty()) {
+            $this->info('لا توجد مشاريع تحتاج إلى مزامنة.');
+            return 0;
+        }
+
+        $this->info("تم العثور على {$projects->count()} مشروع(مشاريع) للمزامنة.");
+
+        $successCount = 0;
+        $failCount = 0;
+
+        foreach ($projects as $project) {
+            $this->line("معالجة المشروع ID: {$project->id} - {$project->project_name}");
+
+            if ($dryRun) {
+                $this->line("   [DRY-RUN] سيتم مزامنة المشروع {$project->id}");
+                $successCount++;
+                continue;
+            }
+
+            try {
+                DB::beginTransaction();
+
+                // استدعاء خدمة المزامنة مع إرسال التاريخ (true)
+                $result = $this->frappeService->sendProjectOnExecution($project, true);
+                $frappeProjectId = $result['data']['name'] ?? $result['name'] ?? null;
+
+                // تحديث بيانات المشروع
+                $project->update([
+                    'frappe_synced_at'      => now(),
+                    'frappe_project_id'     => $frappeProjectId,
+                    'frappe_project_name'   => $result['data']['project_name'] ?? null,
+                    'frappe_sync_status'    => 'success',
+                    'erpnext_project_id'    => $frappeProjectId,
+                    'sync_status'           => 'synced',
+                    'synced_to_erpnext_at'  => now(),
+                    // في حال لم يكن قد تم تعيين وقت بدء التنفيذ (احتياطي)
+                    'execution_started_at'  => $project->execution_started_at ?? now(),
+                ]);
+
+                DB::commit();
+
+                $this->info("   ✅ تمت مزامنة المشروع {$project->id} بنجاح (ERPNext ID: {$frappeProjectId})");
+                $successCount++;
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+
+                // تسجيل الخطأ في قاعدة البيانات
+                $project->update([
+                    'frappe_sync_status' => 'failed',
+                    'sync_status'        => 'failed',
+                    'sync_error'         => $e->getMessage(),
+                ]);
+
+                $this->error("   ❌ فشلت مزامنة المشروع {$project->id}: " . $e->getMessage());
+                Log::error('SyncExecutionProjects: فشل مزامنة مشروع', [
+                    'project_id' => $project->id,
+                    'error'      => $e->getMessage(),
+                    'trace'      => $e->getTraceAsString(),
+                ]);
+                $failCount++;
+            }
+        }
+
+        $this->newLine();
+        $this->info("تمت المزامنة بنجاح لـ {$successCount} مشروع، وفشل {$failCount} مشروع.");
+
+        return $failCount > 0 ? 1 : 0;
+    }
+}

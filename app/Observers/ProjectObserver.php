@@ -1,0 +1,105 @@
+<?php
+
+namespace App\Observers;
+
+use App\Models\Project;
+use App\Services\FrappeAPIService;
+use Illuminate\Support\Facades\Log;
+
+class ProjectObserver
+{
+    /**
+     * Ensure observer events run after the database transaction has committed.
+     *
+     * @var bool
+     */
+    public $afterCommit = true;
+
+    protected FrappeAPIService $frappeService;
+
+    public function __construct(FrappeAPIService $frappeService)
+    {
+        $this->frappeService = $frappeService;
+    }
+
+    /**
+     * Handle the Project "created" event.
+     * This will run after the project is successfully saved to the database.
+     */
+    public function created(Project $project): void
+    {
+        Log::info('========================================');
+        Log::info("ProjectObserver: Project created successfully in DB (ID: {$project->id}).");
+
+        $entity = $project->creatorEntity;
+
+        if (! $entity) {
+            Log::info('ProjectObserver: No creator entity associated with this project. Skipping ERPNext entity sync.');
+
+            return;
+        }
+
+        Log::info("ProjectObserver: Project creator entity is '{$entity->name}' of type '{$entity->entity_type}'.");
+
+        try {
+            // This will check if the entity (and its parents) exists in ERPNext.
+            // If it doesn't, it creates them automatically.
+            Log::info("ProjectObserver: Ensuring entity '{$entity->name}' and its hierarchy exist in ERPNext...");
+            $this->frappeService->ensureParentHierarchyExists($entity);
+            Log::info('ProjectObserver: Entity hierarchy successfully verified/created in ERPNext.');
+
+            // Determine the relevant Company to fetch Financial Items
+            $companyName = null;
+            if ($entity->entity_type === 'Company') {
+                $companyName = $entity->name;
+                Log::info("ProjectObserver: Entity is a Company. Target Company for financial items is '{$companyName}'.");
+            } else {
+                Log::info('ProjectObserver: Entity is a Department. Identifying parent Company...');
+                $companyName = $this->frappeService->findParentCompanyName($entity);
+                if ($companyName) {
+                    Log::info("ProjectObserver: Parent Company identified as '{$companyName}'.");
+                } else {
+                    Log::warning("ProjectObserver: Could not identify a parent Company for Department '{$entity->name}'.");
+                }
+            }
+
+            // Fetch the financial items to prepare them for the costs step
+            if ($companyName) {
+                Log::info("ProjectObserver: Fetching Expense Claim Types (Financial Items) for Company '{$companyName}'...");
+                $items = $this->frappeService->getExpenseClaimTypes($companyName);
+                Log::info('ProjectObserver: Successfully fetched '.count($items)." financial items for '{$companyName}'. They are now ready for the costs step.");
+            }
+
+        } catch (\Throwable $e) {
+            Log::error("ProjectObserver Exception during ERPNext entity sync for Project ID {$project->id}: {$e->getMessage()}", [
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Handle the Project "updated" event.
+     */
+    public function updated(Project $project): void
+    {
+        // Validation rules for status change:
+        // 1. Status field was modified in this update
+        // 2. Previous status was NOT in_execution
+        // 3. New status IS in_execution
+        if (
+            $project->wasChanged('status') &&
+            $project->getOriginal('status') !== 'in_execution' &&
+            $project->status === 'in_execution'
+        ) {
+            Log::info("ProjectObserver: Status changed to in_execution for Project ID {$project->id}. Triggering ERPNext sync after DB commit.");
+
+            try {
+                $this->frappeService->syncProjectToERPNext($project);
+            } catch (\Throwable $e) {
+                Log::error("ProjectObserver Exception during ERPNext sync for Project ID {$project->id}: {$e->getMessage()}", [
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
+        }
+    }
+}

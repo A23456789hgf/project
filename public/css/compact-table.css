@@ -1,0 +1,738 @@
+@push('styles') <style>
+/* ╔═══════════════════════════════════════════════════════════╗
+       ║  👥 USERS INDEX - COMPACT GOVERNMENT DESIGN              ║
+       ║  جدول مدمج أصغر من الصفحة - Navy & Gold                 ║
+       ╚═══════════════════════════════════════════════════════════╝ */
+
+/* ═══════════════════════════════════════════════════════════
+       🏛️ TABLE - جدول مدمج أصغر من الصفحة
+    ═══════════════════════════════════════════════════════════ */
+.table-compact {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    background: var(--white);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    width: 98%;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* الترويسة - رسمية ومدمجة جداً */
+.table-compact thead th {
+    background: linear-gradient(135deg, #0f1f3d 0%, #1e3a5f 50%, #2d5a8f 100%);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.5rem 0.4rem;
+    border: none;
+    border-bottom: 2px solid #c9a961;
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+    position: relative;
+    height: 36px;
+    box-shadow: 0 2px 6px rgba(15, 31, 61, 0.12);
+}
+
+.table-compact thead th::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(201, 169, 97, 0.4) 20%,
+            rgba(212, 175, 55, 0.6) 50%,
+            rgba(201, 169, 97, 0.4) 80%,
+            transparent 100%);
+}
+
+/* الصفوف - مدمجة جداً */
+.table-compact tbody tr {
+    background: #ffffff;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-bottom: 1px solid #f3f4f6;
+    height: 40px;
+    position: relative;
+}
+
+.table-compact tbody tr::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    background: linear-gradient(180deg, #c9a961 0%, #d4b876 100%);
+    transition: width 0.25s ease;
+    z-index: 1;
+}
+
+.table-compact tbody tr:hover {
+    background: linear-gradient(90deg,
+            rgba(201, 169, 97, 0.05) 0%,
+            rgba(201, 169, 97, 0.02) 50%,
+            transparent 100%);
+}
+
+.table-compact tbody tr:hover::before {
+    width: 3px;
+}
+
+.table-compact tbody tr:last-child {
+    border-bottom: none;
+}
+
+/* الخلايا - مدمجة جداً */
+.table-compact tbody td {
+    padding: 0.35rem 0.4rem;
+    vertical-align: middle;
+    font-size: 0.75rem;
+    color: #374151;
+    border: none;
+    text-align: center;
+    height: 40px;
+    max-height: 40px;
+    overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════
+       📏 COLUMN WIDTHS - أعمدة مدمجة
+    ═══════════════════════════════════════════════════════════ */
+.table-compact tbody td:nth-child(1),
+.table-compact thead th:nth-child(1) {
+    width: 50px;
+}
+
+.table-compact tbody td:nth-child(2),
+.table-compact thead th:nth-child(2) {
+    width: 14%;
+}
+
+.table-compact tbody td:nth-child(3),
+.table-compact thead th:nth-child(3) {
+    width: 9%;
+}
+
+.table-compact tbody td:nth-child(4),
+.table-compact thead th:nth-child(4) {
+    width: 9%;
+}
+
+.table-compact tbody td:nth-child(5),
+.table-compact thead th:nth-child(5) {
+    width: 11%;
+}
+
+.table-compact tbody td:nth-child(6),
+.table-compact thead th:nth-child(6) {
+    width: 7%;
+}
+
+.table-compact tbody td:nth-child(7),
+.table-compact thead th:nth-child(7) {
+    width: 9%;
+}
+
+.table-compact tbody td:nth-child(8),
+.table-compact thead th:nth-child(8) {
+    width: 11%;
+}
+
+.table-compact tbody td:nth-child(9),
+.table-compact thead th:nth-child(9) {
+    width: 130px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+       📝 TEXT TRUNCATION - قص النصوص
+    ═══════════════════════════════════════════════════════════ */
+.text-truncate-custom,
+.text-truncate-custom-lg {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.text-truncate-custom {
+    max-width: 110px;
+    margin: 0 auto;
+}
+
+.text-truncate-custom-lg {
+    max-width: 140px;
+    margin: 0 auto;
+}
+
+/* ═══════════════════════════════════════════════════════════
+       👤 USER NAME CELL
+    ═══════════════════════════════════════════════════════════ */
+.user-name-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+}
+
+.user-name-cell .fw-medium {
+    color: #0f1f3d;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: -0.01em;
+}
+
+/* ═══════════════════════════════════════════════════════════
+       🏷️ BADGES - الشارات المدمجة جداً
+    ═══════════════════════════════════════════════════════════ */
+.badge-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    border-radius: 14px;
+    line-height: 1.2;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    letter-spacing: 0.2px;
+    transition: all 0.2s ease;
+}
+
+.badge-geo {
+    background: linear-gradient(135deg, rgba(201, 169, 97, 0.1) 0%, rgba(212, 175, 55, 0.08) 100%);
+    color: #b89850;
+    border-color: rgba(201, 169, 97, 0.25);
+    width: fit-content;
+}
+
+.badge-role {
+    background: linear-gradient(135deg, #0f1f3d 0%, #1e3a5f 100%);
+    color: #d4af37;
+    border-color: #c9a961;
+    font-weight: 800;
+    box-shadow: 0 1px 3px rgba(30, 58, 95, 0.2);
+}
+
+.badge-active {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.08) 100%);
+    color: #047857;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.badge-disabled {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(185, 28, 28, 0.06) 100%);
+    color: #b91c1c;
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+/* ═══════════════════════════════════════════════════════════
+       📅 DATE CELL
+    ═══════════════════════════════════════════════════════════ */
+.date-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    align-items: center;
+}
+
+.date-main {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #0f1f3d;
+    direction: ltr;
+    text-align: center;
+}
+
+.date-time {
+    font-size: 0.62rem;
+    color: #6b7280;
+    direction: ltr;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════════════
+       👥 CREATOR CELL
+    ═══════════════════════════════════════════════════════════ */
+.creator-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    text-align: center;
+    align-items: center;
+}
+
+.creator-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #0f1f3d;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100px;
+    display: block;
+}
+
+.creator-entity {
+    font-size: 0.62rem;
+    color: #6b7280;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100px;
+    display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════
+       🎯 ACTION BUTTONS - مدمجة جداً
+    ═══════════════════════════════════════════════════════════ */
+.btn-group[role="group"] {
+    display: inline-flex;
+    gap: 2px;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-action-view,
+.btn-action-edit,
+.btn-action-disable,
+.btn-action-enable,
+.btn-action-delete,
+.btn-action-log {
+    width: 24px;
+    height: 24px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-action-view::before,
+.btn-action-edit::before,
+.btn-action-disable::before,
+.btn-action-enable::before,
+.btn-action-delete::before,
+.btn-action-log::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    border-radius: inherit;
+    z-index: 0;
+}
+
+.btn-action-view:hover::before,
+.btn-action-edit:hover::before,
+.btn-action-disable:hover::before,
+.btn-action-enable:hover::before,
+.btn-action-delete:hover::before,
+.btn-action-log:hover::before {
+    opacity: 1;
+}
+
+.btn-action-view:hover,
+.btn-action-edit:hover,
+.btn-action-disable:hover,
+.btn-action-enable:hover,
+.btn-action-delete:hover,
+.btn-action-log:hover {
+    transform: translateY(-1px) scale(1.05);
+    color: #ffffff !important;
+    border-color: transparent !important;
+}
+
+.btn-action-view:hover svg,
+.btn-action-edit:hover svg,
+.btn-action-disable:hover svg,
+.btn-action-enable:hover svg,
+.btn-action-delete:hover svg,
+.btn-action-log:hover svg {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    position: relative;
+    z-index: 1;
+}
+
+.action-icon {
+    width: 12px;
+    height: 12px;
+    stroke-width: 2.3;
+    position: relative;
+    z-index: 1;
+    transition: all 0.25s ease;
+}
+
+/* 👁️ عرض */
+.btn-action-view {
+    background: rgba(30, 58, 95, 0.08);
+    color: #1e3a5f;
+    border-color: rgba(30, 58, 95, 0.15);
+}
+
+.btn-action-view:hover {
+    background: linear-gradient(135deg, #0f1f3d 0%, #1e3a5f 100%);
+    box-shadow: 0 3px 8px rgba(30, 58, 95, 0.3);
+}
+
+/* 🕐 سجل الأنشطة */
+.btn-action-log {
+    background: rgba(201, 169, 97, 0.12);
+    color: #b89850;
+    border-color: rgba(201, 169, 97, 0.3);
+}
+
+.btn-action-log:hover {
+    background: linear-gradient(135deg, #b89850 0%, #d4af37 100%);
+    box-shadow: 0 3px 8px rgba(201, 169, 97, 0.35);
+}
+
+/* ✏️ تعديل */
+.btn-action-edit {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+.btn-action-edit:hover {
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+    box-shadow: 0 3px 8px rgba(245, 158, 11, 0.35);
+}
+
+/* ⏸️ تعطيل */
+.btn-action-disable {
+    background: rgba(234, 88, 12, 0.1);
+    color: #ea580c;
+    border-color: rgba(234, 88, 12, 0.25);
+}
+
+.btn-action-disable:hover {
+    background: linear-gradient(135deg, #c2410c 0%, #ea580c 100%);
+    box-shadow: 0 3px 8px rgba(234, 88, 12, 0.35);
+}
+
+/* ▶️ تفعيل */
+.btn-action-enable {
+    background: rgba(16, 185, 129, 0.1);
+    color: #047857;
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.btn-action-enable:hover {
+    background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.35);
+}
+
+/* 🗑️ حذف */
+.btn-action-delete {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+.btn-action-delete:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+    box-shadow: 0 3px 8px rgba(239, 68, 68, 0.35);
+}
+
+/* ═══════════════════════════════════════════════════════════
+       ➕ ADD BUTTON
+    ═══════════════════════════════════════════════════════════ */
+.btn-primary-compact {
+    background: linear-gradient(135deg, #0f1f3d 0%, #1e3a5f 50%, #2d5a8f 100%);
+    color: #d4af37;
+    border: 1px solid #c9a961;
+    padding: 6px 13px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 6px rgba(30, 58, 95, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary-compact::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+    transition: right 0.5s ease;
+}
+
+.btn-primary-compact:hover {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8f 100%);
+    color: #ffffff;
+    border-color: #d4b876;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(30, 58, 95, 0.3), 0 0 0 1px #c9a961;
+}
+
+.btn-primary-compact:hover::before {
+    right: 100%;
+}
+
+/* ═══════════════════════════════════════════════════════════
+       🔢 USER ID
+    ═══════════════════════════════════════════════════════════ */
+.user-id-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    background: linear-gradient(135deg, #0f1f3d 0%, #1e3a5f 100%);
+    color: #d4af37;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 10px;
+    border: 1px solid #c9a961;
+    box-shadow: 0 1px 3px rgba(30, 58, 95, 0.18);
+    letter-spacing: 0.3px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════════════════════════
+       📭 EMPTY STATE
+    ═══════════════════════════════════════════════════════════ */
+.empty-state {
+    padding: 2.5rem 1rem;
+    position: relative;
+}
+
+.empty-state::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, rgba(201, 169, 97, 0.06) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.empty-state .rounded-circle {
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%) !important;
+    border: 2px dashed #c9a961 !important;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(201, 169, 97, 0.15);
+}
+
+.empty-state .rounded-circle::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border: 1px solid rgba(201, 169, 97, 0.2);
+    border-radius: 50%;
+}
+
+.empty-state .rounded-circle svg,
+.empty-state .rounded-circle i {
+    color: #b89850 !important;
+    stroke: #b89850;
+}
+
+.empty-state h6 {
+    color: #0f1f3d;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-top: 1rem;
+}
+
+.empty-state small {
+    color: #6b7280;
+    font-size: 0.75rem;
+}
+
+/* ═══════════════════════════════════════════════════════════
+       📱 RESPONSIVE - تجاوب ذكي
+    ═══════════════════════════════════════════════════════════ */
+@media (max-width: 1399.98px) {
+    .hide-xl {
+        display: none !important;
+    }
+
+    .table-compact tbody td:nth-child(2),
+    .table-compact thead th:nth-child(2) {
+        width: 17%;
+    }
+
+    .table-compact tbody td:nth-child(3),
+    .table-compact thead th:nth-child(3) {
+        width: 11%;
+    }
+
+    .table-compact tbody td:nth-child(4),
+    .table-compact thead th:nth-child(4) {
+        width: 11%;
+    }
+
+    .table-compact tbody td:nth-child(7),
+    .table-compact thead th:nth-child(7) {
+        width: 11%;
+    }
+
+    .table-compact tbody td:nth-child(8),
+    .table-compact thead th:nth-child(8) {
+        width: 13%;
+    }
+}
+
+@media (max-width: 1199.98px) {
+    .hide-lg {
+        display: none !important;
+    }
+
+    .text-truncate-custom,
+    .text-truncate-custom-lg {
+        max-width: 100px;
+    }
+
+    .table-compact tbody td:nth-child(2),
+    .table-compact thead th:nth-child(2) {
+        width: 19%;
+    }
+
+    .table-compact tbody td:nth-child(3),
+    .table-compact thead th:nth-child(3) {
+        width: 13%;
+    }
+
+    .table-compact tbody td:nth-child(4),
+    .table-compact thead th:nth-child(4) {
+        width: 13%;
+    }
+
+    .table-compact tbody td:nth-child(7),
+    .table-compact thead th:nth-child(7) {
+        width: 13%;
+    }
+}
+
+@media (max-width: 991.98px) {
+
+    .table-compact thead th,
+    .table-compact tbody td {
+        padding: 0.3rem 0.35rem;
+        font-size: 0.7rem;
+    }
+
+    .table-compact tbody tr {
+        height: 38px;
+    }
+
+    .table-compact tbody td {
+        height: 38px;
+        max-height: 38px;
+    }
+
+    .btn-action-view,
+    .btn-action-edit,
+    .btn-action-disable,
+    .btn-action-enable,
+    .btn-action-delete,
+    .btn-action-log {
+        width: 22px;
+        height: 22px;
+    }
+
+    .action-icon {
+        width: 11px;
+        height: 11px;
+    }
+
+    .table-compact tbody td:nth-child(9),
+    .table-compact thead th:nth-child(9) {
+        width: 110px;
+    }
+}
+
+@media (max-width: 767.98px) {
+
+    .text-truncate-custom,
+    .text-truncate-custom-lg {
+        max-width: 80px;
+    }
+
+    .creator-name,
+    .creator-entity {
+        max-width: 80px;
+    }
+
+    .table-compact tbody td:nth-child(2),
+    .table-compact thead th:nth-child(2) {
+        width: 22%;
+    }
+
+    .table-compact tbody td:nth-child(3),
+    .table-compact thead th:nth-child(3) {
+        width: 15%;
+    }
+
+    .table-compact tbody td:nth-child(4),
+    .table-compact thead th:nth-child(4) {
+        width: 15%;
+    }
+
+    .table-compact tbody td:nth-child(7),
+    .table-compact thead th:nth-child(7) {
+        width: 15%;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+       🖨️ PRINT
+    ═══════════════════════════════════════════════════════════ */
+@media print {
+
+    .btn-group,
+    .auth-perm-users-create,
+    .btn-primary-compact {
+        display: none !important;
+    }
+
+    .table-compact thead th {
+        background: #f3f4f6 !important;
+        color: #0f1f3d !important;
+        border-bottom: 2px solid #0f1f3d !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .badge-role {
+        background: #0f1f3d !important;
+        color: #ffffff !important;
+    }
+}

@@ -1,0 +1,549 @@
+/* ==========================================================================
+   RESPONSIVE SYSTEM OVERRIDES
+   Optimized for RTL & Ministry Dashboard Design
+   ========================================================================== */
+
+/* ==========================================================================
+   1. GLOBAL TRANSITIONS
+   ========================================================================== */
+.sidebar-container,
+.main-content,
+.navbar,
+.wrapper {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* ==========================================================================
+   2. RESPONSIVE TABLES - Mobile Horizontal Scroll
+   ========================================================================== */
+@media (max-width: 768px) {
+    .table-responsive {
+        display: block !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        margin-bottom: 1rem !important;
+        background-color: #fff !important;
+        padding-bottom: 50px !important;
+    }
+
+    .table-responsive .table {
+        display: table !important;
+        width: 100% !important;
+        min-width: 750px !important;
+        border-collapse: collapse !important;
+    }
+
+    .table-responsive .table thead {
+        display: table-header-group !important;
+    }
+
+    .table-responsive .table tbody {
+        display: table-row-group !important;
+    }
+
+    .table-responsive .table tr {
+        display: table-row !important;
+        margin-bottom: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    .table-responsive .table td,
+    .table-responsive .table th {
+        display: table-cell !important;
+        text-align: center !important;
+        padding: 6px 10px !important;
+        font-size: 0.72rem !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+
+    /* Remove data-label pseudo-elements */
+    .table-responsive .table td::before,
+    .table-responsive .table th::before {
+        display: none !important;
+        content: "" !important;
+    }
+
+    .table-responsive .table td {
+        padding-right: 6px !important;
+    }
+}
+
+/* ==========================================================================
+   3. MOBILE SIDEBAR & NAVIGATION - RTL
+   ========================================================================== */
+@media (max-width: 991.98px) {
+    .sidebar-container {
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        right: 0 !important;
+        width: 260px !important;
+        height: 100vh !important;
+        z-index: 1050 !important;
+        transform: translateX(100%) !important;
+        background: #0f172a !important;
+        display: flex !important;
+        flex-direction: column !important;
+        border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: none !important;
+    }
+
+    .sidebar-container.show {
+        transform: translateX(0) !important;
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    /* Overlay */
+    .sidebar-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        background: rgba(15, 23, 42, 0.6) !important;
+        backdrop-filter: blur(4px) !important;
+        z-index: 1045 !important;
+        opacity: 0;
+        display: none !important;
+        transition: opacity 0.3s ease !important;
+    }
+
+    .sidebar-overlay.active {
+        display: block !important;
+        opacity: 1 !important;
+    }
+
+    body {
+        overflow-x: hidden !important;
+    }
+
+    .main-content {
+        margin-right: 0 !important;
+        padding: 12px !important;
+    }
+
+    .navbar {
+        right: 0 !important;
+        left: 0 !important;
+        padding: 0 12px !important;
+    }
+}
+
+/* ==========================================================================
+   4. CLOSE BUTTON OVERRIDE
+   ========================================================================== */
+.btn-close-white {
+    background-color: transparent !important;
+    filter: invert(1) grayscale(1) brightness(2) !important;
+    opacity: 0.75;
+    transition: all 0.2s ease;
+    border: none;
+    outline: none;
+    font-size: 0.9rem;
+    padding: 0.4rem;
+}
+
+.btn-close-white:hover {
+    opacity: 1;
+    transform: rotate(90deg);
+}
+
+/* ==========================================================================
+   5. TYPOGRAPHY & SPACING - Mobile Adaptations
+   ========================================================================== */
+@media (max-width: 576px) {
+
+    /* Navbar Brand */
+    .navbar-brand {
+        font-size: 0.85rem !important;
+        max-width: 60vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .navbar-brand img {
+        width: 28px !important;
+        height: 28px !important;
+    }
+
+    .brand-text {
+        font-size: 0.75rem !important;
+        font-weight: 600;
+    }
+
+    /* Page Header */
+    .page-header {
+        padding: 12px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .page-header h1,
+    .page-header h2 {
+        font-size: 1.1rem !important;
+    }
+
+    .page-header p {
+        font-size: 0.72rem !important;
+    }
+
+    /* Cards */
+    .card-body {
+        padding: 12px !important;
+    }
+
+    .main-content {
+        padding: 10px !important;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 5px 10px !important;
+        font-size: 0.72rem !important;
+    }
+
+    .btn i {
+        font-size: 0.68rem !important;
+    }
+}
+
+/* ==========================================================================
+   6. STATS CARDS - Mobile
+   ========================================================================== */
+@media (max-width: 768px) {
+    .stats-card {
+        padding: 16px !important;
+        position: relative !important;
+    }
+
+    .stats-card .stats-value {
+        font-size: 1.5rem !important;
+    }
+
+    .stats-card .stats-label {
+        font-size: 0.72rem !important;
+    }
+
+    .stats-card .stats-icon {
+        font-size: 1.8rem !important;
+        left: 12px !important;
+        right: auto !important;
+    }
+}
+
+/* ==========================================================================
+   7. FORM CONTROLS - Mobile
+   ========================================================================== */
+@media (max-width: 576px) {
+
+    .form-control,
+    .form-select {
+        font-size: 0.78rem !important;
+        padding: 6px 10px !important;
+        height: 32px !important;
+    }
+
+    .form-label {
+        font-size: 0.72rem !important;
+        margin-bottom: 3px !important;
+    }
+
+    .form-text {
+        font-size: 0.65rem !important;
+    }
+}
+
+/* ==========================================================================
+   8. FONT AWESOME ICONS FIX
+   ========================================================================== */
+.fa,
+.fas,
+.far,
+.fab,
+.fa-solid,
+.fa-regular,
+.fa-brands,
+.fa::before,
+.fas::before,
+.far::before,
+.fab::before,
+.fa-solid::before,
+.fa-regular::before,
+.fa-brands::before {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands",
+        "Font Awesome 5 Free", "Font Awesome 5 Brands",
+        "FontAwesome" !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+    line-height: 1 !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+}
+
+.fas,
+.fa-solid,
+.fas::before,
+.fa-solid::before {
+    font-weight: 900 !important;
+}
+
+.far,
+.fab,
+.fa-regular,
+.fa-brands,
+.far::before,
+.fab::before,
+.fa-regular::before,
+.fa-brands::before {
+    font-weight: 400 !important;
+}
+
+/* ==========================================================================
+   9. TABLE ACTION BUTTONS & DROPDOWN FIXES
+   ========================================================================== */
+
+/* Action buttons container */
+.table-actions {
+    display: flex !important;
+    gap: 4px !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+}
+
+/* Button group inside table */
+.table-actions .btn-group {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    width: auto !important;
+    gap: 3px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+}
+
+/* Action button styling */
+.table-actions .btn,
+.table-actions .btn-group .btn {
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 5px !important;
+    margin: 0 !important;
+    font-size: 0.72rem !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    transition: all 0.15s ease !important;
+}
+
+.table-actions .btn i,
+.table-actions .btn-group .btn i {
+    font-size: 0.72rem !important;
+    margin: 0 !important;
+    width: auto !important;
+}
+
+.table-actions .btn:hover,
+.table-actions .btn-group .btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Dropdown visibility fix */
+.table-responsive {
+    overflow: visible !important;
+}
+
+@media (max-width: 991.98px) {
+    .table-responsive {
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        padding-bottom: 50px !important;
+    }
+}
+
+.table,
+.table td,
+.table th {
+    overflow: visible !important;
+}
+
+/* Dropdown z-index */
+.table-actions .dropdown-menu {
+    z-index: 1060 !important;
+    font-size: 0.72rem !important;
+}
+
+.table-actions .dropdown-item {
+    font-size: 0.72rem !important;
+    padding: 0.4rem 0.8rem !important;
+}
+
+/* ==========================================================================
+   10. BADGES - Mobile Optimization
+   ========================================================================== */
+@media (max-width: 576px) {
+    .badge {
+        font-size: 0.62rem !important;
+        padding: 0.2rem 0.5rem !important;
+    }
+
+    .badge i {
+        font-size: 0.58rem !important;
+    }
+}
+
+/* ==========================================================================
+   11. PAGINATION - Mobile
+   ========================================================================== */
+@media (max-width: 576px) {
+    .pagination .page-link {
+        font-size: 0.65rem !important;
+        padding: 0.2rem 0.4rem !important;
+        min-width: 24px !important;
+        height: 24px !important;
+    }
+}
+
+/* ==========================================================================
+   12. ALERTS - Mobile
+   ========================================================================== */
+@media (max-width: 576px) {
+    .alert {
+        padding: 8px 12px !important;
+        font-size: 0.72rem !important;
+        margin-bottom: 10px !important;
+    }
+
+    .alert i {
+        font-size: 0.78rem !important;
+    }
+}
+
+/* ==========================================================================
+   13. MODALS - Mobile
+   ========================================================================== */
+@media (max-width: 576px) {
+    .modal-dialog {
+        margin: 10px !important;
+    }
+
+    .modal-content {
+        border-radius: 10px !important;
+    }
+
+    .modal-header {
+        padding: 12px 16px !important;
+    }
+
+    .modal-title {
+        font-size: 0.9rem !important;
+    }
+
+    .modal-body {
+        padding: 14px 16px !important;
+        font-size: 0.78rem !important;
+    }
+
+    .modal-footer {
+        padding: 10px 16px !important;
+    }
+}
+
+/* ==========================================================================
+   14. DROPDOWN MENU - Mobile
+   ========================================================================== */
+@media (max-width: 576px) {
+    .dropdown-menu {
+        min-width: 150px !important;
+        font-size: 0.72rem !important;
+        border-radius: 8px !important;
+    }
+
+    .dropdown-item {
+        padding: 0.4rem 0.8rem !important;
+        font-size: 0.72rem !important;
+    }
+
+    .dropdown-item i {
+        font-size: 0.68rem !important;
+        width: 14px !important;
+    }
+}
+
+/* ==========================================================================
+   15. UTILITIES - Mobile Spacing
+   ========================================================================== */
+@media (max-width: 576px) {
+    .mb-4 {
+        margin-bottom: 12px !important;
+    }
+
+    .mb-3 {
+        margin-bottom: 10px !important;
+    }
+
+    .mb-2 {
+        margin-bottom: 8px !important;
+    }
+
+    .mt-4 {
+        margin-top: 12px !important;
+    }
+
+    .mt-3 {
+        margin-top: 10px !important;
+    }
+
+    .mt-2 {
+        margin-top: 8px !important;
+    }
+
+    .p-4 {
+        padding: 12px !important;
+    }
+
+    .p-3 {
+        padding: 10px !important;
+    }
+
+    .p-2 {
+        padding: 8px !important;
+    }
+}
+
+/* ==========================================================================
+   16. SCROLLBAR STYLING - Mobile Tables
+   ========================================================================== */
+@media (max-width: 768px) {
+    .table-responsive::-webkit-scrollbar {
+        height: 5px;
+    }
+
+    .table-responsive::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 3px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+}
+
+/* ==========================================================================
+   END OF RESPONSIVE OVERRIDES
+   ========================================================================== */

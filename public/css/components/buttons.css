@@ -1,0 +1,295 @@
+/* ==========================================================================
+   BUTTONS COMPONENT & COMPATIBILITY LAYER
+   ========================================================================== */
+
+/* Base Button Properties */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.85rem;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    transition: var(--transition-fast);
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none;
+    gap: var(--space-xs);
+    min-height: 32px;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Button Sizes */
+.btn-lg {
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-lg);
+    min-height: 40px;
+}
+
+.btn-sm, .btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: var(--font-size-xs);
+    min-height: 28px;
+}
+
+/* Button Variants */
+.btn-primary {
+    background: var(--color-primary);
+    color: var(--color-white);
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 4px rgba(30, 58, 95, 0.15);
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary-light);
+    color: var(--color-white);
+    box-shadow: 0 4px 10px rgba(30, 58, 95, 0.25);
+}
+
+.btn-secondary {
+    background: var(--color-gray-200);
+    color: var(--color-gray-800);
+    border-color: var(--color-gray-200);
+}
+
+.btn-secondary:hover {
+    background: var(--color-gray-300);
+    border-color: var(--color-gray-300);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Gold Accent Button */
+.btn-accent {
+    background: var(--color-accent);
+    color: var(--color-white);
+    border-color: var(--color-accent);
+    box-shadow: 0 2px 4px rgba(201, 169, 97, 0.15);
+}
+
+.btn-accent:hover {
+    background: var(--color-accent-dark);
+    border-color: var(--color-accent-dark);
+    color: var(--color-white);
+    box-shadow: 0 4px 10px rgba(201, 169, 97, 0.25);
+}
+
+/* Outlines */
+.btn-outline-primary {
+    background: transparent;
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.btn-outline-primary:hover {
+    background: var(--color-primary);
+    color: var(--color-white);
+    box-shadow: 0 4px 10px rgba(30, 58, 95, 0.2);
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    color: var(--color-gray-600);
+    border-color: var(--color-gray-300);
+}
+
+.btn-outline-secondary:hover {
+    background: var(--color-gray-100);
+}
+
+/* Standard Bootstrap colors mapping for corporate uniformity */
+.btn-success {
+    background: var(--color-success);
+    color: var(--color-white);
+    border-color: var(--color-success);
+    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.15);
+}
+.btn-success:hover {
+    background: var(--color-success-light);
+    border-color: var(--color-success-light);
+    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.25);
+}
+
+.btn-danger {
+    background: var(--color-danger);
+    color: var(--color-white);
+    border-color: var(--color-danger);
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.15);
+}
+.btn-danger:hover {
+    background: var(--color-danger-light);
+    border-color: var(--color-danger-light);
+    box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25);
+}
+
+.btn-warning {
+    background: var(--color-warning);
+    color: var(--color-gray-900);
+    border-color: var(--color-warning);
+    box-shadow: 0 2px 4px rgba(217, 119, 6, 0.15);
+}
+.btn-warning:hover {
+    background: var(--color-warning-light);
+    border-color: var(--color-warning-light);
+    box-shadow: 0 4px 10px rgba(217, 119, 6, 0.25);
+}
+
+.btn-info {
+    background: var(--color-info);
+    color: var(--color-white);
+    border-color: var(--color-info);
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
+}
+.btn-info:hover {
+    background: var(--color-info-light);
+    border-color: var(--color-info-light);
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
+}
+
+/* ----------------------------------------------------------------------
+   Legacy Project Button Classes (project-tables.css)
+   ---------------------------------------------------------------------- */
+.project-btn {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.35rem 0.85rem;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    height: 30px;
+    color: var(--color-white);
+    box-shadow: var(--shadow-sm);
+}
+
+.project-btn:hover {
+    transform: translateY(-1px);
+}
+
+.project-btn-primary {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+}
+
+.project-btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+}
+
+.project-btn-success {
+    background: var(--color-success);
+}
+
+.project-btn-danger {
+    background: var(--color-danger);
+}
+
+.project-btn-warning {
+    background: var(--color-warning);
+}
+
+.project-btn-info {
+    background: var(--color-info);
+}
+
+/* ----------------------------------------------------------------------
+   Legacy Compact Action Buttons (compact-table.css)
+   ---------------------------------------------------------------------- */
+.btn-action-view,
+.btn-action-edit,
+.btn-action-disable,
+.btn-action-enable,
+.btn-action-delete,
+.btn-action-log {
+    width: 24px;
+    height: 24px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    transition: var(--transition-fast);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-action-view::before,
+.btn-action-edit::before,
+.btn-action-disable::before,
+.btn-action-enable::before,
+.btn-action-delete::before,
+.btn-action-log::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    border-radius: inherit;
+    z-index: 0;
+}
+
+.btn-action-view:hover::before,
+.btn-action-edit:hover::before,
+.btn-action-disable:hover::before,
+.btn-action-enable:hover::before,
+.btn-action-delete:hover::before,
+.btn-action-log:hover::before {
+    opacity: 1;
+}
+
+.btn-action-view:hover,
+.btn-action-edit:hover,
+.btn-action-disable:hover,
+.btn-action-enable:hover,
+.btn-action-delete:hover,
+.btn-action-log:hover {
+    transform: translateY(-1px) scale(1.05);
+    color: var(--color-white) !important;
+    border-color: transparent !important;
+}
+
+/* Views action colors */
+.btn-action-view {
+    background: rgba(30, 58, 95, 0.08);
+    color: var(--color-primary);
+    border-color: rgba(30, 58, 95, 0.15);
+}
+.btn-action-view:hover {
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+    box-shadow: 0 3px 8px rgba(30, 58, 95, 0.3);
+}
+
+.btn-action-edit {
+    background: rgba(201, 169, 97, 0.12);
+    color: var(--color-accent-dark);
+    border-color: rgba(201, 169, 97, 0.25);
+}
+.btn-action-edit:hover {
+    background: linear-gradient(135deg, var(--color-accent-dark) 0%, var(--color-accent) 100%);
+    box-shadow: 0 3px 8px rgba(201, 169, 97, 0.3);
+}
+
+.btn-action-delete {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--color-danger);
+    border-color: rgba(239, 68, 68, 0.15);
+}
+.btn-action-delete:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, var(--color-danger) 100%);
+    box-shadow: 0 3px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* --- Phase 4 Extracted Buttons --- */
+/* ========== BUTTONS ========== */

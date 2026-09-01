@@ -1,0 +1,178 @@
+/* ==========================================
+   Unified Master Design System (Arabic & Responsive)
+   ========================================== */
+
+:root {
+    --primary-color: #2563eb;
+    /* الأزرق الأساسي */
+    --primary-hover: #1d4ed8;
+    --secondary-color: #64748b;
+    /* الرمادي الفرعي */
+    --success-color: #10b981;
+    /* الأخضر للحالات الإيجابية */
+    --danger-color: #ef4444;
+    /* الأحمر للأخطاء والحذف */
+    --warning-color: #f59e0b;
+    /* البرتقالي للتنبيهات */
+    --background-color: #f8fafc;
+    /* خلفية الصفحة */
+    --card-background: #ffffff;
+    /* خلفية البطاقات والجداول */
+    --text-main: #0f172a;
+    /* لون النص الرئيسي */
+    --text-muted: #475569;
+    /* لون النص الباهت */
+    --border-color: #e2e8f0;
+    /* لون الحدود */
+    --radius: 8px;
+    /* انحناء الزوايا */
+    --transition: all 0.3s ease;
+}
+
+/* التنسيق العام للصفحة */
+body {
+    background-color: var(--background-color);
+    color: var(--text-main);
+    font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    direction: rtl;
+    /* دعم كامل للغة العربية */
+    text-align: right;
+    margin: 0;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+/* حاوية الصفحات (Card Layout) */
+.page-container {
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    margin-bottom: 24px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+}
+
+/* ==========================================
+   تنسيق الجداول الموحد والمطور (Table Styling)
+   ========================================== */
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    background: var(--card-background);
+    margin-top: 15px;
+}
+
+.custom-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: right;
+    font-size: 0.95rem;
+}
+
+/* الهيدر الخاص بالجدول */
+.custom-table thead tr {
+    background-color: #f1f5f9;
+    color: var(--text-main);
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.custom-table th,
+.custom-table td {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+/* تأثير التمرير فوق الصفوف */
+.custom-table tbody tr {
+    transition: var(--transition);
+}
+
+.custom-table tbody tr:hover {
+    background-color: #f8fafc;
+    cursor: pointer;
+}
+
+/* تنسيق الخلايا التي تحتوي على أزرار إجراءات */
+.table-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+}
+
+/* أزرار مخصصة للجداول والصفحات */
+.btn-custom {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: var(--transition);
+    text-decoration: none;
+}
+
+.btn-custom-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-custom-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-custom-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn-custom-danger:hover {
+    filter: brightness(0.9);
+}
+
+/* الشارات مخصصة داخل الجداول (Badges) */
+.badge-custom {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-success {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.badge-danger {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}

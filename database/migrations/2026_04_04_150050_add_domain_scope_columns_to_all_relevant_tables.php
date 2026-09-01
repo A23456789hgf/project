@@ -1,0 +1,75 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        $tables = [
+            'users',
+            'projects',
+            'correspondences',
+            'plans',
+            'project_executions',
+            'internal_entities',
+            'authorities',
+            'project_requests',
+            'project_approvals',
+        ];
+
+        foreach ($tables as $tableName) {
+            if (Schema::hasTable($tableName)) {
+                Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+                    if (! Schema::hasColumn($tableName, 'geographic_scope_id')) {
+                        $table->unsignedBigInteger('geographic_scope_id')->nullable()->index();
+                    }
+                    if (! Schema::hasColumn($tableName, 'administrative_scope_id')) {
+                        $table->unsignedBigInteger('administrative_scope_id')->nullable()->index();
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        $tables = [
+            'users',
+            'projects',
+            'correspondences',
+            'plans',
+            'project_executions',
+            'internal_entities',
+            'authorities',
+            'project_requests',
+            'project_approvals',
+        ];
+
+        foreach ($tables as $tableName) {
+            if (Schema::hasTable($tableName)) {
+                Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+                    $cols = [];
+                    if (Schema::hasColumn($tableName, 'geographic_scope_id')) {
+                        $cols[] = 'geographic_scope_id';
+                    }
+                    if (Schema::hasColumn($tableName, 'administrative_scope_id')) {
+                        $cols[] = 'administrative_scope_id';
+                    }
+
+                    if (! empty($cols)) {
+                        $table->dropColumn($cols);
+                    }
+                });
+            }
+        }
+    }
+};

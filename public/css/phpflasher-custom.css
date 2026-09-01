@@ -1,0 +1,33 @@
+.fl-main-container[data-position="top-left"],
+.fl-main-container[data-position="bottom-left"] {
+    top: 4rem !important;
+    left: 1rem !important;
+    right: auto !important;
+    bottom: auto !important;
+    z-index: 99999 !important;
+}
+
+.fl-main-container .fl-container.fl-flasher {
+    background: #ffffff !important;
+    color: #1f2937 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.08) !important;
+    overflow: hidden;
+}
+
+.fl-main-container .fl-container.fl-flasher .fl-content {
+    background: #ffffff !important;
+}
+
+.fl-main-container .fl-container.fl-flasher .fl-message {
+    color: #374151 !important;
+}
+
+@media (max-width: 480px) {
+    .fl-main-container[data-position="bottom-left"] {
+        left: 0.75rem !important;
+        right: 0.75rem !important;
+        bottom: 0.75rem !important;
+        width: auto !important;
+    }
+}

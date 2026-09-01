@@ -1,0 +1,91 @@
+/* ==========================================================================
+   BADGES COMPONENT & COMPATIBILITY LAYER
+   ========================================================================== */
+
+/* Base Badge Layout */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+/* Badge Variants (design-system.css) */
+.badge-primary {
+    background: rgba(30, 58, 95, 0.1);
+    color: var(--color-primary);
+    border-color: rgba(30, 58, 95, 0.2);
+}
+
+.badge-accent {
+    background: rgba(201, 169, 97, 0.15);
+    color: var(--color-accent-dark);
+    border-color: rgba(201, 169, 97, 0.3);
+}
+
+.badge-success {
+    background: var(--color-success-bg);
+    color: #065f46;
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.badge-warning {
+    background: var(--color-warning-bg);
+    color: #92400e;
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+.badge-danger {
+    background: var(--color-danger-bg);
+    color: #991b1b;
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+/* ----------------------------------------------------------------------
+   Legacy Compact Badges (compact-table.css)
+   ---------------------------------------------------------------------- */
+.badge-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    border-radius: 14px;
+    line-height: 1.2;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    transition: var(--transition-fast);
+}
+
+.badge-geo {
+    background: linear-gradient(135deg, rgba(201, 169, 97, 0.1) 0%, rgba(201, 169, 97, 0.08) 100%);
+    color: var(--color-accent-dark);
+    border-color: rgba(201, 169, 97, 0.25);
+}
+
+.badge-role {
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    font-weight: 800;
+    box-shadow: 0 1px 3px rgba(30, 58, 95, 0.2);
+}
+
+.badge-active {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.08) 100%);
+    color: var(--color-success-dark, #047857);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.badge-disabled {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(185, 28, 28, 0.06) 100%);
+    color: var(--color-danger-dark, #b91c1c);
+    border-color: rgba(239, 68, 68, 0.25);
+}

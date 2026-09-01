@@ -1,0 +1,242 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>بيانات المستخدم: {{ $user->name }}</h1>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ route('users.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> العودة
+            </a>
+        </div>
+    </div>
+
+    
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">المعلومات الأساسية</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="fw-bold">معرف المستخدم:</label>
+                            <p>{{ $user->user_id }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="fw-bold">الاسم الكامل:</label>
+                            <p>{{ $user->name }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="fw-bold">رقم الهاتف:</label>
+                            <p>{{ $user->phone ?? 'N/A' }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="fw-bold">الجهة:</label>
+                            <p>{{ $user->entity->name ?? 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="fw-bold">المحافظة:</label>
+                            <p>{{ $user->governorate_name ?? 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="fw-bold">المديرية:</label>
+                            <p>{{ $user->directorate_name ?? 'N/A' }}</p>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="fw-bold">العمل:</label>
+                            <p>{{ $user->work ?? 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="fw-bold">تصنيف النطاق الجغرافي:</label>
+                            <p>
+                                @if($user->is_geographic_subset)
+                                    <span class="badge" style="background-color: #6f42c1;">
+                                        <i class="fas fa-map-marker-alt"></i> مجموعة جغرافية محددة
+                                    </span>
+                                @else
+                                    <span class="badge bg-secondary">نطاق عام</span>
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">معلومات الدور والحالة</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="fw-bold">الدور:</label>
+                            <p><span class="badge bg-info fs-6">{{ $user->role_display_name }}</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="fw-bold">حالة الحساب:</label>
+                            <p>
+                                @if($user->status === 'Active')
+                                    <span class="badge bg-success fs-6">نشط</span>
+                                @else
+                                    <span class="badge bg-danger fs-6">معطل</span>
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if($user->geographicScopes && $user->geographicScopes->count() > 0)
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-map-marked-alt"></i> النطاقات الجغرافية الإضافية</h5>
+                </div>
+                <div class="card-body">
+                    @php
+                        // تجميع النطاقات حسب المحافظة
+                        $groupedScopes = $user->geographicScopes->groupBy('governorate_id');
+                    @endphp
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>المحافظة</th>
+                                    <th>المديريات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($groupedScopes as $govId => $scopes)
+                                    @php
+                                        $governorate = $scopes->first()->governorate;
+                                        $directorates = $scopes->filter(fn($s) => $s->directorate_id != null)->map(fn($s) => $s->directorate);
+                                    @endphp
+                                    <tr>
+                                        <td class="fw-bold align-middle" style="width: 30%;">
+                                            {{ $governorate ? $governorate->name : 'جميع المحافظات' }}
+                                        </td>
+                                        <td>
+                                            @if($directorates->isEmpty() || $scopes->contains(fn($s) => $s->directorate_id == null))
+                                                <span class="badge bg-primary">كافة المديريات</span>
+                                            @else
+                                                <ul class="mb-0 ps-3">
+                                                    @foreach($directorates as $directorate)
+                                                        <li>{{ $directorate ? $directorate->name : 'غير محدد' }}</li>
+                                                    @endforeach
+                                                </ul>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            <div class="card mb-3">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">معلومات الإنشاء والتعديل</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="fw-bold">تاريخ الإنشاء:</label>
+                            <p>{{ $user->created_at->format('Y-m-d H:i:s') }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="fw-bold">تاريخ آخر تعديل:</label>
+                            <p>{{ $user->updated_at->format('Y-m-d H:i:s') }}</p>
+                        </div>
+                    </div>
+                    @if($user->createdBy)
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="fw-bold">تم الإنشاء بواسطة:</label>
+                            <p>{{ $user->createdBy->name }}</p>
+                        </div>
+                    </div>
+                    @endif
+                    @if($user->updatedBy)
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="fw-bold">تم التعديل بواسطة:</label>
+                            <p>{{ $user->updatedBy->name }}</p>
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">الإجراءات</h5>
+                </div>
+                <div class="card-body">
+                    @can('users.view')
+                        <a href="{{ route('users.activity-log', $user) }}" class="btn btn-primary w-100 mb-2">
+                            <i class="fas fa-history"></i> عرض سجل الأنشطة
+                        </a>
+                    @endcan
+
+                    @if($user->username !== 'root')
+                        @can('users.edit')
+                            <a href="{{ route('users.edit', $user) }}" class="btn btn-warning w-100 mb-2">
+                                <i class="fas fa-edit"></i> تعديل البيانات
+                            </a>
+                        @endcan
+                    @endif
+                    @can('users.reset-password')
+                        <a href="{{ route('users.resetPassword', $user) }}" class="btn btn-info w-100 mb-2">
+                            <i class="fas fa-key"></i> إعادة تعيين كلمة المرور
+                        </a>
+                    @endcan
+                    @if($user->status === 'Active' && $user->id !== auth()->id() && $user->username !== 'root')
+                        @can('users.disable')
+                            <form action="{{ route('users.disable', $user) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="btn btn-warning w-100 mb-2" onclick="return confirmAction(this, 'هل تريد تعطيل هذا المستخدم؟')">
+                                    <i class="fas fa-ban"></i> تعطيل الحساب
+                                </button>
+                            </form>
+                        @endcan
+                    @elseif($user->status === 'Disabled' && $user->username !== 'root')
+                        @can('users.enable')
+                            <form action="{{ route('users.enable', $user) }}" method="POST" onsubmit="return confirmAction(this, 'هل أنت متأكد من عملية التفعيل؟')">
+                                @csrf
+                                <button type="submit" class="btn btn-success w-100 mb-2">
+                                    <i class="fas fa-check"></i> تفعيل الحساب
+                                </button>
+                            </form>
+                        @endcan
+                    @endif
+
+                    @can('users.delete')
+                        @if($user->id !== auth()->id() && $user->username !== 'root')
+                            <form action="{{ route('users.destroy', $user) }}" method="POST">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger w-100" onclick="return confirmAction(this, 'هل تريد حذف هذا المستخدم؟')">
+                                    <i class="fas fa-trash"></i> حذف المستخدم
+                                </button>
+                            </form>
+                        @endif
+                    @endcan
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection

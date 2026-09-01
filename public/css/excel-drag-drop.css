@@ -1,0 +1,354 @@
+/**
+ * Excel Drag & Drop Styles
+ */
+
+.excel-drop-zone {
+    border: 2px dashed #28a745;
+    border-radius: 10px;
+    padding: 40px 20px;
+    text-align: center;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.excel-drop-zone:hover {
+    border-color: #20c997;
+    background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+}
+
+.excel-drop-zone.drag-over {
+    border-color: #20c997;
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    transform: scale(1.02);
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+}
+
+.excel-drop-zone.loading {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    pointer-events: none;
+}
+
+.drop-zone-content {
+    width: 100%;
+}
+
+.drop-icon {
+    font-size: 3rem;
+    color: #28a745;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.excel-drop-zone:hover .drop-icon {
+    color: #20c997;
+    transform: scale(1.1);
+}
+
+.excel-drop-zone.drag-over .drop-icon {
+    color: #20c997;
+    transform: scale(1.2);
+    animation: bounce 0.6s ease-in-out;
+}
+
+.excel-drop-zone.loading .drop-icon {
+    color: #007bff;
+}
+
+.drop-message {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.excel-drop-zone:hover .drop-message {
+    color: #28a745;
+}
+
+.excel-drop-zone.drag-over .drop-message {
+    color: #20c997;
+    font-size: 1.2rem;
+}
+
+.excel-drop-zone.loading .drop-message {
+    color: #007bff;
+}
+
+.drop-info {
+    margin-bottom: 0;
+}
+
+.drop-info small {
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+/* Animation for drag over state */
+@keyframes bounce {
+
+    0%,
+    20%,
+    60%,
+    100% {
+        transform: translateY(0) scale(1.2);
+    }
+
+    40% {
+        transform: translateY(-10px) scale(1.2);
+    }
+
+    80% {
+        transform: translateY(-5px) scale(1.2);
+    }
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.fa-spinner.fa-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Template download button */
+.download-template-btn {
+    transition: all 0.3s ease;
+}
+
+.download-template-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+/* Import preview styles */
+.import-preview-card {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.import-preview-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    padding: 1rem;
+}
+
+.mapping-table {
+    background: white;
+}
+
+.mapping-table th {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+}
+
+.mapping-table .form-select {
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.mapping-table .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Operation selection */
+.operation-selection {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.operation-selection .form-check {
+    margin-bottom: 0.5rem;
+}
+
+.operation-selection .form-check-input:checked {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+/* Preview table */
+.preview-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+}
+
+.preview-table {
+    margin-bottom: 0;
+}
+
+.preview-table th {
+    background: #007bff;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.preview-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+/* Import report styles */
+.import-report-card {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.report-success {
+    border-left: 4px solid #28a745;
+}
+
+.report-warning {
+    border-left: 4px solid #ffc107;
+}
+
+.report-error {
+    border-left: 4px solid #dc3545;
+}
+
+.report-stats {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    padding: 1rem;
+    background: #f8f9fa;
+}
+
+.report-stat {
+    flex: 1;
+}
+
+.report-stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.report-stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-success .report-stat-number {
+    color: #28a745;
+}
+
+.stat-failed .report-stat-number {
+    color: #dc3545;
+}
+
+.stat-total .report-stat-number {
+    color: #007bff;
+}
+
+/* Error details */
+.error-details {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.error-item {
+    padding: 0.75rem;
+    border-bottom: 1px solid #e9ecef;
+    background: #fff5f5;
+}
+
+.error-item:last-child {
+    border-bottom: none;
+}
+
+.error-row {
+    font-weight: 600;
+    color: #dc3545;
+    margin-bottom: 0.25rem;
+}
+
+.error-messages {
+    margin: 0;
+    padding-left: 1rem;
+}
+
+.error-messages li {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .excel-drop-zone {
+        padding: 30px 15px;
+        min-height: 150px;
+    }
+
+    .drop-icon {
+        font-size: 2rem;
+    }
+
+    .drop-message {
+        font-size: 1rem;
+    }
+
+    .report-stats {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .preview-table-container {
+        font-size: 0.875rem;
+    }
+
+    .preview-table td {
+        max-width: 150px;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .excel-drop-zone {
+        background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+        border-color: #48bb78;
+    }
+
+    .excel-drop-zone:hover {
+        background: linear-gradient(135deg, #2a4a3a 0%, #38a169 100%);
+    }
+
+    .drop-message {
+        color: #e2e8f0;
+    }
+
+    .drop-info small {
+        color: #a0aec0;
+    }
+}

@@ -1,0 +1,525 @@
+/* ============================================
+   CONFIGURATION PAGES STYLES
+   ============================================
+   Professional styling for all configuration pages
+   matching the app.blade.php design system
+   ============================================ */
+
+:root {
+    /* Inheriting from app.blade.php */
+    --config-primary: var(--primary, #1e3a5f);
+    --config-primary-light: var(--primary-light, #2d5a8f);
+    --config-accent: var(--accent, #c9a961);
+    --config-accent-light: var(--accent-light, #d4b876);
+    --config-white: var(--white, #ffffff);
+    --config-gray-50: var(--gray-50, #f9fafb);
+    --config-gray-100: var(--gray-100, #f3f4f6);
+    --config-gray-200: var(--gray-200, #e5e7eb);
+    --config-gray-300: var(--gray-300, #d1d5db);
+    --config-gray-500: var(--gray-500, #6b7280);
+    --config-gray-700: var(--gray-700, #374151);
+    --config-shadow-sm: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+    --config-shadow: var(--shadow, 0 1px 3px 0 rgba(0, 0, 0, 0.1));
+    --config-shadow-md: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+    --config-shadow-lg: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+    --config-radius: var(--radius, 0.5rem);
+    --config-radius-lg: var(--radius-lg, 0.75rem);
+
+    /* Typography - تم التصغير */
+    --config-font-xs: 0.6875rem;
+    /* 11px */
+    --config-font-sm: 0.8125rem;
+    /* 13px */
+    --config-font-base: 0.9375rem;
+    /* 15px */
+    --config-font-lg: 1.0625rem;
+    /* 17px */
+    --config-font-xl: 1.1875rem;
+    /* 19px */
+    --config-font-2xl: 1.375rem;
+    /* 22px */
+
+    /* Spacing */
+    --config-space-xs: 0.25rem;
+    --config-space-sm: 0.5rem;
+    --config-space-md: 1rem;
+    --config-space-lg: 1.5rem;
+    --config-space-xl: 2rem;
+
+    /* Transitions */
+    --config-transition: all 0.2s ease;
+}
+
+/* ============================================
+   PAGE CONTAINER
+   ============================================ */
+.config-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    font-size: var(--config-font-base);
+}
+
+/* ============================================
+   PAGE HEADER
+   ============================================ */
+.config-header {
+    background: linear-gradient(135deg, var(--config-primary) 0%, var(--config-primary-light) 100%);
+    border-radius: var(--config-radius-lg);
+    padding: 1.75rem;
+    margin-bottom: 1.75rem;
+    box-shadow: var(--config-shadow-md);
+    color: var(--config-white);
+}
+
+.config-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.config-header h1 {
+    font-size: var(--config-font-2xl);
+    font-weight: 700;
+    margin: 0;
+    color: var(--config-white);
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.config-header h1 i {
+    color: var(--config-accent);
+    font-size: 1.35rem;
+}
+
+.config-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.config-actions .btn {
+    font-size: var(--config-font-sm);
+    font-weight: 600;
+    padding: 0.45rem 0.9rem;
+    border-radius: var(--config-radius);
+    transition: var(--config-transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.config-actions .btn i {
+    font-size: var(--config-font-xs);
+}
+
+.config-actions .btn-primary {
+    background: var(--config-accent);
+    border-color: var(--config-accent);
+    color: var(--config-primary);
+}
+
+.config-actions .btn-primary:hover {
+    background: var(--config-accent-light);
+    border-color: var(--config-accent-light);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(201, 169, 97, 0.3);
+}
+
+/* ============================================
+   FILTERS SECTION
+   ============================================ */
+.config-filters {
+    background: var(--config-white);
+    border: 1px solid var(--config-gray-200);
+    border-radius: var(--config-radius-lg);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    box-shadow: var(--config-shadow-sm);
+}
+
+.config-filters .row {
+    align-items: center;
+}
+
+.config-filters .form-label {
+    font-size: var(--config-font-sm);
+    font-weight: 600;
+    color: var(--config-gray-700);
+    margin-bottom: 0.4rem;
+}
+
+.config-filters .form-control,
+.config-filters .form-select {
+    border-radius: var(--config-radius);
+    border: 1px solid var(--config-gray-200);
+    padding: 0.45rem 0.65rem;
+    font-size: var(--config-font-sm);
+    transition: var(--config-transition);
+}
+
+.config-filters .form-control:focus,
+.config-filters .form-select:focus {
+    border-color: var(--config-primary);
+    box-shadow: 0 0 0 0.2rem rgba(30, 58, 95, 0.15);
+}
+
+.config-filters .btn {
+    padding: 0.45rem 0.9rem;
+    font-size: var(--config-font-sm);
+    border-radius: var(--config-radius);
+}
+
+/* ============================================
+   TABLE CARD
+   ============================================ */
+.config-table {
+    background: var(--config-white);
+    border: 1px solid var(--config-gray-200);
+    border-radius: var(--config-radius-lg);
+    box-shadow: var(--config-shadow-sm);
+    overflow: hidden;
+}
+
+.config-table .card-header {
+    background: var(--config-gray-50);
+    border-bottom: 1px solid var(--config-gray-200);
+    padding: 0.875rem 1.25rem;
+    font-size: var(--config-font-sm);
+    font-weight: 600;
+    color: var(--config-primary);
+}
+
+.config-table .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.config-table table {
+    margin-bottom: 0;
+    width: 100%;
+}
+
+.config-table thead {
+    background: var(--config-gray-50);
+    border-bottom: 2px solid var(--config-gray-200);
+}
+
+.config-table thead th {
+    font-weight: 600;
+    font-size: var(--config-font-sm);
+    color: var(--config-primary);
+    padding: 0.875rem 1rem;
+    border-bottom: 2px solid var(--config-gray-200);
+    white-space: nowrap;
+}
+
+.config-table thead th a {
+    color: var(--config-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.config-table thead th a:hover {
+    color: var(--config-accent);
+}
+
+.config-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.config-table tbody tr:hover {
+    background-color: var(--config-gray-50);
+}
+
+.config-table tbody td {
+    padding: 0.75rem 1rem;
+    font-size: var(--config-font-sm);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--config-gray-100);
+    color: var(--config-gray-700);
+}
+
+.config-table .card-footer {
+    background: var(--config-gray-50);
+    border-top: 1px solid var(--config-gray-200);
+    padding: 0.875rem 1.25rem;
+}
+
+/* ============================================
+   BADGES
+   ============================================ */
+.config-table .badge {
+    font-size: var(--config-font-xs);
+    font-weight: 600;
+    padding: 0.3rem 0.55rem;
+    border-radius: 0.375rem;
+}
+
+/* ============================================
+   ACTION BUTTONS
+   ============================================ */
+.config-table .btn-sm {
+    padding: 0.3rem 0.65rem;
+    font-size: var(--config-font-xs);
+    border-radius: 0.375rem;
+    font-weight: 500;
+}
+
+.config-table .btn-outline-primary {
+    color: var(--config-primary);
+    border-color: var(--config-primary);
+}
+
+.config-table .btn-outline-primary:hover {
+    background: var(--config-primary);
+    border-color: var(--config-primary);
+    color: var(--config-white);
+}
+
+.config-table .btn-outline-danger:hover {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: var(--config-white);
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.config-empty-state {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--config-gray-500);
+}
+
+.config-empty-state i {
+    font-size: 2.5rem;
+    color: var(--config-gray-200);
+    margin-bottom: 0.875rem;
+}
+
+.config-empty-state h5 {
+    font-size: var(--config-font-lg);
+    font-weight: 600;
+    color: var(--config-gray-700);
+    margin-bottom: 0.4rem;
+}
+
+.config-empty-state p {
+    font-size: var(--config-font-sm);
+    color: var(--config-gray-500);
+}
+
+/* ============================================
+   FORM PAGES
+   ============================================ */
+.config-form-card {
+    background: var(--config-white);
+    border: 1px solid var(--config-gray-200);
+    border-radius: var(--config-radius-lg);
+    box-shadow: var(--config-shadow-sm);
+    padding: 1.75rem;
+    margin-bottom: 1.75rem;
+}
+
+.config-form-card .form-label {
+    font-weight: 600;
+    font-size: var(--config-font-sm);
+    color: var(--config-primary);
+    margin-bottom: 0.4rem;
+}
+
+.config-form-card .form-control,
+.config-form-card .form-select {
+    border-radius: var(--config-radius);
+    border: 1px solid var(--config-gray-200);
+    padding: 0.55rem 0.75rem;
+    font-size: var(--config-font-sm);
+    transition: var(--config-transition);
+}
+
+.config-form-card .form-control:focus,
+.config-form-card .form-select:focus {
+    border-color: var(--config-primary);
+    box-shadow: 0 0 0 0.2rem rgba(30, 58, 95, 0.15);
+}
+
+.config-form-actions {
+    display: flex;
+    gap: 0.65rem;
+    justify-content: flex-end;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--config-gray-200);
+    margin-top: 1.25rem;
+}
+
+.config-form-actions .btn {
+    padding: 0.55rem 1.25rem;
+    font-size: var(--config-font-sm);
+    font-weight: 600;
+    border-radius: var(--config-radius);
+}
+
+/* ============================================
+   ALERTS
+   ============================================ */
+.config-page .alert {
+    border-radius: var(--config-radius);
+    border: none;
+    padding: 0.875rem 1.1rem;
+    margin-bottom: 1.25rem;
+    font-size: var(--config-font-sm);
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.config-page .alert i {
+    font-size: var(--config-font-lg);
+}
+
+.config-page .alert-success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.config-page .alert-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ============================================
+   PAGINATION
+   ============================================ */
+.config-table .pagination {
+    margin: 0;
+    gap: 0.2rem;
+}
+
+.config-table .pagination .page-link {
+    color: var(--config-primary);
+    border: 1px solid var(--config-gray-200);
+    border-radius: 0.375rem;
+    padding: 0.3rem 0.65rem;
+    font-size: var(--config-font-xs);
+    margin: 0 0.1rem;
+    transition: var(--config-transition);
+}
+
+.config-table .pagination .page-link:hover {
+    background: var(--config-gray-50);
+    border-color: var(--config-primary);
+}
+
+.config-table .pagination .page-item.active .page-link {
+    background: var(--config-primary);
+    border-color: var(--config-primary);
+    color: var(--config-white);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    .config-header {
+        padding: 1.25rem;
+    }
+
+    .config-header h1 {
+        font-size: var(--config-font-xl);
+    }
+
+    .config-header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .config-actions {
+        width: 100%;
+    }
+
+    .config-actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .config-filters {
+        padding: 0.875rem;
+    }
+
+    .config-table thead {
+        display: none;
+    }
+
+    .config-table tbody tr {
+        display: block;
+        margin-bottom: 0.875rem;
+        border: 1px solid var(--config-gray-200);
+        border-radius: var(--config-radius);
+    }
+
+    .config-table tbody td {
+        display: block;
+        text-align: right;
+        padding: 0.65rem 0.875rem;
+        border-bottom: 1px solid var(--config-gray-100);
+    }
+
+    .config-table tbody td:last-child {
+        border-bottom: none;
+    }
+
+    .config-table tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--config-primary);
+        display: block;
+        margin-bottom: 0.2rem;
+        font-size: var(--config-font-xs);
+    }
+
+    .config-form-actions {
+        flex-direction: column;
+    }
+
+    .config-form-actions .btn {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   UTILITIES
+   ============================================ */
+.config-text-muted {
+    color: var(--config-gray-500);
+    font-size: var(--config-font-sm);
+}
+
+.config-divider {
+    height: 1px;
+    background: var(--config-gray-200);
+    margin: 1.25rem 0;
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR FOR TABLE
+   ============================================ */
+.config-table .table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+
+.config-table .table-responsive::-webkit-scrollbar-track {
+    background: var(--config-gray-100);
+    border-radius: 3px;
+}
+
+.config-table .table-responsive::-webkit-scrollbar-thumb {
+    background: var(--config-gray-300);
+    border-radius: 3px;
+}
+
+.config-table .table-responsive::-webkit-scrollbar-thumb:hover {
+    background: var(--config-gray-500);
+}

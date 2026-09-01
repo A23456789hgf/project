@@ -1,0 +1,67 @@
+/* ==========================================================================
+   ALERTS COMPONENTS & COMPATIBILITY LAYER
+   ========================================================================== */
+
+/* Base Alert Style */
+.alert {
+    position: relative;
+    padding: var(--space-md) var(--space-lg);
+    margin-bottom: var(--space-lg);
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.alert i {
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+/* Alert Colors (Corporate Soft Theme) */
+.alert-success {
+    background-color: var(--color-success-bg);
+    color: #065f46;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.alert-warning {
+    background-color: var(--color-warning-bg);
+    color: #92400e;
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
+.alert-danger {
+    background-color: var(--color-danger-bg);
+    color: #991b1b;
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.alert-info {
+    background-color: var(--color-info-bg);
+    color: #1e40af;
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+/* ----------------------------------------------------------------------
+   Legacy settings/config Alerts (configuration-styles.css)
+   ---------------------------------------------------------------------- */
+.config-page .alert {
+    border-radius: var(--radius-lg);
+    border: none;
+    padding: var(--space-md) var(--space-lg);
+    margin-bottom: var(--space-lg);
+}
+
+.config-page .alert-success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.config-page .alert-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}

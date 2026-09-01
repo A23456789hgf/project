@@ -1,0 +1,26 @@
+/* ==========================================================================
+   UNIFIED ENTERPRISE DESIGN SYSTEM
+   Professional SSoT Design System Aggregator
+   ========================================================================== */
+
+/* 1. Core Tokens & Reset Normalizations */
+@import url('components/variables.css');
+@import url('components/reset.css');
+
+/* 2. Structural & Layout Components */
+@import url('components/layout.css');
+
+/* 3. Base UI Elements */
+@import url('components/buttons.css');
+@import url('components/cards.css');
+@import url('components/tables.css');
+@import url('components/forms.css');
+@import url('components/alerts.css');
+@import url('components/badges.css');
+
+/* 4. Page/Module Specific Sheets */
+@import url('components/dashboard.css');
+@import url('components/tree.css');
+
+/* 5. Responsive & Mobile Overrides */
+@import url('components/responsive.css');

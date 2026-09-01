@@ -1,0 +1,52 @@
+/* ==========================================================================
+   RESET & SYSTEM HTML NORMALIZATIONS
+   ========================================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-weight: 400;
+}
+
+b, strong, th, h1, h2, h3, h4, h5, h6, .fw-bold, .font-weight-bold {
+    font-weight: 700;
+}
+
+.fw-semibold, .font-weight-semibold, .card-header, .card-header h5, .form-label, .btn {
+    font-weight: 600;
+}
+
+html {
+    scroll-behavior: smooth;
+    font-size: 14px;
+}
+
+body {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-base);
+    color: var(--gray-800);
+    background-color: var(--gray-50);
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+}
+
+/* Normalized Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--gray-100);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+}

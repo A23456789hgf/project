@@ -1,0 +1,200 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\Project;
+use App\Services\FrappeAPIService;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+
+class SyncProjectsToFrappe extends Command
+{
+    protected $signature = 'frappe:sync-projects {--force : Force resync of already synced projects} {--dry-run : Show what would be synced without actually syncing}';
+
+    protected $description = 'Automatically POST projects in execution phase to Frappe API. Syncs new projects and retries failed ones.';
+
+    protected $frappeService;
+    private $stats = [
+        'total_found' => 0,
+        'successful' => 0,
+        'failed' => 0,
+        'skipped' => 0,
+        'errors' => []
+    ];
+
+    public function __construct(FrappeAPIService $frappeService)
+    {
+        parent::__construct();
+        $this->frappeService = $frappeService;
+    }
+
+    public function handle(): int
+    {
+        $this->info('🚀 Starting Frappe Project Sync...');
+        $this->newLine();
+
+        $force = $this->option('force');
+        $dryRun = $this->option('dry-run');
+
+        if ($dryRun) {
+            $this->warn('🔍 DRY RUN MODE - No projects will be synced');
+            $this->newLine();
+        }
+
+        if (!$this->verifyFrappeConnection()) {
+            $reason = $this->frappeService->getLastError() ?? 'Unknown connection error';
+            $this->error('❌ Cannot connect to Frappe API. Please check configuration.');
+            $this->error("📍 Reason: {$reason}");
+            Log::error("Frappe sync failed: API connection error. Reason: {$reason}");
+            return 1;
+        }
+
+        $this->info('✅ Frappe API connection verified');
+        $this->newLine();
+
+        $this->syncProjects($force, $dryRun);
+
+        $this->displaySummary();
+        $this->logResults();
+
+        return $this->stats['failed'] > 0 ? 1 : 0;
+    }
+
+    private function verifyFrappeConnection(): bool
+    {
+        return $this->frappeService->testConnection();
+    }
+
+    private function syncProjects(bool $force, bool $dryRun): void
+    {
+        $query = Project::where('status', 'in_progress');
+
+        if (!$force) {
+            $query->where('frappe_synced', false);
+        }
+
+        $projects = $query->get();
+        $this->stats['total_found'] = $projects->count();
+
+        if ($this->stats['total_found'] === 0) {
+            $this->info('No projects to sync found.');
+            return;
+        }
+
+        $this->info("Found {$this->stats['total_found']} project(s) to sync");
+        $this->newLine();
+
+        $progressBar = $this->output->createProgressBar($this->stats['total_found']);
+        $progressBar->start();
+
+        foreach ($projects as $project) {
+            try {
+                $this->syncSingleProject($project, $dryRun);
+                $this->stats['successful']++;
+            } catch (\Exception $e) {
+                $this->stats['failed']++;
+                $this->stats['errors'][] = [
+                    'project_id' => $project->id,
+                    'project_name' => $project->project_name,
+                    'error' => $e->getMessage()
+                ];
+            }
+            $progressBar->advance();
+        }
+
+        $progressBar->finish();
+        $this->newLine(2);
+    }
+
+    private function syncSingleProject(Project $project, bool $dryRun): void
+    {
+        $this->line("", 'info');
+        $this->info("📋 Syncing: {$project->project_name} (ID: {$project->id})");
+
+        if ($dryRun) {
+            $this->line("   [DRY RUN] Would sync this project");
+            return;
+        }
+
+        $project->update([
+            'frappe_last_sync_attempt' => Carbon::now(),
+            'frappe_sync_attempts' => $project->frappe_sync_attempts + 1,
+        ]);
+
+        $result = $this->frappeService->postProjectToFrappe($project);
+
+        if ($result['success']) {
+            $project->update([
+                'frappe_synced' => true,
+                'frappe_sync_at' => Carbon::now(),
+                'frappe_project_id' => $result['frappe_id'] ?? null,
+                'frappe_sync_error' => null,
+            ]);
+
+            $this->line("   ✅ Synced successfully");
+            $this->line("   Frappe ID: {$result['frappe_id']}", 'info');
+
+            Log::info('Project synced to Frappe successfully', [
+                'project_id' => $project->id,
+                'frappe_id' => $result['frappe_id'],
+                'attempt' => $project->frappe_sync_attempts
+            ]);
+        } else {
+            $errorMsg = $result['message'] ?? 'Unknown error';
+            
+            $project->update([
+                'frappe_sync_error' => $errorMsg,
+            ]);
+
+            $this->line("   ❌ Sync failed: {$errorMsg}", 'error');
+
+            Log::error('Project sync to Frappe failed', [
+                'project_id' => $project->id,
+                'project_name' => $project->project_name,
+                'attempt' => $project->frappe_sync_attempts,
+                'error' => $errorMsg,
+                'response' => $result['error'] ?? null
+            ]);
+
+            throw new \Exception($errorMsg);
+        }
+    }
+
+    private function displaySummary(): void
+    {
+        $this->newLine();
+        $this->info('📊 Sync Summary:');
+        $this->line('─────────────────────────────────────');
+        $this->line("Total Found:     {$this->stats['total_found']}");
+        $this->line("<info>✅ Successful:    {$this->stats['successful']}</info>");
+        $this->line("<error>❌ Failed:        {$this->stats['failed']}</error>");
+        $this->line("⏭️  Skipped:       {$this->stats['skipped']}");
+        $this->line('─────────────────────────────────────');
+
+        if (count($this->stats['errors']) > 0) {
+            $this->newLine();
+            $this->error('Failed Projects:');
+            foreach ($this->stats['errors'] as $error) {
+                $this->line("  • {$error['project_name']} (ID: {$error['project_id']})");
+                $this->line("    Error: {$error['error']}", 'info');
+            }
+        }
+    }
+
+    private function logResults(): void
+    {
+        $summary = [
+            'timestamp' => Carbon::now()->toDateTimeString(),
+            'command' => 'frappe:sync-projects',
+            'total_found' => $this->stats['total_found'],
+            'successful' => $this->stats['successful'],
+            'failed' => $this->stats['failed'],
+            'errors' => $this->stats['errors']
+        ];
+
+        Log::channel('frappe_sync')->info('Frappe Sync Command Completed', $summary);
+
+        $this->info('📝 Detailed logs written to: storage/logs/frappe_sync.log');
+    }
+}

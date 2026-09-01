@@ -1,0 +1,35 @@
+Table users {
+  id int [pk, increment]
+  user_id varchar
+  name varchar
+  role_id int [ref: > roles.id]
+  entity_id int [ref: > internal_entities.id]
+  status enum('Active','Disabled')
+  created_at datetime
+  updated_at datetime
+}
+
+Table roles {
+  id int [pk, increment]
+  name varchar
+  created_at datetime
+  updated_at datetime
+}
+
+Table internal_entities {
+  id int [pk, increment]
+  name varchar
+  entity_code varchar
+  parent_id int [ref: > internal_entities.id, null]
+  authority_id int [ref: > internal_entities.id, null]  // الجهة المشرفة
+  governorate_id int
+  directorate_id int
+  is_active boolean
+  created_at datetime
+  updated_at datetime
+}
+
+Ref: users.role_id > roles.id
+Ref: users.entity_id > internal_entities.id
+Ref: internal_entities.parent_id > internal_entities.id
+Ref: internal_entities.authority_id > internal_entities.id

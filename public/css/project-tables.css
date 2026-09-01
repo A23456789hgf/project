@@ -1,0 +1,378 @@
+/* ==========================================================================
+   نظام تنسيق الجداول الموحد لإدارة المشاريع (Premium Elegant Edition)
+   Unified Project Tables CSS System - Compact, Gradient & RTL Ready
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
+
+:root {
+    /* 🎨 نظام الألوان الأساسي - تدرجات احترافية وعصرية */
+    --project-primary: #0f172a;
+    /* لون داكن أنيق للرأس */
+    --project-accent: #059669;
+    /* أخضر زمردي عصري */
+    --project-hover: #f8fafc;
+    --project-light: #f1f5f9;
+    --project-success: #10b981;
+    --project-danger: #ef4444;
+    --project-warning: #f59e0b;
+    --project-info: #0ea5e9;
+    --project-text-main: #334155;
+    --project-text-muted: #64748b;
+
+    /* 🌫️ ألوان الخلفيات والتدرجات (Gradients & Backgrounds) */
+    --project-bg-primary: #ffffff;
+    --project-header-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --project-btn-gradient: linear-gradient(135deg, #059669 0%, #10b981 100%);
+
+    /* ✨ الظلال الناعمة (Soft Premium Shadows) */
+    --project-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+    --project-shadow-md: 0 4px 15px rgba(15, 23, 42, 0.04);
+    --project-shadow-hover: 0 10px 25px rgba(5, 150, 105, 0.08);
+
+    /* 📐 أنصاف الأقطار - أصغر وأكثر دقة */
+    --project-radius-sm: 6px;
+    --project-radius-md: 10px;
+    --project-radius-lg: 14px;
+
+    /* ⏱️ حركات وانتقالات سلسة */
+    --project-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   1. الحاوية الأساسية والهيكل (Base Container & Structure)
+   ========================================================================== */
+
+.project-table-container {
+    background: var(--project-bg-primary);
+    border-radius: var(--project-radius-lg);
+    box-shadow: var(--project-shadow-md);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e2e8f0;
+    font-family: 'Tajawal', system-ui, -apple-system, sans-serif;
+}
+
+.project-table-header {
+    background: var(--project-header-gradient);
+    color: #ffffff;
+    padding: 1rem 1.5rem;
+    /* تصغير المساحة */
+    font-size: 1.05rem;
+    /* تصغير الخط */
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-bottom: 3px solid var(--project-accent);
+}
+
+.project-table-header i {
+    font-size: 1.1em;
+    color: var(--project-accent);
+}
+
+.project-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* شريط تمرير أنيق ونحيف */
+.project-table-wrapper::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+}
+
+.project-table-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.project-table-wrapper::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.project-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ==========================================================================
+   2. تنسيق الجدول الأساسي والصفوف (Table Core & Rows)
+   ========================================================================== */
+
+.project-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 4px;
+    /* مسافة دقيقة جداً بين الصفوف */
+    margin: 0;
+    padding: 0.5rem;
+}
+
+/* رأس الجدول */
+.project-table thead th {
+    background: transparent;
+    color: var(--project-text-muted);
+    font-size: 0.8rem;
+    /* خط صغير واحترافي */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+/* جسم الجدول */
+.project-table tbody tr {
+    background: var(--project-bg-primary);
+    box-shadow: var(--project-shadow-sm);
+    border-radius: var(--project-radius-sm);
+    transition: var(--project-transition);
+}
+
+.project-table tbody tr:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--project-shadow-hover);
+    background-color: var(--project-hover);
+}
+
+.project-table tbody td {
+    vertical-align: middle;
+    padding: 0.75rem 1rem;
+    /* تصغير مساحة الخلايا */
+    border: none;
+    text-align: center;
+    color: var(--project-text-main);
+    font-size: 0.85rem;
+    /* خط أصغر وأكثر دقة */
+    font-weight: 500;
+}
+
+/* التمييز الجانبي اللطيف */
+.project-table tbody tr td:first-child {
+    border-start-start-radius: var(--project-radius-sm);
+    border-end-start-radius: var(--project-radius-sm);
+    border-inline-start: 3px solid transparent;
+}
+
+.project-table tbody tr:hover td:first-child {
+    border-inline-start-color: var(--project-accent);
+}
+
+.project-table tbody tr td:last-child {
+    border-start-end-radius: var(--project-radius-sm);
+    border-end-end-radius: var(--project-radius-sm);
+}
+
+/* ==========================================================================
+   3. الحقول والأزرار المصغرة والأنيقة (Compact Inputs & Buttons)
+   ========================================================================== */
+
+/* الحقول */
+.project-table .form-control,
+.project-table .form-select {
+    border-radius: var(--project-radius-sm);
+    border: 1px solid #cbd5e1;
+    padding: 0.4rem 0.75rem;
+    /* حقول أصغر */
+    font-size: 0.8rem;
+    /* خط الحقل أصغر */
+    color: var(--project-text-main);
+    background-color: #f8fafc;
+    transition: var(--project-transition);
+    height: auto;
+}
+
+.project-table .form-control:focus,
+.project-table .form-select:focus {
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+    border-color: var(--project-accent);
+    background-color: #ffffff;
+    outline: none;
+}
+
+/* الأزرار */
+.project-btn {
+    border: none;
+    border-radius: 4px;
+    /* زوايا احترافية (ليست دائرية بالكامل) */
+    padding: 0.35rem 0.85rem;
+    /* أزرار مدمجة */
+    transition: var(--project-transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+    /* خط الزر صغير */
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.project-btn:active {
+    transform: scale(0.95);
+}
+
+.project-btn-primary {
+    background: var(--project-btn-gradient);
+    color: white;
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.2);
+}
+
+.project-btn-primary:hover {
+    background: linear-gradient(135deg, #047857 0%, #059669 100%);
+    color: white;
+}
+
+.project-btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.project-btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.project-action-buttons {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   4. التصميم المتجاوب (Responsive Design) - دقيق لكل الشاشات
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .project-table-container {
+        border-radius: var(--project-radius-md);
+        margin-bottom: 1rem;
+    }
+
+    .project-table-header {
+        padding: 0.85rem 1rem;
+        font-size: 0.95rem;
+    }
+
+    .project-table thead {
+        display: none;
+        /* إخفاء الرأس في الجوال */
+    }
+
+    .project-table,
+    .project-table tbody,
+    .project-table tr,
+    .project-table td {
+        display: block;
+        width: 100%;
+        padding: 0;
+    }
+
+    .project-table {
+        padding: 0.75rem;
+    }
+
+    .project-table tr {
+        margin-bottom: 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: var(--project-radius-md);
+        box-shadow: var(--project-shadow-sm);
+        position: relative;
+    }
+
+    .project-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        /* توزيع النص والعنوان */
+        text-align: end;
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+        border-bottom: 1px solid #f1f5f9;
+        border-inline-start: none !important;
+    }
+
+    /* إظهار العناوين باستخدام data-label بأسلوب دقيق */
+    .project-table td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--project-text-muted);
+        font-size: 0.75rem;
+        padding-inline-end: 1rem;
+        text-align: start;
+        flex-shrink: 0;
+        /* منع انكماش العنوان */
+    }
+
+    .project-table td:last-child {
+        border-bottom: none;
+        justify-content: center;
+        /* توسيط الأزرار في الخلية الأخيرة */
+    }
+
+    .project-table td:last-child::before {
+        display: none;
+        /* إخفاء عنوان خلية الإجراءات إن وجد */
+    }
+
+    .project-action-buttons {
+        width: 100%;
+        padding-top: 0.5rem;
+    }
+}
+
+/* ==========================================================================
+   5. الوضع الداكن (Dark Mode) - مع تدرجات ليلية أنيقة
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --project-bg-primary: #0f172a;
+        --project-hover: #1e293b;
+        --project-text-main: #f8fafc;
+        --project-text-muted: #94a3b8;
+        --project-header-gradient: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+    }
+
+    .project-table-container {
+        border-color: #1e293b;
+        background: #0f172a;
+    }
+
+    .project-table thead th {
+        border-bottom-color: #1e293b;
+    }
+
+    .project-table tbody tr {
+        border-color: #1e293b;
+        background: #1e293b;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .project-table tbody tr:hover {
+        background-color: #334155;
+    }
+
+    .project-table .form-control,
+    .project-table .form-select {
+        background-color: #0f172a;
+        border-color: #334155;
+        color: #f8fafc;
+    }
+
+    @media (max-width: 768px) {
+        .project-table tr {
+            border-color: #334155;
+        }
+
+        .project-table td {
+            border-bottom-color: #1e293b;
+        }
+    }
+}

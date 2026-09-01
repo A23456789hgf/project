@@ -1,0 +1,365 @@
+/* ==========================================================================
+   AUTO-FIT TABLE FONT SIZING
+   Automatically adjusts font size to fit content within page width
+   ========================================================================== */
+
+/* Base responsive font sizing for all project tables */
+.project-table {
+    font-size: clamp(0.65rem, 1.4vw, 0.78rem);
+    line-height: 1.3;
+}
+
+/* Smaller font for table headers */
+.project-table thead th {
+    font-size: clamp(0.6rem, 1.3vw, 0.72rem);
+    font-weight: 600;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+}
+
+/* Input and select elements inside tables */
+.project-table input.form-control,
+.project-table input.form-control-sm,
+.project-table select.form-select,
+.project-table select.form-control,
+.project-table select.form-control-sm,
+.project-table textarea.form-control {
+    font-size: clamp(0.62rem, 1.2vw, 0.72rem);
+    padding: 0.2rem 0.4rem;
+    height: auto;
+    min-height: 28px;
+}
+
+/* Button font sizes in tables */
+.project-table .project-btn,
+.project-table button {
+    font-size: clamp(0.58rem, 1.1vw, 0.68rem);
+    padding: 0.2rem 0.45rem;
+}
+
+/* Badge sizes */
+.project-table .badge {
+    font-size: clamp(0.55rem, 1vw, 0.65rem);
+    padding: 0.2rem 0.5rem;
+    font-weight: 500;
+}
+
+/* Icons inside tables */
+.project-table i,
+.project-table .icon {
+    font-size: clamp(0.6rem, 1.1vw, 0.7rem);
+}
+
+/* Make table cells more compact */
+.project-table td,
+.project-table th {
+    padding: 0.4rem 0.35rem;
+    vertical-align: middle;
+}
+
+/* ==========================================================================
+   RESPONSIVE ADJUSTMENTS
+   ========================================================================== */
+
+/* Large Desktop (1400px+) */
+@media (min-width: 1400px) {
+    .project-table {
+        font-size: clamp(0.68rem, 1.2vw, 0.78rem);
+    }
+
+    .project-table thead th {
+        font-size: clamp(0.62rem, 1.1vw, 0.72rem);
+    }
+}
+
+/* Desktop (1200px - 1400px) */
+@media (max-width: 1400px) {
+    .project-table {
+        font-size: clamp(0.62rem, 1.2vw, 0.72rem);
+    }
+
+    .project-table thead th {
+        font-size: clamp(0.58rem, 1.1vw, 0.68rem);
+    }
+
+    .project-table td,
+    .project-table th {
+        padding: 0.35rem 0.3rem;
+    }
+}
+
+/* Laptop (992px - 1200px) */
+@media (max-width: 1200px) {
+    .project-table {
+        font-size: clamp(0.58rem, 1.1vw, 0.68rem);
+    }
+
+    .project-table thead th {
+        font-size: clamp(0.55rem, 1vw, 0.65rem);
+    }
+
+    .project-table td,
+    .project-table th {
+        padding: 0.3rem 0.25rem;
+    }
+
+    .project-table .badge {
+        font-size: 0.58rem;
+        padding: 0.15rem 0.4rem;
+    }
+}
+
+/* Tablet (768px - 992px) */
+@media (max-width: 992px) {
+    .project-table {
+        font-size: clamp(0.55rem, 1vw, 0.65rem);
+    }
+
+    .project-table thead th {
+        font-size: clamp(0.52rem, 0.95vw, 0.62rem);
+    }
+
+    .project-table td,
+    .project-table th {
+        padding: 0.25rem 0.2rem;
+    }
+
+    .project-table input,
+    .project-table select {
+        font-size: 0.58rem;
+        padding: 0.15rem 0.3rem;
+    }
+}
+
+/* Mobile (max-width: 768px) */
+@media (max-width: 768px) {
+    .project-table {
+        font-size: 0.68rem;
+    }
+
+    .project-table thead th {
+        font-size: 0.62rem;
+    }
+
+    .project-table td,
+    .project-table th {
+        padding: 0.3rem 0.25rem;
+    }
+
+    .project-table .badge {
+        font-size: 0.55rem;
+        padding: 0.15rem 0.35rem;
+    }
+
+    .project-table .project-btn,
+    .project-table button {
+        font-size: 0.58rem;
+        padding: 0.18rem 0.35rem;
+    }
+}
+
+/* Small Mobile (max-width: 576px) */
+@media (max-width: 576px) {
+    .project-table {
+        font-size: 0.62rem;
+    }
+
+    .project-table thead th {
+        font-size: 0.58rem;
+    }
+
+    .project-table td,
+    .project-table th {
+        padding: 0.25rem 0.2rem;
+    }
+
+    .project-table input,
+    .project-table select {
+        font-size: 0.55rem;
+        padding: 0.12rem 0.25rem;
+    }
+
+    .project-table .badge {
+        font-size: 0.5rem;
+        padding: 0.12rem 0.3rem;
+    }
+}
+
+/* ==========================================================================
+   TABLE WRAPPER & CONTAINER
+   ========================================================================== */
+
+/* Ensure table wrapper allows horizontal scroll */
+.project-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+}
+
+/* Prevent table from exceeding container */
+.project-table-container {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Custom scrollbar for table wrapper */
+.project-table-wrapper::-webkit-scrollbar {
+    height: 6px;
+}
+
+.project-table-wrapper::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.project-table-wrapper::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.project-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ==========================================================================
+   MULTI-COLUMN TABLES
+   ========================================================================== */
+
+/* Tables with many columns */
+.project-table.table-many-columns {
+    font-size: clamp(0.58rem, 1.1vw, 0.68rem);
+}
+
+.project-table.table-many-columns thead th {
+    font-size: clamp(0.55rem, 1vw, 0.65rem);
+}
+
+.project-table.table-many-columns td,
+.project-table.table-many-columns th {
+    padding: 0.25rem 0.2rem;
+}
+
+/* ==========================================================================
+   AUTO-FIT BASED ON COLUMN COUNT
+   ========================================================================== */
+
+/* 6+ columns */
+.project-table:has(thead tr th:nth-child(6)) {
+    font-size: clamp(0.6rem, 1.2vw, 0.72rem);
+}
+
+/* 8+ columns */
+.project-table:has(thead tr th:nth-child(8)) {
+    font-size: clamp(0.55rem, 1.1vw, 0.68rem);
+}
+
+/* 10+ columns */
+.project-table:has(thead tr th:nth-child(10)) {
+    font-size: clamp(0.52rem, 1vw, 0.62rem);
+}
+
+/* 12+ columns */
+.project-table:has(thead tr th:nth-child(12)) {
+    font-size: clamp(0.5rem, 0.95vw, 0.58rem);
+}
+
+/* ==========================================================================
+   ACTION BUTTONS IN TABLES
+   ========================================================================== */
+
+.project-table .btn-action {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    margin: 0 1px;
+}
+
+.project-table .btn-action i {
+    font-size: 0.62rem;
+}
+
+/* ==========================================================================
+   PRINT STYLES
+   ========================================================================== */
+
+@media print {
+    .project-table {
+        font-size: 7pt !important;
+    }
+
+    .project-table thead th {
+        font-size: 6pt !important;
+    }
+
+    .project-table td,
+    .project-table th {
+        padding: 1.5pt 2pt !important;
+    }
+
+    .project-table input,
+    .project-table select,
+    .project-table button {
+        font-size: 6pt !important;
+    }
+
+    .project-table .badge {
+        font-size: 5pt !important;
+        padding: 1pt 3pt !important;
+    }
+
+    .project-table .btn-action {
+        width: 16px !important;
+        height: 16px !important;
+    }
+
+    .project-table .btn-action i {
+        font-size: 5pt !important;
+    }
+}
+
+/* ==========================================================================
+   ACCESSIBILITY & UX ENHANCEMENTS
+   ========================================================================== */
+
+/* Ensure minimum readable size */
+.project-table * {
+    min-font-size: 0.5rem;
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 768px) {
+    .project-table .btn-action {
+        width: 28px;
+        height: 28px;
+    }
+
+    .project-table .btn-action i {
+        font-size: 0.68rem;
+    }
+
+    .project-table input,
+    .project-table select {
+        min-height: 32px;
+    }
+}
+
+/* Focus states for accessibility */
+.project-table input:focus,
+.project-table select:focus,
+.project-table button:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 1px;
+}
+
+/* Hover effects */
+.project-table tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.04);
+}
+
+/* ==========================================================================
+   END OF AUTO-FIT TABLE STYLES
+   ========================================================================== */

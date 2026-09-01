@@ -1,0 +1,735 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Domain;
+use App\Models\Intervention;
+use App\Models\Program;
+use App\Models\Project;
+use App\Models\Subdomain;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+
+class ProjectController extends Controller
+{
+    public function index()
+    {
+        $projects = Project::with([
+            'program',
+            'domain',
+            'subdomain',
+            'intervention',
+            'locations',
+            'mainObjectives',
+            'specialObjectives',
+            'risks',
+            'cost',
+            'financings',
+            'preliminaryActivities.actions.costs',
+        ])->latest()->get();
+
+        return view('projects.index', compact('projects'));
+    }
+
+    public function create()
+    {
+        $programs = Program::all();
+        $domains = Domain::all();
+        $subdomains = Subdomain::all();
+        $interventions = Intervention::all();
+
+        return view('projects.create', compact('programs', 'domains', 'subdomains', 'interventions'));
+    }
+
+    public function store(Request $request)
+    {
+        try {
+            $this->normalizeRequestData($request);
+
+            $validator = Validator::make($request->all(), [
+                'project_name' => 'required|string|max:255',
+                'program_id' => 'required|exists:programs,id',
+                'domain_id' => 'required|exists:domains,id',
+                'subdomain_id' => 'required|exists:subdomains,id',
+                'intervention_id' => 'required|exists:interventions,id',
+                'start_date_gregorian' => 'required|date',
+                'start_date_hijri' => 'required|string|max:20',
+                'end_date_gregorian' => 'required|date|after:start_date_gregorian',
+                'end_date_hijri' => 'required|string|max:20',
+                'number_of_beneficiaries' => 'required|integer|min:1',
+
+                // Project details
+                'is_part_of_plan' => 'required|boolean',
+                'project_summary' => 'required|string',
+                'problem_and_justification' => 'required|string',
+                'expected_results' => 'required|string',
+                'expected_outputs' => 'required|string',
+                'project_components' => 'required|string',
+                'expected_impact' => 'required|string',
+
+                // Locations
+                'locations' => 'required|array|min:1',
+                'locations.*.governorate' => 'required|string|max:255',
+                'locations.*.directorate' => 'required|string|max:255',
+                'locations.*.subdistrict' => 'required|string|max:255',
+                'locations.*.village' => 'required|string|max:255',
+
+                // Main objectives
+                'main_objectives' => 'required|array|min:1',
+                'main_objectives.*.objective' => 'required|string|max:255',
+                'main_objectives.*.indicator' => 'required|string|max:255',
+                'main_objectives.*.indicator_unit' => 'required|string|max:50',
+
+                // Special objectives
+                'special_objectives' => 'required|array|min:1',
+                'special_objectives.*.objective' => 'required|string|max:255',
+                'special_objectives.*.indicator' => 'required|string|max:255',
+                'special_objectives.*.indicator_unit' => 'required|string|max:50',
+                'special_objectives.*.indicator_value' => 'nullable|numeric',
+
+                // Project risks
+                'risks' => 'nullable|array',
+                'risks.*.risk' => 'required|string|max:255',
+                'risks.*.risk_rate' => 'required|integer|min:1|max:10',
+                'risks.*.proposed_solution' => 'required|string|max:500',
+
+                // Project costs
+                'total_cost' => 'required|numeric|min:0',
+                'year_type' => 'required|in:hijri,gregorian',
+                'approval_date_hijri' => 'required|date_format:Y-m-d',
+                'approval_year_gregorian' => 'required|digits:4|integer|min:1900|max:2100',
+
+                // Project financings
+                'financings' => 'required_if:total_cost,>,0|array|min:1',
+                'financings.*.funding_source' => 'required|string|max:255',
+                'financings.*.funding_agency' => 'required|string|max:255',
+                'financings.*.funding_type' => 'required|string|max:255',
+                'financings.*.funding_form' => 'required|string|max:255',
+                'financings.*.funding_subform' => 'required|string|max:255',
+                'financings.*.funding_amount' => 'required|numeric|min:0',
+                'financings.*.funding_percentage' => 'required|numeric|min:0|max:100',
+
+                // Preliminary activities
+                'preliminary_activities' => 'nullable|array',
+                'preliminary_activities.*.activity_name' => 'required|string|max:255',
+                'preliminary_activities.*.activity_weight' => 'required|numeric|min:0',
+                'preliminary_activities.*.actions' => 'required|array|min:1',
+                'preliminary_activities.*.actions.*.action_name' => 'required|string|max:255',
+                'preliminary_activities.*.actions.*.action_weight' => 'required|numeric|min:0',
+                'preliminary_activities.*.actions.*.start_date' => 'required|date',
+                'preliminary_activities.*.actions.*.end_date' => 'required|date|after:preliminary_activities.*.actions.*.start_date',
+                'preliminary_activities.*.actions.*.verification_means' => 'required|string|max:500',
+                'preliminary_activities.*.actions.*.costs' => 'required|array|min:1',
+                'preliminary_activities.*.actions.*.costs.*.financial_item' => 'required|string|max:255',
+                'preliminary_activities.*.actions.*.costs.*.unit' => 'required|string|max:100',
+                'preliminary_activities.*.actions.*.costs.*.amount' => 'required|numeric|min:0',
+                'preliminary_activities.*.actions.*.costs.*.quantity' => 'required|integer|min:1',
+            ]);
+
+            $validator->after(function ($validator) use ($request) {
+                if ($request->has('preliminary_activities')) {
+                    foreach ($request->preliminary_activities as $activityIndex => $activity) {
+                        foreach ($activity['actions'] as $actionIndex => $action) {
+                            if (isset($action['start_date']) && isset($action['end_date'])) {
+                                try {
+                                    $start = Carbon::parse($action['start_date']);
+                                    $end = Carbon::parse($action['end_date']);
+                                    if ($end->lessThan($start)) {
+                                        $validator->errors()->add(
+                                            "preliminary_activities.$activityIndex.actions.$actionIndex.end_date",
+                                            'يجب أن يكون تاريخ النهاية بعد تاريخ البداية.'
+                                        );
+                                    }
+                                } catch (\Exception $e) {
+                                    // Date parsing error handled by main validation
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            $validated = $validator->validate();
+
+            // Create the main project
+            $project = Project::create($validated);
+            Log::info('تم إنشاء المشروع الأساسي', [
+                'project_id' => $project->id,
+                'form_number' => $project->form_number,
+            ]);
+
+            // Create project details
+            $project->detail()->create([
+                'is_part_of_plan' => $request->is_part_of_plan,
+                'project_summary' => $request->project_summary,
+                'problem_and_justification' => $request->problem_and_justification,
+                'expected_results' => $request->expected_results,
+                'expected_outputs' => $request->expected_outputs,
+                'project_components' => $request->project_components,
+                'expected_impact' => $request->expected_impact,
+            ]);
+            Log::info('تم إنشاء تفاصيل المشروع', ['project_id' => $project->id]);
+
+            // Create locations
+            foreach ($request->locations as $location) {
+                $project->locations()->create($location);
+            }
+            Log::info('تم إنشاء مواقع المشروع', [
+                'project_id' => $project->id,
+                'locations_count' => count($request->locations),
+            ]);
+
+            // Create main objectives
+            foreach ($request->main_objectives as $mainObjective) {
+                $project->mainObjectives()->create($mainObjective);
+            }
+            Log::info('تم إنشاء الأهداف الرئيسية', [
+                'project_id' => $project->id,
+                'objectives_count' => count($request->main_objectives),
+            ]);
+
+            // Create special objectives
+            foreach ($request->special_objectives as $specialObjective) {
+                $project->specialObjectives()->create($specialObjective);
+            }
+            Log::info('تم إنشاء الأهداف الخاصة', [
+                'project_id' => $project->id,
+                'objectives_count' => count($request->special_objectives),
+            ]);
+
+            // Create project risks
+            if ($request->has('risks')) {
+                foreach ($request->risks as $risk) {
+                    $project->risks()->create($risk);
+                }
+                Log::info('تم إنشاء مخاطر المشروع', [
+                    'project_id' => $project->id,
+                    'risks_count' => count($request->risks),
+                ]);
+            }
+
+            // Create project costs
+            $project->cost()->create([
+                'total_cost' => $request->total_cost,
+                'year_type' => $request->year_type,
+                'approval_date_hijri' => $request->approval_date_hijri,
+                'approval_year_gregorian' => $request->approval_year_gregorian,
+            ]);
+            Log::info('تم إنشاء تكاليف المشروع', ['project_id' => $project->id]);
+
+            // Create project financings
+            foreach ($request->financings as $financing) {
+                $project->financings()->create($financing);
+            }
+            Log::info('تم إنشاء تمويلات المشروع', [
+                'project_id' => $project->id,
+                'financings_count' => count($request->financings),
+            ]);
+
+            // Create preliminary activities
+            if ($request->has('preliminary_activities')) {
+                foreach ($request->preliminary_activities as $activityData) {
+                    $activity = $project->preliminaryActivities()->create([
+                        'activity_name' => $activityData['activity_name'],
+                        'activity_weight' => $activityData['activity_weight'],
+                    ]);
+
+                    foreach ($activityData['actions'] as $actionData) {
+                        $action = $activity->actions()->create([
+                            'action_name' => $actionData['action_name'],
+                            'action_weight' => $actionData['action_weight'],
+                            'start_date' => $actionData['start_date'],
+                            'end_date' => $actionData['end_date'],
+                            'verification_means' => $actionData['verification_means'],
+                        ]);
+
+                        foreach ($actionData['costs'] as $costData) {
+                            $action->costs()->create([
+                                'financial_item' => $costData['financial_item'],
+                                'unit' => $costData['unit'],
+                                'amount' => $costData['amount'],
+                                'quantity' => $costData['quantity'],
+                            ]);
+                        }
+                    }
+                }
+                Log::info('تم إنشاء الأنشطة التحضيرية', [
+                    'project_id' => $project->id,
+                    'activities_count' => count($request->preliminary_activities),
+                ]);
+            }
+
+            Log::channel('projects')->info('تم إضافة مشروع جديد بنجاح', [
+                'project_id' => $project->id,
+                'project_name' => $project->project_name,
+                'form_number' => $project->form_number,
+                'user_id' => auth()->id() ?? 'guest',
+                'ip_address' => $request->ip(),
+            ]);
+
+            return redirect()->route('projects.index')
+                ->with('success', 'تم إضافة المشروع بنجاح!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::channel('projects')->error('فشل التحقق من صحة البيانات أثناء إنشاء مشروع', [
+                'errors' => $e->errors(),
+                'request' => $request->except('_token'),
+                'user_id' => auth()->id() ?? 'guest',
+                'ip_address' => $request->ip(),
+            ]);
+
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::channel('projects')->error('فشل إنشاء مشروع جديد: '.$e->getMessage(), [
+                'exception' => $e,
+                'request' => $request->except('_token'),
+                'user_id' => auth()->id() ?? 'guest',
+                'ip_address' => $request->ip(),
+            ]);
+
+            return back()->withInput()->with('error', 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.');
+        }
+    }
+
+    public function show(Project $project)
+    {
+        $project->load([
+            'detail',
+            'locations',
+            'mainObjectives',
+            'specialObjectives',
+            'risks',
+            'cost',
+            'financings',
+            'preliminaryActivities.actions.costs',
+        ]);
+
+        return view('projects.show', compact('project'));
+    }
+
+    public function edit(Project $project)
+    {
+        $project->load([
+            'detail',
+            'locations',
+            'mainObjectives',
+            'specialObjectives',
+            'risks',
+            'cost',
+            'financings',
+            'preliminaryActivities.actions.costs',
+        ]);
+        $programs = Program::all();
+        $domains = Domain::all();
+        $subdomains = Subdomain::all();
+        $interventions = Intervention::all();
+
+        return view('projects.edit', compact('project', 'programs', 'domains', 'subdomains', 'interventions'));
+    }
+
+    public function update(Request $request, Project $project)
+    {
+        try {
+            $this->normalizeRequestData($request);
+
+            $validator = Validator::make($request->all(), [
+                'project_name' => 'required|string|max:255',
+                'program_id' => 'required|exists:programs,id',
+                'domain_id' => 'required|exists:domains,id',
+                'subdomain_id' => 'required|exists:subdomains,id',
+                'intervention_id' => 'required|exists:interventions,id',
+                'start_date_gregorian' => 'required|date',
+                'start_date_hijri' => 'required|string|max:20',
+                'end_date_gregorian' => 'required|date|after:start_date_gregorian',
+                'end_date_hijri' => 'required|string|max:20',
+                'number_of_beneficiaries' => 'required|integer|min:1',
+
+                // Project details
+                'is_part_of_plan' => 'required|boolean',
+                'project_summary' => 'required|string',
+                'problem_and_justification' => 'required|string',
+                'expected_results' => 'required|string',
+                'expected_outputs' => 'required|string',
+                'project_components' => 'required|string',
+                'expected_impact' => 'required|string',
+
+                // Locations
+                'locations' => 'required|array|min:1',
+                'locations.*.governorate' => 'required|string|max:255',
+                'locations.*.directorate' => 'required|string|max:255',
+                'locations.*.subdistrict' => 'required|string|max:255',
+                'locations.*.village' => 'required|string|max:255',
+
+                // Main objectives
+                'main_objectives' => 'required|array|min:1',
+                'main_objectives.*.objective' => 'required|string|max:255',
+                'main_objectives.*.indicator' => 'required|string|max:255',
+                'main_objectives.*.indicator_unit' => 'required|string|max:50',
+
+                // Special objectives
+                'special_objectives' => 'required|array|min:1',
+                'special_objectives.*.objective' => 'required|string|max:255',
+                'special_objectives.*.indicator' => 'required|string|max:255',
+                'special_objectives.*.indicator_unit' => 'required|string|max:50',
+                'special_objectives.*.indicator_value' => 'nullable|numeric',
+
+                // Project risks
+                'risks' => 'nullable|array',
+                'risks.*.risk' => 'required|string|max:255',
+                'risks.*.risk_rate' => 'required|integer|min:1|max:10',
+                'risks.*.proposed_solution' => 'required|string|max:500',
+
+                // Project costs
+                'total_cost' => 'required|numeric|min:0',
+                'year_type' => 'required|in:hijri,gregorian',
+                'approval_date_hijri' => 'required|date_format:Y-m-d',
+                'approval_year_gregorian' => 'required|digits:4|integer|min:1900|max:2100',
+
+                // Project financings
+                'financings' => 'required_if:total_cost,>,0|array|min:1',
+                'financings.*.funding_source' => 'required|string|max:255',
+                'financings.*.funding_agency' => 'required|string|max:255',
+                'financings.*.funding_type' => 'required|string|max:255',
+                'financings.*.funding_form' => 'required|string|max:255',
+                'financings.*.funding_subform' => 'required|string|max:255',
+                'financings.*.funding_amount' => 'required|numeric|min:0',
+                'financings.*.funding_percentage' => 'required|numeric|min:0|max:100',
+
+                // Preliminary activities
+                'preliminary_activities' => 'nullable|array',
+                'preliminary_activities.*.activity_name' => 'required|string|max:255',
+                'preliminary_activities.*.activity_weight' => 'required|numeric|min:0',
+                'preliminary_activities.*.actions' => 'required|array|min:1',
+                'preliminary_activities.*.actions.*.action_name' => 'required|string|max:255',
+                'preliminary_activities.*.actions.*.action_weight' => 'required|numeric|min:0',
+                'preliminary_activities.*.actions.*.start_date' => 'required|date',
+                'preliminary_activities.*.actions.*.end_date' => 'required|date|after:preliminary_activities.*.actions.*.start_date',
+                'preliminary_activities.*.actions.*.verification_means' => 'required|string|max:500',
+                'preliminary_activities.*.actions.*.costs' => 'required|array|min:1',
+                'preliminary_activities.*.actions.*.costs.*.financial_item' => 'required|string|max:255',
+                'preliminary_activities.*.actions.*.costs.*.unit' => 'required|string|max:100',
+                'preliminary_activities.*.actions.*.costs.*.amount' => 'required|numeric|min:0',
+                'preliminary_activities.*.actions.*.costs.*.quantity' => 'required|integer|min:1',
+            ]);
+
+            $validator->after(function ($validator) use ($request) {
+                if ($request->has('preliminary_activities')) {
+                    foreach ($request->preliminary_activities as $activityIndex => $activity) {
+                        foreach ($activity['actions'] as $actionIndex => $action) {
+                            if (isset($action['start_date']) && isset($action['end_date'])) {
+                                try {
+                                    $start = Carbon::parse($action['start_date']);
+                                    $end = Carbon::parse($action['end_date']);
+                                    if ($end->lessThan($start)) {
+                                        $validator->errors()->add(
+                                            "preliminary_activities.$activityIndex.actions.$actionIndex.end_date",
+                                            'يجب أن يكون تاريخ النهاية بعد تاريخ البداية.'
+                                        );
+                                    }
+                                } catch (\Exception $e) {
+                                    // Date parsing error handled by main validation
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            $validated = $validator->validate();
+
+            // Remove form_number if present to prevent modification
+            if (array_key_exists('form_number', $validated)) {
+                unset($validated['form_number']);
+            }
+
+            // Update project data
+            $project->update($validated);
+            Log::info('تم تحديث بيانات المشروع الأساسية', [
+                'project_id' => $project->id,
+                'form_number' => $project->form_number,
+            ]);
+
+            // Update project details
+            $project->detail()->updateOrCreate(
+                ['project_id' => $project->id],
+                [
+                    'is_part_of_plan' => $request->is_part_of_plan,
+                    'project_summary' => $request->project_summary,
+                    'problem_and_justification' => $request->problem_and_justification,
+                    'expected_results' => $request->expected_results,
+                    'expected_outputs' => $request->expected_outputs,
+                    'project_components' => $request->project_components,
+                    'expected_impact' => $request->expected_impact,
+                ]
+            );
+            Log::info('تم تحديث تفاصيل المشروع', ['project_id' => $project->id]);
+
+            // Update locations
+            $project->locations()->delete();
+            foreach ($request->locations as $location) {
+                $project->locations()->create($location);
+            }
+            Log::info('تم تحديث مواقع المشروع', [
+                'project_id' => $project->id,
+                'locations_count' => count($request->locations),
+            ]);
+
+            // Update main objectives
+            $project->mainObjectives()->delete();
+            foreach ($request->main_objectives as $mainObjective) {
+                $project->mainObjectives()->create($mainObjective);
+            }
+            Log::info('تم تحديث الأهداف الرئيسية', [
+                'project_id' => $project->id,
+                'objectives_count' => count($request->main_objectives),
+            ]);
+
+            // Update special objectives
+            $project->specialObjectives()->delete();
+            foreach ($request->special_objectives as $specialObjective) {
+                $project->specialObjectives()->create($specialObjective);
+            }
+            Log::info('تم تحديث الأهداف الخاصة', [
+                'project_id' => $project->id,
+                'objectives_count' => count($request->special_objectives),
+            ]);
+
+            // Update project risks
+            $project->risks()->delete();
+            if ($request->has('risks')) {
+                foreach ($request->risks as $risk) {
+                    $project->risks()->create($risk);
+                }
+                Log::info('تم تحديث مخاطر المشروع', [
+                    'project_id' => $project->id,
+                    'risks_count' => count($request->risks),
+                ]);
+            }
+
+            // Update project costs
+            $project->cost()->updateOrCreate(
+                ['project_id' => $project->id],
+                [
+                    'total_cost' => $request->total_cost,
+                    'year_type' => $request->year_type,
+                    'approval_date_hijri' => $request->approval_date_hijri,
+                    'approval_year_gregorian' => $request->approval_year_gregorian,
+                ]
+            );
+            Log::info('تم تحديث تكاليف المشروع', ['project_id' => $project->id]);
+
+            // Update project financings
+            $project->financings()->delete();
+            foreach ($request->financings as $financing) {
+                $project->financings()->create($financing);
+            }
+            Log::info('تم تحديث تمويلات المشروع', [
+                'project_id' => $project->id,
+                'financings_count' => count($request->financings),
+            ]);
+
+            // Update preliminary activities
+            $project->preliminaryActivities()->delete();
+            if ($request->has('preliminary_activities')) {
+                foreach ($request->preliminary_activities as $activityData) {
+                    $activity = $project->preliminaryActivities()->create([
+                        'activity_name' => $activityData['activity_name'],
+                        'activity_weight' => $activityData['activity_weight'],
+                    ]);
+
+                    foreach ($activityData['actions'] as $actionData) {
+                        $action = $activity->actions()->create([
+                            'action_name' => $actionData['action_name'],
+                            'action_weight' => $actionData['action_weight'],
+                            'start_date' => $actionData['start_date'],
+                            'end_date' => $actionData['end_date'],
+                            'verification_means' => $actionData['verification_means'],
+                        ]);
+
+                        foreach ($actionData['costs'] as $costData) {
+                            $action->costs()->create([
+                                'financial_item' => $costData['financial_item'],
+                                'unit' => $costData['unit'],
+                                'amount' => $costData['amount'],
+                                'quantity' => $costData['quantity'],
+                            ]);
+                        }
+                    }
+                }
+                Log::info('تم تحديث الأنشطة التحضيرية', [
+                    'project_id' => $project->id,
+                    'activities_count' => count($request->preliminary_activities),
+                ]);
+            }
+
+            Log::channel('projects')->info('تم تحديث المشروع بنجاح', [
+                'project_id' => $project->id,
+                'project_name' => $project->project_name,
+                'form_number' => $project->form_number,
+                'user_id' => auth()->id() ?? 'guest',
+                'ip_address' => $request->ip(),
+            ]);
+
+            return redirect()->route('projects.index')
+                ->with('success', 'تم تحديث المشروع بنجاح!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::channel('projects')->error('فشل التحقق من صحة البيانات أثناء تحديث مشروع', [
+                'project_id' => $project->id,
+                'errors' => $e->errors(),
+                'request' => $request->except('_token'),
+                'user_id' => auth()->id() ?? 'guest',
+                'ip_address' => $request->ip(),
+            ]);
+
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::channel('projects')->error('فشل تحديث المشروع: '.$e->getMessage(), [
+                'project_id' => $project->id,
+                'exception' => $e,
+                'request' => $request->except('_token'),
+                'user_id' => auth()->id() ?? 'guest',
+                'ip_address' => $request->ip(),
+            ]);
+
+            return back()->withInput()->with('error', 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.');
+        }
+    }
+
+    public function destroy(Project $project)
+    {
+        try {
+            $projectId = $project->id;
+            $projectName = $project->project_name;
+            $formNumber = $project->form_number;
+            $user = auth()->user();
+
+            // Delete all related data
+            $project->detail()->delete();
+            $project->locations()->delete();
+            $project->mainObjectives()->delete();
+            $project->specialObjectives()->delete();
+            $project->risks()->delete();
+            $project->cost()->delete();
+            $project->financings()->delete();
+            $project->preliminaryActivities()->delete(); // Will cascade to actions and costs
+            $project->delete();
+
+            Log::channel('projects')->info('تم حذف المشروع بنجاح', [
+                'project_id' => $projectId,
+                'project_name' => $projectName,
+                'form_number' => $formNumber,
+                'user_id' => $user->id ?? 'guest',
+                'user_name' => $user->name ?? 'guest',
+                'ip_address' => request()->ip(),
+            ]);
+
+            return redirect()->route('projects.index')
+                ->with('success', 'تم حذف المشروع بنجاح!');
+        } catch (\Exception $e) {
+            Log::channel('projects')->error('فشل حذف المشروع: '.$e->getMessage(), [
+                'project_id' => $project->id ?? 'unknown',
+                'project_name' => $project->project_name ?? 'unknown',
+                'form_number' => $formNumber ?? 'unknown',
+                'exception' => $e,
+                'user_id' => auth()->id() ?? 'guest',
+                'ip_address' => request()->ip(),
+            ]);
+
+            return back()->with('error', 'حدث خطأ أثناء حذف المشروع: '.$e->getMessage());
+        }
+    }
+
+    protected function normalizeRequestData(Request $request)
+    {
+        // إزالة الحقول غير الضرورية
+        if ($request->has('form_number')) {
+            $request->request->remove('form_number');
+        }
+
+        // معالجة الأهداف الرئيسية إذا أُرسلت ككائن مفرد
+        if ($request->has('main_objective') && ! $request->has('main_objectives')) {
+            $request->merge([
+                'main_objectives' => [
+                    [
+                        'objective' => $request->input('main_objective'),
+                        'indicator' => $request->input('main_indicator'),
+                        'indicator_unit' => $request->input('main_indicator_unit'),
+                    ],
+                ],
+            ]);
+        }
+
+        // معالجة الأهداف الخاصة إذا أُرسلت ككائن مفرد
+        if ($request->has('special_objective') && ! $request->has('special_objectives')) {
+            $request->merge([
+                'special_objectives' => [
+                    [
+                        'objective' => $request->input('special_objective'),
+                        'indicator' => $request->input('special_indicator'),
+                        'indicator_unit' => $request->input('special_indicator_unit'),
+                        'indicator_value' => $request->input('special_indicator_value'),
+                    ],
+                ],
+            ]);
+        }
+
+        // معالجة تكاليف المشروع إذا أُرسلت في كائن project_cost
+        if ($request->has('project_cost') && is_array($request->project_cost)) {
+            $projectCost = $request->input('project_cost');
+
+            // إزالة الحقول المتضاربة من الجذر
+            $request->request->remove('total_cost');
+            $request->request->remove('year_type');
+            $request->request->remove('approval_date_hijri');
+            $request->request->remove('approval_year_gregorian');
+
+            $request->merge([
+                'total_cost' => $projectCost['total_cost'] ?? null,
+                'year_type' => $projectCost['year_type'] ?? null,
+                'approval_date_hijri' => $projectCost['approval_date_hijri'] ?? null,
+                'approval_year_gregorian' => $projectCost['approval_year_gregorian'] ?? null,
+            ]);
+        }
+
+        // معالجة تمويلات المشروع إذا أُرسلت في كائن project_cost
+        if ($request->has('project_cost') && is_array($request->project_cost) && ! $request->has('financings')) {
+            $projectCost = $request->input('project_cost');
+            $totalCost = $projectCost['total_cost'] ?? 0;
+
+            if ($totalCost > 0) {
+                $request->merge([
+                    'financings' => [
+                        [
+                            'funding_source' => 'مصدر غير محدد',
+                            'funding_agency' => 'وكالة غير محددة',
+                            'funding_type' => 'نوع غير محدد',
+                            'funding_form' => 'شكل غير محدد',
+                            'funding_subform' => 'شكل فرعي غير محدد',
+                            'funding_amount' => $totalCost,
+                            'funding_percentage' => 100,
+                        ],
+                    ],
+                ]);
+            }
+        }
+
+        // معالجة تمويلات المشروع إذا أُرسلت ككائن مفرد
+        if ($request->has('project_financing') && ! $request->has('financings')) {
+            $financing = $request->input('project_financing');
+            $request->merge([
+                'financings' => [
+                    [
+                        'funding_source' => $financing['funding_source'] ?? null,
+                        'funding_agency' => $financing['funding_agency'] ?? null,
+                        'funding_type' => $financing['funding_type'] ?? null,
+                        'funding_form' => $financing['funding_form'] ?? null,
+                        'funding_subform' => $financing['funding_subform'] ?? null,
+                        'funding_amount' => $financing['funding_amount'] ?? null,
+                        'funding_percentage' => $financing['funding_percentage'] ?? null,
+                    ],
+                ],
+            ]);
+        }
+    }
+}

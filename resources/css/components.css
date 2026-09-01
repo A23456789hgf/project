@@ -1,0 +1,127 @@
+/**
+ * Unified Component Stylesheet - Project Management System
+ * Reusable classes for Auth, Approval Forms, Activity Logs, Cards & Controls
+ */
+
+/* ==========================================
+   1. AUTHENTICATION & LOGIN COMPONENTS
+   ========================================== */
+.auth-wrapper {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+    background-color: var(--gray-50);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 480px;
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(201, 169, 97, 0.2);
+    transition: var(--transition);
+}
+
+.auth-card:hover {
+    box-shadow: 0 25px 70px rgba(15, 31, 61, 0.12);
+}
+
+/* ==========================================
+   2. CONTENT SECTIONS & CARDS
+   ========================================== */
+.section-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--space-xl);
+    transition: var(--transition);
+    overflow: hidden;
+}
+
+.section-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+    background: var(--white);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.section-card-title {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.section-card-body {
+    padding: var(--space-lg);
+}
+
+/* ==========================================
+   3. APPROVAL FORM STYLES
+   ========================================== */
+.approval-form-wrapper {
+    border: 1px solid var(--gray-200);
+    padding: var(--space-xl);
+    border-radius: var(--radius-lg);
+    background: var(--gray-50);
+    box-shadow: var(--shadow-sm);
+}
+
+.approval-form-header {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary);
+    margin-bottom: var(--space-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* ==========================================
+   4. ACTIVITY HISTORY & TIMELINE COMPONENTS
+   ========================================== */
+.activity-log-filter {
+    padding: var(--space-md) var(--space-lg);
+    background: var(--gray-100);
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.activity-item {
+    position: relative;
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--gray-100);
+    transition: var(--transition);
+}
+
+.activity-item:hover {
+    background-color: var(--primary-subtle);
+}
+
+.icon-btn-ghost {
+    background: none;
+    border: none;
+    color: var(--sky-blue);
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+    padding: var(--space-xs);
+    border-radius: var(--radius-full);
+    transition: var(--transition);
+}
+
+.icon-btn-ghost:hover {
+    background: var(--sky-blue-subtle);
+    color: var(--sky-blue-dark);
+}

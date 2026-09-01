@@ -1,0 +1,98 @@
+/**
+ * Self-Hosted Font Declarations - Cairo & Tajawal
+ * Completely eliminates external Google Fonts CDN blockages
+ */
+
+/* ==========================================
+   CAIRO FONT FAMILY
+   ========================================== */
+@font-face {
+    font-family: 'Cairo';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('/fonts/Cairo-Light.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Cairo';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/cairo-regular.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Cairo';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/Cairo-Medium.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Cairo';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fonts/Cairo-SemiBold.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Cairo';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/cairo-bold.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Cairo';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('/fonts/Cairo-ExtraBold.ttf') format('truetype');
+}
+
+/* ==========================================
+   TAJAWAL FONT FAMILY
+   ========================================== */
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('/fonts/Cairo-Light.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/cairo-regular.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/Cairo-Medium.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/cairo-bold.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Tajawal';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('/fonts/Cairo-ExtraBold.ttf') format('truetype');
+}
