@@ -1369,6 +1369,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/roles-permissions/get-scopes-by-type', [RolePermissionController::class, 'getScopesByType'])->name('roles-permissions.get-scopes-by-type')->middleware('can:roles-permissions.view');
         Route::post('/roles-permissions/update-permission-scope', [RolePermissionController::class, 'updateGranularScope'])->name('roles-permissions.update-permission-scope')->middleware('can:roles-permissions.edit');
         Route::post('/roles/update-permissions', [RoleController::class, 'updatePermissions'])->name('roles.update-permissions');
+        Route::get('/roles/matrix-module-rows', [RoleController::class, 'getMatrixModuleRows'])->name('roles.matrix-module-rows');
         Route::post('/admin/roles/{roleId}/update-scope', [RoleController::class, 'updateScope'])->name('roles.update-scope');
         Route::get('/roles/{role}/permissions', [RoleController::class, 'getRolePermissions'])->name('roles.permissions');
         Route::resource('roles', RoleController::class);

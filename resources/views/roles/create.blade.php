@@ -2,66 +2,58 @@
 
 @section('content')
 <div class="container-fluid py-4" dir="rtl">
-    <div class="row justify-content-center">
+    <div class="row">
         <div class="col-12">
             <form method="POST" action="{{ route('roles.store') }}" id="roleForm">
                 @csrf
 
-                {{-- Header Bar --}}
-                <div class="d-flex align-items-center justify-content-between border-bottom pb-3 mb-4">
-                    <div>
-                        <h5 class="mb-1 text-dark fw-bold">
-                            <i class="fas fa-plus-circle text-primary me-2"></i>إضافة دور جديد
+                {{-- Role Basic Info --}}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0 text-primary font-weight-bold">
+                            <i class="fas fa-plus-circle me-2"></i>إضافة دور جديد
                         </h5>
-                        <p class="text-muted small mb-0">حدد بيانات الدور الجديد والصلاحيات الممنوحة له مباشرة.</p>
                     </div>
-                    <a href="{{ route('roles.index') }}" class="btn btn-sm btn-outline-secondary px-3">
-                        <i class="fas fa-arrow-right ms-1"></i> العودة للقائمة
-                    </a>
-                </div>
-
-                {{-- Role Basic Info Card --}}
-                <div class="card border-0 shadow-sm rounded-4 mb-4">
-                    <div class="card-header bg-white border-bottom py-3">
-                        <h6 class="mb-0 text-dark fw-bold">
-                            <i class="fas fa-id-card text-primary me-2"></i>البيانات الأساسية للدور
-                        </h6>
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="row g-3">
+                    <div class="card-body">
+                        <div class="row">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold small text-muted mb-1">اسم الدور <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-user-tag text-muted"></i></span>
-                                    <input type="text" name="name"
-                                           class="form-control border-start-0 @error('name') is-invalid @enderror"
-                                           placeholder="مثال: مدير مشاريع، محاسب، مدقق"
-                                           value="{{ old('name') }}" required>
-                                    @error('name')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
+                                <div class="form-group mb-4">
+                                    <label class="form-label font-weight-bold">اسم الدور</label>
+                                    <div class="input-group">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
+                                        </div>
+                                        <input type="text" name="name"
+                                               class="form-control @error('name') is-invalid @enderror"
+                                               placeholder="أدخل اسم الدور (مثال: مدير مشروع)"
+                                               value="{{ old('name') }}" required>
+                                        @error('name')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="col-md-6 d-flex align-items-center">
-                                <div class="form-check form-switch p-0 mt-3 d-flex align-items-center">
-                                    <input class="form-check-input ms-0 me-2" type="checkbox" name="is_active" id="is_active" value="1" checked style="cursor: pointer; width: 2.5em; height: 1.25em;">
-                                    <label class="form-check-label fw-bold text-dark small mb-0" for="is_active" style="cursor: pointer;">
-                                        تفعيل الدور فور الإنشاء
-                                    </label>
+                            <div class="col-md-6">
+                                <div class="form-group mb-4">
+                                    <div class="custom-control custom-switch mt-4">
+                                        <input type="checkbox" name="is_active" class="custom-control-input" id="is_active" value="1" checked>
+                                        <label class="custom-control-label font-weight-bold" for="is_active">تفعيل الدور فور الإنشاء</label>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">يمكنك تعطيل الدور لاحقاً من قائمة الأدوار.</small>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="col-12">
-                                <label class="form-label fw-bold small text-muted mb-1">وصف الدور</label>
-                                <textarea name="description"
-                                          class="form-control @error('description') is-invalid @enderror"
-                                          placeholder="وصف مختصر لمسؤوليات وصلاحيات هذا الدور..."
-                                          rows="2">{{ old('description') }}</textarea>
-                                @error('description')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+                        <div class="form-group mb-0">
+                            <label class="form-label font-weight-bold">الوصف</label>
+                            <textarea name="description"
+                                      class="form-control @error('description') is-invalid @enderror"
+                                      placeholder="وصف مختصر لمسؤوليات هذا الدور..."
+                                      rows="3">{{ old('description') }}</textarea>
+                            @error('description')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
                 </div>
@@ -70,8 +62,8 @@
                 @include('roles.partials._permissions_matrix', ['submitButtonText' => 'حفظ الدور والصلاحيات'])
 
                 {{-- Form Actions --}}
-                <div class="mt-4 mb-5 text-center">
-                    <a href="{{ route('roles.index') }}" class="btn btn-light border px-5 fw-semibold">
+                <div class="mt-4 text-center">
+                    <a href="{{ route('roles.index') }}" class="btn btn-outline-secondary px-5">
                         إلغاء
                     </a>
                 </div>
@@ -80,4 +72,3 @@
     </div>
 </div>
 @endsection
-

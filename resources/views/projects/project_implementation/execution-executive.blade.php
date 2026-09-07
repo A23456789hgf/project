@@ -14,10 +14,7 @@
                 <div class="row g-4">
                     @foreach($activity->actions as $action)
                         @php
-                            $executions = \App\Models\ProjectExecution::where('project_id', $project->id)
-                                ->where('executive_activity_action_id', $action->id)
-                                ->orderBy('sequence')
-                                ->get();
+                            $executions = $action->executions;
                             $totalCompletionPercentage = $executions->sum('completion_percentage') ?? 0;
                         @endphp
                         <div class="col-12">

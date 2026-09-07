@@ -114,50 +114,10 @@
         </div>
     </div>
 
-    {{-- Pre-compute extra slugs and build fast lookups --}}
+    {{-- Fast lookups using pre-computed controller data --}}
     @php
-        $stdSuffixes = ['sidebar', 'view', 'show', 'index', 'create', 'add', 'edit', 'update', 'delete', 'destroy', 'export', 'import'];
-        $allExtraSlugKeysMap = [];
-        $modulePermsMap = [];
-
-        foreach ($allModuleNames as $_mn) {
-            $_mnPerms = [];
-            foreach (['sidebars', 'pages', 'buttons', 'icons', 'actions', 'settings'] as $_cat) {
-                if (isset($categorized[$_cat][$_mn])) {
-                    foreach ($categorized[$_cat][$_mn] as $p) {
-                        $_mnPerms[] = $p;
-                    }
-                }
-            }
-            
-            $indexedPerms = [];
-            foreach ($_mnPerms as $p) {
-                $slugParts = explode('.', $p->slug);
-                $suffix = end($slugParts);
-                $indexedPerms[$suffix] = $p;
-            }
-            $modulePermsMap[$_mn] = [
-                'perms' => $_mnPerms,
-                'indexed' => $indexedPerms,
-            ];
-
-            $_stdPermsIds = [];
-            foreach ($stdSuffixes as $s) {
-                 if (isset($indexedPerms[$s])) $_stdPermsIds[$indexedPerms[$s]->id] = true;
-                 if (isset($indexedPerms[$s.'s'])) $_stdPermsIds[$indexedPerms[$s.'s']->id] = true;
-            }
-            
-            foreach ($_mnPerms as $_p) {
-                if (!isset($_stdPermsIds[$_p->id])) {
-                    $slugParts = explode('.', $_p->slug);
-                    $suffix = end($slugParts);
-                    $allExtraSlugKeysMap[$suffix] = true;
-                }
-            }
-        }
-        $uniqueExtraSlugKeys = array_keys($allExtraSlugKeysMap);
-        sort($uniqueExtraSlugKeys);
-        
+        $modulePermsMap = $modulePermsMap ?? [];
+        $uniqueExtraSlugKeys = $uniqueExtraSlugKeys ?? [];
         $rolePermsLookup = array_flip($rolePermissions ?? []);
 
 
@@ -192,81 +152,443 @@
         ];
     @endphp
 
-    {{-- Premium Fast Styles --}}
+    {{-- Premium Styles --}}
     <style>
-        .permission-table-wrapper {
-            font-family: inherit;
-            position: relative;
-        }
-
-        .perm-hero {
-            position: relative;
-            border-radius: 18px;
-            overflow: hidden;
-            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #4338ca 100%);
-            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.2);
-            color: #fff;
-        }
-
-        .perm-hero-content {
-            position: relative;
-            padding: 20px 24px;
-        }
-
-        .hero-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 1.4rem;
-        }
-
-        .hero-title {
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: #fff;
-            letter-spacing: -0.3px;
-        }
-
-        .hero-subtitle {
-            font-size: 0.84rem;
-            color: rgba(255, 255, 255, 0.85);
-            font-weight: 500;
-        }
-
+        /* ============ VIEW TOGGLE BUTTONS ============ */
         .view-toggle-wrapper {
             display: inline-flex;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 10px;
-            padding: 3px;
-            gap: 2px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255,255,255,0.9);
+            border-radius: 12px;
+            padding: 4px;
+            gap: 4px;
+            border: 2px solid rgba(102,126,234,0.15);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
 
         .view-toggle-btn {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 6px 12px;
+            gap: 6px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             background: transparent;
+            color: #64748b;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .view-toggle-btn i {
+            font-size: 0.9rem;
+        }
+
+        .view-toggle-btn:hover {
+            color: #667eea;
+            background: rgba(102,126,234,0.08);
+        }
+
+        .view-toggle-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #fff;
+            box-shadow: 0 4px 12px rgba(102,126,234,0.35);
+        }
+
+        .view-toggle-btn.active::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 100%);
+            border-radius: 10px;
+        }
+
+        /* ============ CARDS VIEW ============ */
+        .cards-view {
+            display: none;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .cards-view.active {
+            display: grid;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .permission-card {
+            background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(226,232,240,0.6);
+            box-shadow:
+                0 4px 16px rgba(0,0,0,0.04),
+                0 1px 3px rgba(0,0,0,0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .permission-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #ec4899 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .permission-card:hover {
+            transform: translateY(-4px);
+            box-shadow:
+                0 12px 32px rgba(102,126,234,0.12),
+                0 4px 12px rgba(0,0,0,0.06);
+            border-color: rgba(102,126,234,0.2);
+        }
+
+        .permission-card:hover::before {
+            opacity: 1;
+        }
+
+        .permission-card.inactive {
+            opacity: 0.5;
+            filter: grayscale(0.4);
+        }
+
+        .permission-card.inactive:hover {
+            opacity: 1;
+            filter: grayscale(0);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(226,232,240,0.6);
+        }
+
+        .card-module-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            color: #fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #ec4899 100%);
+            box-shadow:
+                0 6px 16px rgba(102,126,234,0.35),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-module-badge::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+            transform: rotate(45deg);
+            animation: shimmer 3s infinite;
+        }
+
+        .card-title-section {
+            flex: 1;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .card-perm-count {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .card-select-all {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: rgba(102,126,234,0.08);
+            color: #667eea;
             font-size: 0.78rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
+            border: 1.5px solid rgba(102,126,234,0.2);
         }
 
-        .view-toggle-btn.active {
+        .card-select-all:hover {
+            background: rgba(102,126,234,0.15);
+            border-color: #667eea;
+        }
+
+        .card-permissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .perm-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 8px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1.5px solid rgba(226,232,240,0.8);
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .perm-item:hover {
+            background: linear-gradient(135deg, #fff 0%, #fafbff 100%);
+            border-color: rgba(102,126,234,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+        }
+
+        .perm-item.has-permission {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-color: rgba(16,185,129,0.3);
+        }
+
+        .perm-item input[type="checkbox"] {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .perm-item-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+
+        .perm-item-icon.sidebar { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1d4ed8; }
+        .perm-item-icon.view    { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); color: #0369a1; }
+        .perm-item-icon.create  { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #047857; }
+        .perm-item-icon.edit    { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #b45309; }
+        .perm-item-icon.delete  { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #b91c1c; }
+        .perm-item-icon.export  { background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%); color: #0e7490; }
+        .perm-item-icon.import  { background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); color: #7e22ce; }
+        .perm-item-icon.extra   { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); color: #475569; }
+
+        .perm-item-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #475569;
+            text-align: center;
+        }
+
+        .card-scopes-section {
+            padding-top: 16px;
+            border-top: 1px solid rgba(226,232,240,0.6);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .card-scope-select {
+            flex: 1;
+            min-width: 140px;
+            padding: 8px 12px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #fafbff 0%, #fff 100%);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            outline: none;
+        }
+
+        .card-scope-select:hover {
+            border-color: #667eea;
             background: #fff;
-            color: #4f46e5;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-scope-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+        }
+
+        /* ============ TABLE VIEW ============ */
+        .table-view {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .table-view.hidden {
+            display: none;
+        }
+
+        /* ============ EXISTING STYLES (Keep all previous styles) ============ */
+        .permission-table-wrapper {
+            font-family: 'Tajawal', 'Cairo', 'Segoe UI', sans-serif;
+            position: relative;
+        }
+
+        .perm-hero {
+            position: relative;
+            border-radius: 24px;
+            overflow: hidden;
+            padding: 2px;
+            background: linear-gradient(135deg,
+                rgba(102,126,234,0.4) 0%,
+                rgba(118,75,162,0.4) 25%,
+                rgba(236,72,153,0.3) 50%,
+                rgba(59,130,246,0.4) 75%,
+                rgba(102,126,234,0.4) 100%);
+            background-size: 300% 300%;
+            animation: gradientShift 12s ease infinite;
+            box-shadow:
+                0 20px 60px rgba(102,126,234,0.25),
+                0 8px 24px rgba(0,0,0,0.08),
+                inset 0 1px 0 rgba(255,255,255,0.5);
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .perm-hero-bg {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(102,126,234,0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(236,72,153,0.12) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(59,130,246,0.1) 0%, transparent 50%),
+                linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+            z-index: 0;
+        }
+
+        .perm-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(102,126,234,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: float 8s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        .perm-hero::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -5%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(236,72,153,0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: float 10s ease-in-out infinite reverse;
+            z-index: 0;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, -30px) scale(1.1); }
+        }
+
+        .perm-hero-content {
+            position: relative;
+            z-index: 2;
+            padding: 24px 28px;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 22px;
+        }
+
+        .hero-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #ec4899 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.7rem;
+            box-shadow:
+                0 10px 30px rgba(102,126,234,0.4),
+                inset 0 1px 0 rgba(255,255,255,0.3),
+                inset 0 -2px 0 rgba(0,0,0,0.1);
+            position: relative;
+            animation: iconPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .hero-icon::before {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #667eea, #ec4899);
+            z-index: -1;
+            opacity: 0.5;
+            filter: blur(10px);
+        }
+
+        .hero-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #1e293b 0%, #667eea 50%, #764ba2 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .hero-subtitle {
+            font-size: 0.88rem;
+            color: #64748b;
+            font-weight: 500;
         }
 
         .search-box {
@@ -276,31 +598,45 @@
         }
 
         .search-box input {
-            width: 200px;
-            padding: 8px 36px 8px 12px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            font-size: 0.82rem;
-            font-weight: 600;
+            width: 220px;
+            padding: 10px 40px 10px 55px;
+            border: 2px solid rgba(102,126,234,0.15);
+            border-radius: 14px;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+            font-size: 0.88rem;
+            font-weight: 500;
             color: #1e293b;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             outline: none;
-            transition: width 0.2s ease;
         }
 
         .search-box input:focus {
-            width: 230px;
+            width: 260px;
+            border-color: #667eea;
             background: #fff;
-            border-color: #fff;
-            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+            box-shadow: 0 0 0 4px rgba(102,126,234,0.15), 0 8px 20px rgba(102,126,234,0.15);
         }
 
         .search-icon {
             position: absolute;
-            right: 12px;
-            color: #6366f1;
-            font-size: 0.85rem;
-            pointer-events: none;
+            right: 14px;
+            color: #667eea;
+            font-size: 0.9rem;
+            z-index: 2;
+        }
+
+        .search-kbd {
+            position: absolute;
+            left: 10px;
+            padding: 2px 6px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #94a3b8;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-family: monospace;
         }
 
         .select-wrapper {
@@ -310,50 +646,72 @@
         }
 
         .select-wrapper select {
-            padding: 8px 32px 8px 12px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            font-size: 0.8rem;
+            padding: 10px 38px 10px 14px;
+            border: 2px solid rgba(102,126,234,0.15);
+            border-radius: 14px;
+            background: rgba(255,255,255,0.9);
+            font-size: 0.85rem;
             font-weight: 600;
             color: #1e293b;
             cursor: pointer;
             outline: none;
+            transition: all 0.3s ease;
+            appearance: none;
+        }
+
+        .select-wrapper select:hover,
+        .select-wrapper select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102,126,234,0.12);
         }
 
         .select-icon {
             position: absolute;
-            right: 10px;
-            color: #6366f1;
+            right: 12px;
+            color: #667eea;
             pointer-events: none;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
         }
 
         .action-btn {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 7px 13px;
-            border: 1px solid transparent;
-            border-radius: 10px;
-            font-size: 0.78rem;
+            gap: 6px;
+            padding: 10px 16px;
+            border: 2px solid transparent;
+            border-radius: 14px;
+            font-size: 0.82rem;
             font-weight: 700;
             cursor: pointer;
-            transition: transform 0.15s ease;
-        }
-
-        .action-btn:hover {
-            transform: translateY(-1px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
         }
 
         .action-btn-success {
-            background: #10b981;
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #047857;
+            border-color: rgba(16,185,129,0.2);
+        }
+
+        .action-btn-success:hover {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(16,185,129,0.35);
         }
 
         .action-btn-danger {
-            background: #ef4444;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #b91c1c;
+            border-color: rgba(239,68,68,0.2);
+        }
+
+        .action-btn-danger:hover {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(239,68,68,0.35);
         }
 
         .premium-switch {
@@ -367,82 +725,154 @@
         .switch-slider {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 7px 14px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            color: #fff;
-            font-size: 0.78rem;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid rgba(245,158,11,0.25);
+            color: #92400e;
+            font-size: 0.82rem;
             font-weight: 700;
-            transition: all 0.2s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .switch-icon {
+            font-size: 0.9rem;
+            transition: all 0.4s ease;
         }
 
         .premium-switch input:checked + .switch-slider {
-            background: #f59e0b;
-            border-color: #d97706;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
             color: #fff;
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+            border-color: transparent;
+            box-shadow: 0 8px 20px rgba(245,158,11,0.4);
+            transform: translateY(-2px);
+        }
+
+        .premium-switch input:checked + .switch-slider .switch-icon {
+            animation: crownBounce 0.6s ease;
+        }
+
+        @keyframes crownBounce {
+            0%, 100% { transform: scale(1) rotate(0); }
+            50% { transform: scale(1.3) rotate(-15deg); }
         }
 
         .save-btn {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 8px 18px;
+            gap: 8px;
+            padding: 11px 24px;
             border: none;
-            border-radius: 10px;
-            background: #fff;
-            color: #4f46e5;
-            font-size: 0.82rem;
-            font-weight: 800;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #ec4899 100%);
+            background-size: 200% 200%;
+            color: #fff;
+            font-size: 0.88rem;
+            font-weight: 700;
             cursor: pointer;
-            transition: transform 0.15s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow:
+                0 8px 24px rgba(102,126,234,0.4),
+                inset 0 1px 0 rgba(255,255,255,0.3);
         }
 
         .save-btn:hover {
-            transform: translateY(-1px);
-            background: #f8fafc;
+            transform: translateY(-3px);
+            background-position: 100% 0;
+            box-shadow:
+                0 12px 32px rgba(102,126,234,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.4);
+        }
+
+        .save-btn-shine {
+            position: absolute;
+            top: 0;
+            right: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: right 0.6s ease;
+        }
+
+        .save-btn:hover .save-btn-shine {
+            right: 100%;
         }
 
         .view-only-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border-radius: 10px;
-            background: rgba(0, 0, 0, 0.2);
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #475569 0%, #1e293b 100%);
             color: #fff;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-weight: 700;
+            box-shadow: 0 8px 20px rgba(30,41,59,0.3);
         }
 
         .perm-table-container {
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
-            overflow: hidden;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 24px;
+            padding: 3px;
+            background-clip: padding-box;
+            position: relative;
+            box-shadow:
+                0 20px 60px rgba(0,0,0,0.08),
+                0 8px 24px rgba(0,0,0,0.04);
+            border: 1px solid rgba(255,255,255,0.8);
+        }
+
+        .perm-table-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 24px;
+            padding: 2px;
+            background: linear-gradient(135deg,
+                rgba(102,126,234,0.3),
+                rgba(236,72,153,0.2),
+                rgba(59,130,246,0.3));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
         }
 
         .perm-table-scroll {
             max-height: 72vh;
             overflow: auto;
+            border-radius: 22px;
             background: #fff;
+            position: relative;
         }
 
-        .perm-table-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-        .perm-table-scroll::-webkit-scrollbar-track { background: #f8fafc; }
-        .perm-table-scroll::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
+        .perm-table-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+        .perm-table-scroll::-webkit-scrollbar-track {
+            background: #f8fafc;
+            border-radius: 10px;
         }
-        .perm-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .perm-table-scroll::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            border: 2px solid #f8fafc;
+        }
+        .perm-table-scroll::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+        }
+        .perm-table-scroll::-webkit-scrollbar-corner { background: #f8fafc; }
 
         #permMatrixTable {
             border-collapse: separate;
             border-spacing: 0;
+            margin: 0;
             width: 100%;
         }
 
@@ -450,21 +880,26 @@
             position: sticky;
             top: 0;
             z-index: 3;
-            background: #f8fafc;
+            background: linear-gradient(180deg, #fafbff 0%, #f1f5ff 100%);
+            backdrop-filter: blur(10px);
             white-space: nowrap;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 2px solid rgba(102,126,234,0.15);
             color: #475569;
             font-weight: 700;
-            font-size: 0.76rem;
-            padding: 12px 10px;
+            font-size: 0.78rem;
+            letter-spacing: 0.3px;
+            padding: 16px 12px;
+            text-transform: uppercase;
         }
 
         #permMatrixTable thead th small {
             display: block;
-            font-size: 0.68rem;
+            font-size: 0.7rem;
             color: #64748b;
             font-weight: 600;
-            margin-top: 3px;
+            margin-top: 4px;
+            text-transform: none;
+            letter-spacing: 0;
         }
 
         #permMatrixTable .sticky-col {
@@ -472,313 +907,367 @@
             left: 0;
             z-index: 2;
             background: #fff;
-            min-width: 220px;
+            min-width: 240px;
+            transition: all 0.3s ease;
         }
 
         #permMatrixTable thead th.sticky-col {
             z-index: 4;
-            background: #f8fafc !important;
+            background: linear-gradient(180deg, #fafbff 0%, #f1f5ff 100%) !important;
         }
 
         #permMatrixTable tbody tr:hover .sticky-col {
-            background: #f8fafc !important;
+            background: linear-gradient(90deg, #f8f9ff 0%, #fff 100%) !important;
         }
 
         #permMatrixTable tbody tr {
-            border-bottom: 1px solid #f1f5f9;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-bottom: 1px solid rgba(226,232,240,0.6);
         }
 
         #permMatrixTable tbody tr:hover {
-            background: #f8fafc !important;
+            background: linear-gradient(90deg,
+                rgba(102,126,234,0.04) 0%,
+                rgba(236,72,153,0.02) 50%,
+                rgba(59,130,246,0.04) 100%) !important;
         }
 
         #permMatrixTable tbody tr:nth-child(even) {
-            background: #fafbff;
+            background: linear-gradient(90deg, #fafbff 0%, #fff 100%);
         }
 
         .module-badge {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 40px;
-            height: 28px;
-            padding: 0 8px;
-            border-radius: 8px;
-            font-size: 0.68rem;
+            min-width: 44px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 10px;
+            font-size: 0.7rem;
             font-weight: 800;
+            letter-spacing: 0.8px;
             color: #fff;
-            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            position: relative;
+            overflow: hidden;
+            box-shadow:
+                0 4px 12px rgba(102,126,234,0.3),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+
+        .module-badge::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #ec4899 100%);
+        }
+
+        .module-badge span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .module-badge::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+            transform: rotate(45deg);
+        }
+
+        tr:hover .module-badge::after, .permission-card:hover .card-module-badge::after {
+            animation: shimmer 1s ease;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
         }
 
         .perm-checkbox, .row-select-all, .select-all-header {
-            width: 20px;
-            height: 20px;
+            appearance: none;
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
             border: 2px solid #cbd5e1;
-            border-radius: 6px;
+            border-radius: 7px;
             background: #fff;
             cursor: pointer;
+            position: relative;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             margin: 0;
             vertical-align: middle;
-            accent-color: #4f46e5;
+        }
+
+        .perm-checkbox:hover:not(:disabled),
+        .row-select-all:hover:not(:disabled),
+        .select-all-header:hover:not(:disabled) {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102,126,234,0.12);
+            transform: scale(1.08);
+        }
+
+        .perm-checkbox:checked,
+        .row-select-all:checked,
+        .select-all-header:checked {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            box-shadow:
+                0 4px 12px rgba(102,126,234,0.4),
+                inset 0 1px 0 rgba(255,255,255,0.3);
+            animation: checkBounce 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes checkBounce {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .perm-checkbox:checked::after,
+        .row-select-all:checked::after,
+        .select-all-header:checked::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            right: 6px;
+            width: 6px;
+            height: 11px;
+            border: solid #fff;
+            border-width: 0 2.5px 2.5px 0;
+            transform: rotate(45deg);
+        }
+
+        .perm-checkbox:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: #f1f5f9;
         }
 
         .col-icon {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            margin-bottom: 4px;
-            font-size: 0.85rem;
+            width: 38px;
+            height: 38px;
+            border-radius: 11px;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.5),
+                0 2px 6px rgba(0,0,0,0.06);
         }
 
-        .col-icon.sidebar { background: #dbeafe; color: #1d4ed8; }
-        .col-icon.view    { background: #e0f2fe; color: #0369a1; }
-        .col-icon.create  { background: #d1fae5; color: #047857; }
-        .col-icon.edit    { background: #fef3c7; color: #b45309; }
-        .col-icon.delete  { background: #fee2e2; color: #b91c1c; }
-        .col-icon.export  { background: #cffafe; color: #0e7490; }
-        .col-icon.import  { background: #f3e8ff; color: #7e22ce; }
-        .col-icon.extra   { background: #f1f5f9; color: #475569; }
+        .col-icon.sidebar { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1d4ed8; }
+        .col-icon.view    { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); color: #0369a1; }
+        .col-icon.create  { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #047857; }
+        .col-icon.edit    { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #b45309; }
+        .col-icon.delete  { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #b91c1c; }
+        .col-icon.export  { background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%); color: #0e7490; }
+        .col-icon.import  { background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); color: #7e22ce; }
+        .col-icon.extra   { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); color: #475569; }
+
+        /* Fix for Font Awesome icons rendering inside matrix viewports */
+        .permission-table-wrapper .col-icon i,
+        .permission-table-wrapper .perm-item-icon i,
+        .permission-table-wrapper .hero-icon i,
+        .permission-table-wrapper .btn-scope-dedicated i,
+        .permission-table-wrapper .modal-title i {
+            font-family: "Font Awesome 6 Free", "Font Awesome 5 Free", "FontAwesome" !important;
+            font-weight: 900 !important;
+            font-style: normal !important;
+            font-variant: normal !important;
+            line-height: 1 !important;
+            display: inline-block !important;
+            color: inherit !important;
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
+        }
+
+        tr:hover .col-icon {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.5),
+                0 6px 14px rgba(0,0,0,0.1);
+        }
 
         .scope-select, .geo-select {
-            border: 1px solid #e2e8f0;
-            background: #fff;
-            border-radius: 8px !important;
+            border: 1.5px solid #e2e8f0;
+            background: linear-gradient(135deg, #fafbff 0%, #fff 100%);
+            border-radius: 10px !important;
             font-size: 0.72rem !important;
-            padding: 4px 6px !important;
+            padding: 5px 8px !important;
             font-weight: 600;
             color: #334155;
-            outline: none;
+            transition: all 0.25s ease;
             cursor: pointer;
+            outline: none;
+        }
+
+        .scope-select:hover, .geo-select:hover {
+            border-color: #667eea;
+            background: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(102,126,234,0.12);
+        }
+
+        .scope-select:focus, .geo-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
         }
 
         .empty-cell {
             display: inline-block;
-            width: 18px;
-            height: 2px;
-            background: #cbd5e1;
-            border-radius: 2px;
-            opacity: 0.5;
+            width: 22px;
+            height: 3px;
+            background: linear-gradient(90deg, #e2e8f0 0%, #cbd5e1 100%);
+            border-radius: 3px;
+            opacity: 0.6;
         }
 
         .btn-scope-dedicated {
-            background: #fff;
-            border: 1px dashed #6366f1;
-            color: #6366f1;
+            background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+            border: 1.5px dashed #667eea;
+            color: #667eea;
             font-weight: 700;
-            font-size: 0.72rem;
-            padding: 4px 10px;
-            border-radius: 8px;
+            font-size: 0.75rem;
+            padding: 6px 14px;
+            border-radius: 10px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
         }
 
         .btn-scope-dedicated:hover {
-            background: #6366f1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #fff;
             border-style: solid;
+            border-color: transparent;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102,126,234,0.35);
         }
 
         .module-row.inactive {
             opacity: 0.5;
+            filter: grayscale(0.4);
+        }
+
+        .module-row.inactive:hover {
+            opacity: 1;
+            filter: grayscale(0);
         }
 
         .table-footer {
-            padding: 12px 20px;
+            padding: 16px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 10px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
+            gap: 12px;
+            background: linear-gradient(135deg, #fafbff 0%, #f1f5ff 100%);
+            border-top: 1px solid rgba(102,126,234,0.1);
+            border-radius: 0 0 22px 22px;
         }
 
         .stat-chip {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 8px;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
             background: #fff;
-            font-size: 0.78rem;
+            font-size: 0.82rem;
             font-weight: 700;
             color: #334155;
-            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid rgba(226,232,240,0.8);
+            transition: all 0.3s ease;
+        }
+
+        .stat-chip:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
         }
 
         .stat-chip .dot {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-        }
-
-        .stat-chip .dot.purple { background: #6366f1; }
-        .stat-chip .dot.green  { background: #10b981; }
-        .stat-chip .dot.red    { background: #ef4444; }
-
-        .cards-view {
-            display: none;
-            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-            gap: 16px;
-            padding: 16px 0;
-        }
-
-        .cards-view.active {
-            display: grid;
-        }
-
-        .table-view.hidden {
-            display: none;
-        }
-
-        .permission-card {
-            background: #fff;
-            border-radius: 14px;
-            padding: 16px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-        }
-
-        .permission-card.inactive {
-            opacity: 0.5;
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .card-module-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 42px;
-            height: 42px;
-            border-radius: 10px;
-            font-size: 0.8rem;
-            font-weight: 800;
-            color: #fff;
-            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-        }
-
-        .card-title {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #1e293b;
-        }
-
-        .card-perm-count {
-            font-size: 0.72rem;
-            color: #94a3b8;
-        }
-
-        .card-permissions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-
-        .perm-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            padding: 8px 6px;
-            border-radius: 10px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            cursor: pointer;
             position: relative;
         }
 
-        .perm-item:hover {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
-        }
-
-        .perm-item.has-permission {
-            background: #f0fdf4;
-            border-color: #86efac;
-        }
-
-        .perm-item input[type="checkbox"] {
+        .stat-chip .dot::after {
+            content: '';
             position: absolute;
-            top: 5px;
-            left: 5px;
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
+            inset: -3px;
+            border-radius: 50%;
+            background: inherit;
+            opacity: 0.3;
+            animation: pulse 2s ease-in-out infinite;
         }
 
-        .perm-item-icon {
-            width: 30px;
-            height: 30px;
-            border-radius: 8px;
-            display: flex;
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .stat-chip .dot.purple { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .stat-chip .dot.green  { background: linear-gradient(135deg, #10b981, #059669); }
+        .stat-chip .dot.red    { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+        .footer-hint {
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            font-size: 0.85rem;
-            margin-top: 2px;
-        }
-
-        .perm-item-icon.sidebar { background: #dbeafe; color: #1d4ed8; }
-        .perm-item-icon.view    { background: #e0f2fe; color: #0369a1; }
-        .perm-item-icon.create  { background: #d1fae5; color: #047857; }
-        .perm-item-icon.edit    { background: #fef3c7; color: #b45309; }
-        .perm-item-icon.delete  { background: #fee2e2; color: #b91c1c; }
-        .perm-item-icon.export  { background: #cffafe; color: #0e7490; }
-        .perm-item-icon.import  { background: #f3e8ff; color: #7e22ce; }
-        .perm-item-icon.extra   { background: #f1f5f9; color: #475569; }
-
-        .perm-item-label {
-            font-size: 0.68rem;
-            font-weight: 600;
-            color: #475569;
-            text-align: center;
-        }
-
-        .card-scopes-section {
-            padding-top: 12px;
-            border-top: 1px solid #f1f5f9;
-            display: flex;
-            flex-wrap: wrap;
             gap: 6px;
+            font-size: 0.78rem;
+            color: #64748b;
+            font-weight: 500;
         }
 
-        .card-scope-select {
-            flex: 1;
-            min-width: 120px;
-            padding: 6px 10px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            background: #fff;
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: #334155;
-            cursor: pointer;
-            outline: none;
+        .footer-hint i {
+            color: #f59e0b;
+            animation: bulbGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes bulbGlow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.1); }
+        }
+
+        .modal-content.premium-modal {
+            border: none;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+        }
+
+        .premium-modal .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #ec4899 100%);
+            border: none;
+            padding: 18px 22px;
+        }
+
+        .premium-modal .modal-title {
+            color: #fff;
+            font-weight: 800;
+        }
+
+        @media (max-width: 992px) {
+            .perm-hero-content { padding: 18px; }
+            .hero-title { font-size: 1.2rem; }
+            .search-box input { width: 180px; }
+            .search-box input:focus { width: 200px; }
+            .cards-view { grid-template-columns: 1fr; }
         }
     </style>
 
     @php
-    // Filter out main_modules from the rest of the table
-    $allModuleNames = is_array($allModuleNames) ? array_filter($allModuleNames, function($n) { return strtolower($n) !== 'main_modules'; }) : (method_exists($allModuleNames, 'filter') ? $allModuleNames->filter(function($n) { return strtolower($n) !== 'main_modules'; }) : $allModuleNames);
-    
-    // Extract main module permissions
-    $mainModulePerms = collect();
-    foreach (['sidebars', 'pages', 'actions'] as $cat) {
-        if (isset($categorized[$cat]['main_modules'])) {
-            $mainModulePerms = $mainModulePerms->merge($categorized[$cat]['main_modules']);
-        }
-    }
-@endphp
+        $mainModulePerms = $mainModulePerms ?? collect();
+    @endphp
 
 {{-- Main Modules Dedicated Card --}}
 @if($mainModulePerms->count() > 0)
@@ -904,17 +1393,10 @@
                                 <span class="col-icon import"><i class="fas fa-file-import"></i></span>
                                 <small>استيراد</small>
                             </th>
-                            @foreach($uniqueExtraSlugKeys as $extraSlugKey)
-                                @php
-                                    $extraLabel = $slugArabicMap[$extraSlugKey]
-                                        ?? $slugArabicMap[\Illuminate\Support\Str::afterLast($extraSlugKey, '.')]
-                                        ?? str_replace(['-', '.', '_'], ' ', $extraSlugKey);
-                                @endphp
-                                <th class="text-center py-3 extra-col" style="min-width:100px;" title="{{ $extraSlugKey }}">
-                                    <span class="col-icon extra"><i class="fas fa-key" style="font-size:0.8rem;"></i></span>
-                                    <small style="font-size:0.7rem; line-height:1.3;">{{ $extraLabel }}</small>
-                                </th>
-                            @endforeach
+                            <th class="text-center py-3" style="width:130px;" title="صلاحيات إضافية خاصة بالوحدة">
+                                <span class="col-icon extra"><i class="fas fa-key" style="font-size:0.8rem;"></i></span>
+                                <small>صلاحيات خاصة</small>
+                            </th>
                             <th class="py-3 px-3" style="min-width:170px;">
                                 <div class="d-flex align-items-center gap-2">
                                     <i class="fas fa-sliders-h" style="color:#667eea;"></i>
@@ -1011,26 +1493,57 @@
                                     </td>
                                 @endforeach
 
-                                {{-- Extra columns --}}
-                                @foreach($uniqueExtraSlugKeys as $extraSlugKey)
-                                    @php
-                                        $extraPerm = $indexedPerms[$extraSlugKey] ?? null;
-                                    @endphp
-                                    <td class="text-center py-3 extra-col">
-                                        @if($extraPerm)
-                                            @php
-                                                $isExtraChecked = isset($rolePermsLookup[$extraPerm->id]);
-                                                $isExtraDisabled = $isReadOnly && !$isExtraChecked && !($role->full_access ?? false);
-                                            @endphp
-                                            <input type="checkbox" name="permissions[]" value="{{ $extraPerm->id }}"
-                                                   class="perm-checkbox module-{{ $moduleKey }}"
-                                                   {{ $isExtraChecked ? 'checked' : '' }} {{ $isExtraDisabled ? 'disabled' : '' }}
-                                                   data-module="{{ $moduleKey }}" title="{{ $extraPerm->slug }}">
-                                        @else
-                                            <span class="empty-cell"></span>
-                                        @endif
-                                    </td>
-                                @endforeach
+                                {{-- Special / Extra Permissions Cell --}}
+                                @php
+                                    $extraPerms = $modulePermsMap[$moduleName]['extras'] ?? [];
+                                    $checkedExtraCount = 0;
+                                    foreach ($extraPerms as $ep) {
+                                        if (isset($rolePermsLookup[$ep->id])) {
+                                            $checkedExtraCount++;
+                                        }
+                                    }
+                                @endphp
+                                <td class="text-center py-3">
+                                    @if(count($extraPerms) > 0)
+                                        <div class="dropdown d-inline-block">
+                                            <button class="btn btn-sm btn-outline-primary dropdown-toggle rounded-pill py-1 px-2 d-inline-flex align-items-center gap-1 extra-perms-btn"
+                                                    type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="font-size:0.75rem;">
+                                                <i class="fas fa-key"></i>
+                                                <span>{{ count($extraPerms) }} خاصة</span>
+                                                <span class="badge bg-primary rounded-pill ms-1 extra-badge-count {{ $checkedExtraCount > 0 ? '' : 'd-none' }}">{{ $checkedExtraCount }}</span>
+                                            </button>
+                                            <div class="dropdown-menu p-3 shadow-lg" style="min-width: 290px; max-width: 360px; max-height: 320px; overflow-y: auto; z-index: 1060; text-align: right;">
+                                                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                                                    <h6 class="dropdown-header p-0 text-dark fw-bold mb-0" style="font-size: 0.8rem;">
+                                                        صلاحيات خاصة: {{ $moduleLabel }}
+                                                    </h6>
+                                                    <span class="badge bg-light text-dark border" style="font-size: 0.68rem;">{{ count($extraPerms) }}</span>
+                                                </div>
+                                                <div class="d-flex flex-column gap-2">
+                                                    @foreach($extraPerms as $extraPerm)
+                                                        @php
+                                                            $isExtraChecked = isset($rolePermsLookup[$extraPerm->id]);
+                                                            $isExtraDisabled = $isReadOnly && !$isExtraChecked && !($role->full_access ?? false);
+                                                            $slugParts = explode('.', $extraPerm->slug);
+                                                            $lastPart = end($slugParts);
+                                                            $permLabel = ($extraPerm->name ?? null) ?: ($slugArabicMap[$lastPart] ?? str_replace(['-', '.', '_'], ' ', $lastPart));
+                                                        @endphp
+                                                        <label class="d-flex align-items-center gap-2 p-1 rounded hover-bg" style="cursor: pointer; font-size: 0.76rem; user-select: none;">
+                                                            <input type="checkbox" name="permissions[]" value="{{ $extraPerm->id }}"
+                                                                   class="perm-checkbox module-{{ $moduleKey }} extra-perm-cb"
+                                                                   {{ $isExtraChecked ? 'checked' : '' }} {{ $isExtraDisabled ? 'disabled' : '' }}
+                                                                   data-module="{{ $moduleKey }}" title="{{ $extraPerm->slug }}">
+                                                            <span class="text-dark">{{ $permLabel }}</span>
+                                                            <small class="text-muted ms-auto text-truncate" style="max-width: 100px; font-size: 0.65rem;" title="{{ $extraPerm->slug }}">{{ $lastPart }}</small>
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <span class="text-muted small">—</span>
+                                    @endif
+                                </td>
 
                                 {{-- Scopes --}}
                                 <td class="py-3">
@@ -1145,192 +1658,8 @@
             </div>
         </div>
 
-        {{-- CARDS VIEW --}}
-        <div class="cards-view" id="cardsView">
-            @foreach($allModuleNames as $moduleName)
-                @php
-                    $moduleKey = strtolower($moduleName);
-                    $moduleLabel = $moduleTranslations[$moduleKey] ?? $moduleName;
-                    $moduleConfig = $moduleConfigs[$moduleKey] ?? [];
-
-                    $allPerms = $modulePermsMap[$moduleName]['perms'] ?? [];
-                    $indexedPerms = $modulePermsMap[$moduleName]['indexed'] ?? [];
-                    $permCount = count($allPerms);
-
-                    $hasAnyPermission = false;
-                    foreach ($allPerms as $p) {
-                        if (isset($rolePermsLookup[$p->id])) {
-                            $hasAnyPermission = true;
-                            break;
-                        }
-                    }
-
-                    if (isset($viewOnly) && $viewOnly === true && !($role->full_access ?? false)) {
-                        if (!$hasAnyPermission) continue;
-                    }
-
-                    $getPermFast = fn($suffix) => $indexedPerms[$suffix] ?? $indexedPerms[$suffix.'s'] ?? null;
-
-                    $permMap = [
-                        'sidebar' => ['perm' => $getPermFast('sidebar'), 'label' => 'قائمة', 'icon' => 'bars', 'class' => 'sidebar'],
-                        'view' => ['perm' => $getPermFast('view') ?? $getPermFast('show') ?? $getPermFast('index'), 'label' => 'عرض', 'icon' => 'eye', 'class' => 'view'],
-                        'create' => ['perm' => $getPermFast('create') ?? $getPermFast('add'), 'label' => 'إضافة', 'icon' => 'plus', 'class' => 'create'],
-                        'edit' => ['perm' => $getPermFast('edit') ?? $getPermFast('update'), 'label' => 'تعديل', 'icon' => 'edit', 'class' => 'edit'],
-                        'delete' => ['perm' => $getPermFast('delete') ?? $getPermFast('destroy'), 'label' => 'حذف', 'icon' => 'trash', 'class' => 'delete'],
-                        'print' => ['perm' => $getPermFast('print'), 'label' => 'طباعة', 'icon' => 'print', 'class' => 'print'],
-                        'search' => ['perm' => $getPermFast('search'), 'label' => 'بحث', 'icon' => 'search', 'class' => 'search'],
-                        'export' => ['perm' => $getPermFast('export'), 'label' => 'تصدير', 'icon' => 'file-export', 'class' => 'export'],
-                        'import' => ['perm' => $getPermFast('import'), 'label' => 'استيراد', 'icon' => 'file-import', 'class' => 'import'],
-                    ];
-
-                    $savedScope = isset($role) && is_array($role->module_scopes) ? ($role->module_scopes[$moduleKey] ?? 'own') : 'own';
-                    $savedGeo = isset($role) && is_array($role->module_geo_scopes) ? ($role->module_geo_scopes[$moduleKey] ?? 'none') : 'none';
-                    $hasDedicated = $moduleConfig['has_dedicated_scope'] ?? false;
-                    $isReadOnly = (isset($viewOnly) && $viewOnly === true);
-                    $cardInactive = !($role->full_access ?? false) && !$hasAnyPermission;
-                @endphp
-                <div class="permission-card {{ $cardInactive ? 'inactive' : '' }}" data-module="{{ $moduleKey }}">
-                    {{-- Card Header --}}
-                    <div class="card-header">
-                        <div class="card-module-badge">
-                            {{ strtoupper(substr($moduleKey, 0, 3)) }}
-                        </div>
-                        <div class="card-title-section">
-                            <div class="card-title">{{ $moduleLabel }}</div>
-                            <div class="card-perm-count">
-                                <i class="fas fa-shield-alt me-1"></i>
-                                {{ $permCount }} صلاحية متاحة
-                            </div>
-                        </div>
-                        @if(!$isReadOnly)
-                            <label class="card-select-all">
-                                <input type="checkbox" class="card-select-all-checkbox" data-module="{{ $moduleKey }}" style="margin:0;">
-                                <span>الكل</span>
-                            </label>
-                        @endif
-                    </div>
-
-                    {{-- Permissions Grid --}}
-                    <div class="card-permissions-grid">
-                        @foreach($permMap as $action => $data)
-                            @if($data['perm'])
-                                @php
-                                    $isChecked = isset($rolePermsLookup[$data['perm']->id]);
-                                    $isDisabled = $isReadOnly && !$isChecked && !($role->full_access ?? false);
-                                @endphp
-                                <label class="perm-item {{ $isChecked ? 'has-permission' : '' }}">
-                                    <input type="checkbox" name="permissions[]" value="{{ $data['perm']->id }}"
-                                           class="perm-checkbox module-{{ $moduleKey }}"
-                                           {{ $isChecked ? 'checked' : '' }} {{ $isDisabled ? 'disabled' : '' }}
-                                           data-module="{{ $moduleKey }}" data-action="{{ $action }}">
-                                    <div class="perm-item-icon {{ $data['class'] }}">
-                                        <i class="fas fa-{{ $data['icon'] }}"></i>
-                                    </div>
-                                    <div class="perm-item-label">{{ $data['label'] }}</div>
-                                </label>
-                            @endif
-                        @endforeach
-
-                        {{-- Extra Permissions --}}
-                        @foreach($uniqueExtraSlugKeys as $extraSlugKey)
-                            @php
-                                $extraPerm = $indexedPerms[$extraSlugKey] ?? null;
-                                $extraLabel = $slugArabicMap[$extraSlugKey]
-                                    ?? $slugArabicMap[\Illuminate\Support\Str::afterLast($extraSlugKey, '.')]
-                                    ?? str_replace(['-', '.', '_'], ' ', $extraSlugKey);
-                            @endphp
-                            @if($extraPerm)
-                                @php
-                                    $isExtraChecked = isset($rolePermsLookup[$extraPerm->id]);
-                                    $isExtraDisabled = $isReadOnly && !$isExtraChecked && !($role->full_access ?? false);
-                                @endphp
-                                <label class="perm-item {{ $isExtraChecked ? 'has-permission' : '' }}">
-                                    <input type="checkbox" name="permissions[]" value="{{ $extraPerm->id }}"
-                                           class="perm-checkbox module-{{ $moduleKey }}"
-                                           {{ $isExtraChecked ? 'checked' : '' }} {{ $isExtraDisabled ? 'disabled' : '' }}
-                                           data-module="{{ $moduleKey }}">
-                                    <div class="perm-item-icon extra">
-                                        <i class="fas fa-key" style="font-size:0.75rem;"></i>
-                                    </div>
-                                    <div class="perm-item-label" style="font-size:0.65rem;">{{ $extraLabel }}</div>
-                                </label>
-                            @endif
-                        @endforeach
-                    </div>
-
-                    {{-- Scopes Section --}}
-                    <div class="card-scopes-section">
-                        @if(!$hasDedicated && !in_array($moduleKey, ['governorates', 'directorates']))
-                            <select name="module_scopes[{{ $moduleKey }}]"
-                                    class="card-scope-select"
-                                    data-module="{{ $moduleKey }}" data-field="scope"
-                                    {{ $isReadOnly ? 'disabled' : '' }}>
-                                <option value="none"   {{ $savedScope === 'none'   ? 'selected' : '' }}>🚫 حجب</option>
-                                <option value="own"    {{ $savedScope === 'own'    ? 'selected' : '' }}>🏢 جهتي</option>
-                                <option value="parent" {{ $savedScope === 'parent' ? 'selected' : '' }}>📂 عامة</option>
-                                <option value="all"    {{ $savedScope === 'all'    ? 'selected' : '' }}>🏛️ الكل</option>
-                            </select>
-                        @endif
-
-                        @if(!$hasDedicated && !in_array($moduleKey, ['users', 'roles', 'audit-logs']))
-                            <select name="module_geo_scopes[{{ $moduleKey }}]"
-                                    class="card-scope-select"
-                                    data-module="{{ $moduleKey }}" data-field="geo"
-                                    {{ $isReadOnly ? 'disabled' : '' }}>
-                                <option value="none" {{ $savedGeo === 'none' ? 'selected' : '' }}>🚫 جغرافي</option>
-                                <option value="all"  {{ $savedGeo === 'all'  ? 'selected' : '' }}>🌐 الكل</option>
-                                @if(in_array($moduleKey, ['projects', 'correspondence', 'plans', 'governorates', 'directorates']))
-                                    <option value="gov" {{ $savedGeo === 'same_governorate' ? 'selected' : '' }}>🏙️ المحافظة</option>
-                                    <option value="dir" {{ $savedGeo === 'same_directorate' ? 'selected' : '' }}>🏢 المديرية</option>
-                                @endif
-                            </select>
-                        @endif
-
-                        @if($hasDedicated)
-                            <button type="button" class="btn-scope-dedicated"
-                                    data-bs-toggle="modal" data-bs-target="#scopeModal_{{ $moduleKey }}_card">
-                                <i class="fas fa-cog me-1"></i> نطاقات خاصة
-                            </button>
-
-                            <div class="modal fade" id="scopeModal_{{ $moduleKey }}_card" tabindex="-1">
-                                <div class="modal-dialog modal-sm modal-dialog-centered">
-                                    <div class="modal-content premium-modal">
-                                        <div class="modal-header">
-                                            <h6 class="modal-title">
-                                                <i class="fas fa-cog me-2"></i>نطاقات: {{ $moduleLabel }}
-                                            </h6>
-                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body py-3">
-                                            @include('roles.partials.permission_matrix_dedicated_scopes', [
-                                                'moduleKey'   => $moduleKey,
-                                                'moduleName'  => $moduleKey,
-                                                'moduleLabel' => $moduleLabel,
-                                                'moduleConfig' => $moduleConfig,
-                                                'scopeType'   => $moduleConfig['scope_type'] ?? $moduleKey,
-                                                'savedScope'  => $savedScope,
-                                                'savedGeo'    => $savedGeo,
-                                                'role'        => $role ?? null,
-                                                'viewOnly'    => $viewOnly ?? false
-                                            ])
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            @endforeach
-
-            @if(count($allModuleNames) === 0)
-                <div class="text-center py-5 w-100">
-                    <div style="color:#94a3b8;">
-                        <i class="fas fa-inbox fs-1 d-block mb-3" style="opacity:0.4;"></i>
-                        <p class="mb-0 fw-bold">لا توجد وحدات متاحة</p>
-                    </div>
-                </div>
-            @endif
-        </div>
+        {{-- CARDS VIEW (Loaded on-demand when user toggles to cards) --}}
+        <div class="cards-view" id="cardsView" data-rendered="false"></div>
 
     </div>
 </div>
@@ -1338,192 +1667,277 @@
 {{-- Interactive Script --}}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const wrapper = document.querySelector('.permission-table-wrapper') || document;
     const tableView = document.getElementById('tableView');
     const cardsView = document.getElementById('cardsView');
     const toggleBtns = document.querySelectorAll('.view-toggle-btn');
     const table = document.getElementById('permMatrixTable');
-    const roleForm = document.getElementById('roleForm');
+    const isReadOnly = {{ (isset($viewOnly) && $viewOnly === true) ? 'true' : 'false' }};
 
-    // Intercept form submission to prevent duplicate payload and send JSON
+    // 1. Intercept form submission to collect permissions as JSON
+    const roleForm = document.getElementById('roleForm');
     if (roleForm) {
         roleForm.addEventListener('submit', function() {
             const checkedPerms = new Set();
-            document.querySelectorAll('.perm-checkbox:checked:not(:disabled)').forEach(cb => {
+            document.querySelectorAll('#permMatrixTable .perm-checkbox:checked:not(:disabled)').forEach(cb => {
+                checkedPerms.add(cb.value);
+            });
+            document.querySelectorAll('.main-module-switch:checked:not(:disabled)').forEach(cb => {
                 checkedPerms.add(cb.value);
             });
             const jsonInput = document.getElementById('permissionsJsonInput');
             if (jsonInput) {
                 jsonInput.value = JSON.stringify(Array.from(checkedPerms));
             }
-            // Remove name attribute from checkboxes to avoid gigantic POST payload
-            document.querySelectorAll('.perm-checkbox').forEach(cb => cb.removeAttribute('name'));
         });
     }
 
-    // View Toggle Functionality
+    // 2. View Toggle Functionality (Lazy render cards if clicked)
     toggleBtns.forEach(btn => {
         btn.addEventListener('click', function() {
             const view = this.dataset.view;
             toggleBtns.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            
+
             if (view === 'cards') {
-                if (tableView) tableView.classList.add('hidden');
-                if (cardsView) cardsView.classList.add('active');
+                ensureCardsRendered();
+                tableView.classList.add('hidden');
+                cardsView.classList.add('active');
             } else {
-                if (tableView) tableView.classList.remove('hidden');
-                if (cardsView) cardsView.classList.remove('active');
+                tableView.classList.remove('hidden');
+                cardsView.classList.remove('active');
             }
         });
     });
 
-    // Debounced Stats Update
-    let statsTimer = null;
-    function debouncedUpdateStats() {
-        if (statsTimer) cancelAnimationFrame(statsTimer);
-        statsTimer = requestAnimationFrame(updateStats);
-    }
+    // 3. Lazy Cards View Renderer
+    function ensureCardsRendered() {
+        if (cardsView.dataset.rendered === 'true') return;
+        cardsView.dataset.rendered = 'true';
 
-    function updateStats() {
-        if (!table) return;
         const rows = table.querySelectorAll('tbody tr.module-row');
-        let active = 0, inactive = 0;
+        const frag = document.createDocumentFragment();
+
+        const actionMap = {
+            'sidebar': { label: 'قائمة', icon: 'bars', cls: 'sidebar' },
+            'view': { label: 'عرض', icon: 'eye', cls: 'view' },
+            'create': { label: 'إضافة', icon: 'plus', cls: 'create' },
+            'edit': { label: 'تعديل', icon: 'edit', cls: 'edit' },
+            'delete': { label: 'حذف', icon: 'trash', cls: 'delete' },
+            'print': { label: 'طباعة', icon: 'print', cls: 'print' },
+            'search': { label: 'بحث', icon: 'search', cls: 'search' },
+            'export': { label: 'تصدير', icon: 'file-export', cls: 'export' },
+            'import': { label: 'استيراد', icon: 'file-import', cls: 'import' }
+        };
+
         rows.forEach(row => {
-            if (row.classList.contains('inactive')) inactive++;
-            else active++;
+            const module = row.dataset.module;
+            const badgeEl = row.querySelector('.module-badge span');
+            const badgeText = badgeEl ? badgeEl.textContent.trim() : module.substring(0, 3).toUpperCase();
+            const labelEl = row.querySelector('.sticky-col .fw-bold');
+            const moduleLabel = labelEl ? labelEl.textContent.trim() : module;
+            const countEl = row.querySelector('.sticky-col div[style*="color:#94a3b8"]');
+            const countText = countEl ? countEl.textContent.trim() : '';
+            const isInactive = row.classList.contains('inactive');
+
+            const card = document.createElement('div');
+            card.className = `permission-card ${isInactive ? 'inactive' : ''}`;
+            card.dataset.module = module;
+
+            let gridHtml = '';
+            row.querySelectorAll('.perm-checkbox').forEach(cb => {
+                const action = cb.dataset.action || '';
+                const title = cb.getAttribute('title') || '';
+                const val = cb.value;
+                const checked = cb.checked;
+                const disabled = cb.disabled;
+
+                const meta = actionMap[action] || {
+                    label: title.split('.').pop(),
+                    icon: 'key',
+                    cls: 'extra'
+                };
+
+                gridHtml += `
+                    <label class="perm-item ${checked ? 'has-permission' : ''}">
+                        <input type="checkbox" value="${val}" class="card-cb" data-module="${module}"
+                               ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+                        <div class="perm-item-icon ${meta.cls}">
+                            <i class="fas fa-${meta.icon}"></i>
+                        </div>
+                        <div class="perm-item-label">${meta.label}</div>
+                    </label>
+                `;
+            });
+
+            let scopesHtml = '';
+            const scopesCol = row.querySelector('td:nth-last-child(2)');
+            if (scopesCol) {
+                const selects = scopesCol.querySelectorAll('select');
+                if (selects.length > 0) {
+                    scopesHtml += '<div class="card-scopes-section">';
+                    selects.forEach(sel => {
+                        scopesHtml += `<div style="flex:1; min-width:130px;">${sel.outerHTML}</div>`;
+                    });
+                    scopesHtml += '</div>';
+                }
+            }
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="card-module-badge">${badgeText}</div>
+                    <div class="card-title-section">
+                        <div class="card-title">${moduleLabel}</div>
+                        <div class="card-perm-count">${countText}</div>
+                    </div>
+                    ${!isReadOnly ? `
+                    <label class="card-select-all">
+                        <input type="checkbox" class="card-select-all-checkbox" data-module="${module}" style="margin:0;">
+                        <span>الكل</span>
+                    </label>` : ''}
+                </div>
+                <div class="card-permissions-grid">${gridHtml}</div>
+                ${scopesHtml}
+            `;
+
+            frag.appendChild(card);
         });
-        
-        const sActive = document.getElementById('statActive');
-        const sInactive = document.getElementById('statInactive');
-        if (sActive) sActive.textContent = active;
-        if (sInactive) sInactive.textContent = inactive;
+
+        cardsView.appendChild(frag);
+
+        cardsView.addEventListener('change', function(e) {
+            if (e.target.matches('.card-cb')) {
+                const val = e.target.value;
+                const checked = e.target.checked;
+                const item = e.target.closest('.perm-item');
+                if (item) item.classList.toggle('has-permission', checked);
+
+                const tableCb = table.querySelector(`.perm-checkbox[value="${val}"]`);
+                if (tableCb && tableCb.checked !== checked) {
+                    tableCb.checked = checked;
+                    tableCb.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            } else if (e.target.matches('.card-select-all-checkbox')) {
+                const module = e.target.dataset.module;
+                const checked = e.target.checked;
+                const rowSelect = table.querySelector(`.row-select-all[data-module="${module}"]`);
+                if (rowSelect) {
+                    rowSelect.checked = checked;
+                    rowSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        });
     }
 
-    // ==========================================
-    // Event Delegation for Checkbox Changes
-    // ==========================================
-    wrapper.addEventListener('change', function(e) {
-        const target = e.target;
-        if (!target) return;
+    // 4. Optimized Event Delegation for Matrix Table
+    if (table) {
+        table.addEventListener('change', function(e) {
+            const target = e.target;
 
-        // Individual Permission Checkbox
-        if (target.classList.contains('perm-checkbox')) {
-            const isChecked = target.checked;
-            const val = target.value;
-            const module = target.dataset.module;
+            // Handle individual permission checkbox change
+            if (target.matches('.perm-checkbox')) {
+                const row = target.closest('tr');
+                const module = target.dataset.module;
 
-            // Sync twin checkboxes (table vs card)
-            document.querySelectorAll(`.perm-checkbox[value="${val}"]`).forEach(otherCb => {
-                if (otherCb !== target) otherCb.checked = isChecked;
-                const item = otherCb.closest('.perm-item');
-                if (item) item.classList.toggle('has-permission', isChecked);
-            });
-
-            // Update row active state
-            if (module && table) {
-                const row = table.querySelector(`tr[data-module="${module}"]`);
                 if (row) {
-                    const allBoxes = Array.from(table.querySelectorAll(`.perm-checkbox.module-${module}:not(:disabled)`));
-                    const checkedBoxes = allBoxes.filter(c => c.checked);
-                    row.classList.toggle('inactive', checkedBoxes.length === 0);
+                    const allBoxes = row.querySelectorAll('.perm-checkbox:not(:disabled)');
+                    const checkedBoxes = row.querySelectorAll('.perm-checkbox:checked:not(:disabled)');
+                    const anyChecked = checkedBoxes.length > 0;
+                    row.classList.toggle('inactive', !anyChecked);
 
-                    document.querySelectorAll(`.row-select-all[data-module="${module}"]`).forEach(cb => {
-                        cb.checked = (allBoxes.length > 0 && allBoxes.length === checkedBoxes.length);
-                        cb.indeterminate = (checkedBoxes.length > 0 && checkedBoxes.length < allBoxes.length);
+                    const rowSelect = row.querySelector('.row-select-all');
+                    if (rowSelect) {
+                        rowSelect.checked = allBoxes.length > 0 && allBoxes.length === checkedBoxes.length;
+                        rowSelect.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < allBoxes.length;
+                    }
+                }
+
+                // Sync card checkbox if cards are rendered
+                if (cardsView.dataset.rendered === 'true') {
+                    const card = cardsView.querySelector(`.permission-card[data-module="${module}"]`);
+                    if (card) {
+                        const cardCb = card.querySelector(`.card-cb[value="${target.value}"]`);
+                        if (cardCb) {
+                            cardCb.checked = target.checked;
+                            const item = cardCb.closest('.perm-item');
+                            if (item) item.classList.toggle('has-permission', target.checked);
+                        }
+                        const cardRow = row.querySelector('.row-select-all');
+                        const cardSelectAll = card.querySelector('.card-select-all-checkbox');
+                        if (cardSelectAll && cardRow) {
+                            cardSelectAll.checked = cardRow.checked;
+                        }
+                    }
+                }
+
+                syncMainSwitchFromSubmodule(module);
+                updateStats();
+            }
+
+            // Handle Row Select All
+            else if (target.matches('.row-select-all')) {
+                const module = target.dataset.module;
+                const checked = target.checked;
+                const row = target.closest('tr');
+
+                if (row) {
+                    row.querySelectorAll(`.perm-checkbox.module-${module}:not(:disabled)`).forEach(cb => {
+                        cb.checked = checked;
                     });
-                }
-            }
-
-            if (typeof syncMainSwitchFromSubmodule === 'function' && module) {
-                syncMainSwitchFromSubmodule(module);
-            }
-            debouncedUpdateStats();
-        }
-
-        // Card Select All Checkbox
-        else if (target.classList.contains('card-select-all-checkbox')) {
-            const module = target.dataset.module;
-            const checked = target.checked;
-
-            document.querySelectorAll(`.perm-checkbox.module-${module}:not(:disabled)`).forEach(cb => {
-                cb.checked = checked;
-                const item = cb.closest('.perm-item');
-                if (item) item.classList.toggle('has-permission', checked);
-            });
-
-            if (table) {
-                const row = table.querySelector(`tr[data-module="${module}"]`);
-                if (row) {
                     row.classList.toggle('inactive', !checked);
-                    const rowSelectAll = row.querySelector('.row-select-all');
-                    if (rowSelectAll) rowSelectAll.checked = checked;
                 }
-            }
 
-            if (typeof syncMainSwitchFromSubmodule === 'function' && module) {
+                // Sync card if rendered
+                if (cardsView.dataset.rendered === 'true') {
+                    const card = cardsView.querySelector(`.permission-card[data-module="${module}"]`);
+                    if (card) {
+                        card.classList.toggle('inactive', !checked);
+                        const csa = card.querySelector('.card-select-all-checkbox');
+                        if (csa) csa.checked = checked;
+                        card.querySelectorAll('.card-cb:not(:disabled)').forEach(cb => {
+                            cb.checked = checked;
+                            const item = cb.closest('.perm-item');
+                            if (item) item.classList.toggle('has-permission', checked);
+                        });
+                    }
+                }
+
                 syncMainSwitchFromSubmodule(module);
-            }
-            debouncedUpdateStats();
-        }
-
-        // Table Row Select All Checkbox
-        else if (target.classList.contains('row-select-all')) {
-            const module = target.dataset.module;
-            const checked = target.checked;
-
-            document.querySelectorAll(`.row-select-all[data-module="${module}"]`).forEach(cb => {
-                cb.checked = checked;
-            });
-
-            document.querySelectorAll(`.perm-checkbox.module-${module}:not(:disabled)`).forEach(cb => {
-                cb.checked = checked;
-                const item = cb.closest('.perm-item');
-                if (item) item.classList.toggle('has-permission', checked);
-            });
-
-            const card = document.querySelector(`.permission-card[data-module="${module}"]`);
-            if (card) {
-                card.classList.toggle('inactive', !checked);
-                const cardSelectAll = card.querySelector('.card-select-all-checkbox');
-                if (cardSelectAll) cardSelectAll.checked = checked;
+                updateStats();
             }
 
-            if (typeof syncMainSwitchFromSubmodule === 'function' && module) {
-                syncMainSwitchFromSubmodule(module);
+            // Handle Table Select All Header
+            else if (target.matches('.select-all-header')) {
+                const checked = target.checked;
+                table.querySelectorAll('.perm-checkbox:not(:disabled)').forEach(cb => {
+                    cb.checked = checked;
+                });
+                table.querySelectorAll('.row-select-all').forEach(cb => {
+                    cb.checked = checked;
+                    cb.indeterminate = false;
+                });
+                table.querySelectorAll('tbody tr.module-row').forEach(row => {
+                    row.classList.toggle('inactive', !checked);
+                });
+                document.querySelectorAll('.main-module-switch:not(:disabled)').forEach(ms => {
+                    ms.checked = checked;
+                });
+
+                if (cardsView.dataset.rendered === 'true') {
+                    cardsView.querySelectorAll('.card-cb:not(:disabled)').forEach(cb => {
+                        cb.checked = checked;
+                        const item = cb.closest('.perm-item');
+                        if (item) item.classList.toggle('has-permission', checked);
+                    });
+                    cardsView.querySelectorAll('.card-select-all-checkbox').forEach(cb => cb.checked = checked);
+                    cardsView.querySelectorAll('.permission-card').forEach(card => card.classList.toggle('inactive', !checked));
+                }
+
+                updateStats();
             }
-            debouncedUpdateStats();
-        }
+        });
+    }
 
-        // Table Select All Header
-        else if (target.classList.contains('select-all-header')) {
-            const checked = target.checked;
-            document.querySelectorAll('.perm-checkbox:not(:disabled)').forEach(cb => {
-                cb.checked = checked;
-                const item = cb.closest('.perm-item');
-                if (item) item.classList.toggle('has-permission', checked);
-            });
-
-            document.querySelectorAll('.card-select-all-checkbox, .row-select-all').forEach(cb => {
-                cb.checked = checked;
-            });
-
-            document.querySelectorAll('.main-module-switch:not(:disabled)').forEach(ms => ms.checked = checked);
-            if (table) {
-                table.querySelectorAll('tbody tr.module-row').forEach(r => r.classList.toggle('inactive', !checked));
-            }
-            debouncedUpdateStats();
-        }
-
-        // Main Module Switch
-        else if (target.classList.contains('main-module-switch')) {
-            syncSubmodulesFromMainSwitch(target);
-        }
-    });
-
-    // ==========================================
-    // Main Modules Synchronization System
-    // ==========================================
+    // 5. Main Modules Synchronization System
     const mainToSubModulesMap = {
         'dashboard': ['dashboard', 'home'],
         'projects': ['projects', 'projects-implementation', 'project-requests', 'project-drafts', 'project-files', 'project-risks', 'project-outputs', 'project-activity', 'project-documents', 'executive-activities', 'execution', 'execution-log', 'schedule', 'quality'],
@@ -1531,19 +1945,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'requests-descend': ['requests_descend', 'requests-descend'],
         'correspondence': ['correspondence', 'referrals', 'project-referrals', 'memoirs'],
         'planning': ['planning', 'plans'],
-        'reports': [
-            'reports',
-            'reports-implementation',
-            'reports-quality',
-            'reports-financial',
-            'reports-progress',
-            'reports-erpnext-financial',
-            'reports-pl-expense-summary',
-            'reports-profit-and-loss',
-            'reports-official-summary',
-            'reports-stakeholders',
-            'reports-permissions'
-        ],
+        'reports': ['reports'],
         'empowerment': ['empowerment'],
         'value-chains': ['value-chains', 'value-chain-members', 'global-financings', 'chain_plans'],
         'encoding': ['encoding', 'configuration', 'programs', 'domains', 'subdomains', 'interventions', 'governorates', 'directorates', 'sub-areas', 'villages', 'financial-items', 'funding-sources', 'financing-types', 'value-chain-financing-types', 'formfinancing', 'subfinancing-forms', 'authorities', 'main-routers', 'sub-routers', 'priorities', 'units', 'beneficiary-groups', 'signatures', 'internal-entities', 'entity-officers', 'entity-authorities', 'entities'],
@@ -1551,16 +1953,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     function getSubModulesForMain(mainKey) {
-        let subs = Array.from(mainToSubModulesMap[mainKey] || [mainKey]);
-        if (table) {
-            table.querySelectorAll('tr[data-module]').forEach(tr => {
-                const m = tr.dataset.module;
-                if (m === mainKey || m.startsWith(mainKey + '-') || m.startsWith(mainKey + '_')) {
-                    if (!subs.includes(m)) subs.push(m);
-                }
-            });
-        }
-        return subs;
+        return mainToSubModulesMap[mainKey] || [mainKey];
     }
 
     function getMainModuleForSub(subMod) {
@@ -1583,32 +1976,37 @@ document.addEventListener('DOMContentLoaded', function () {
         const subs = getSubModulesForMain(mainKey);
 
         subs.forEach(sub => {
-            document.querySelectorAll(`.perm-checkbox.module-${sub}:not(:disabled)`).forEach(cb => {
-                cb.checked = checked;
-                const item = cb.closest('.perm-item');
-                if (item) item.classList.toggle('has-permission', checked);
-            });
-
-            if (table) {
-                const row = table.querySelector(`tr[data-module="${sub}"]`);
-                if (row) {
-                    row.classList.toggle('inactive', !checked);
-                    document.querySelectorAll(`.row-select-all[data-module="${sub}"]`).forEach(rcb => {
-                        rcb.checked = checked;
-                        rcb.indeterminate = false;
-                    });
+            const row = table ? table.querySelector(`tr[data-module="${sub}"]`) : null;
+            if (row) {
+                row.querySelectorAll(`.perm-checkbox.module-${sub}:not(:disabled)`).forEach(cb => {
+                    cb.checked = checked;
+                });
+                row.classList.toggle('inactive', !checked);
+                const rcb = row.querySelector('.row-select-all');
+                if (rcb) {
+                    rcb.checked = checked;
+                    rcb.indeterminate = false;
                 }
-            }
-
-            const card = document.querySelector(`.permission-card[data-module="${sub}"]`);
-            if (card) {
-                card.classList.toggle('inactive', !checked);
-                const csa = card.querySelector('.card-select-all-checkbox');
-                if (csa) csa.checked = checked;
             }
         });
 
-        debouncedUpdateStats();
+        if (cardsView.dataset.rendered === 'true') {
+            subs.forEach(sub => {
+                const card = cardsView.querySelector(`.permission-card[data-module="${sub}"]`);
+                if (card) {
+                    card.classList.toggle('inactive', !checked);
+                    const csa = card.querySelector('.card-select-all-checkbox');
+                    if (csa) csa.checked = checked;
+                    card.querySelectorAll('.card-cb:not(:disabled)').forEach(cb => {
+                        cb.checked = checked;
+                        const item = cb.closest('.perm-item');
+                        if (item) item.classList.toggle('has-permission', checked);
+                    });
+                }
+            });
+        }
+
+        updateStats();
         isMainSyncing = false;
     }
 
@@ -1621,76 +2019,80 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const subs = getSubModulesForMain(mainKey);
         let anyChecked = false;
-        subs.forEach(sub => {
-            if (document.querySelector(`.perm-checkbox.module-${sub}:checked:not(:disabled)`)) {
+        for (let i = 0; i < subs.length; i++) {
+            if (document.querySelector(`.perm-checkbox.module-${subs[i]}:checked:not(:disabled)`)) {
                 anyChecked = true;
+                break;
             }
-        });
-
+        }
         mainSwitch.checked = anyChecked;
     }
 
-    // Fast Search with Debounce
+    document.querySelectorAll('.main-module-switch').forEach(ms => {
+        ms.addEventListener('change', function() {
+            syncSubmodulesFromMainSwitch(this);
+        });
+    });
+
+    // 6. Fast Stats Update
+    function updateStats() {
+        if (!table) return;
+        const rows = table.querySelectorAll('tbody tr.module-row');
+        const total = rows.length;
+        const inactive = table.querySelectorAll('tbody tr.module-row.inactive').length;
+        const active = total - inactive;
+
+        const sActive = document.getElementById('statActive');
+        const sInactive = document.getElementById('statInactive');
+        if (sActive) sActive.textContent = active;
+        if (sInactive) sInactive.textContent = inactive;
+    }
+
+    // 7. Search Filter
     const searchInput = document.getElementById('permTableSearch');
     if (searchInput) {
-        let searchTimer = null;
         searchInput.addEventListener('input', function () {
-            clearTimeout(searchTimer);
             const q = this.value.trim().toLowerCase();
-            searchTimer = setTimeout(() => {
-                if (table) {
-                    table.querySelectorAll('tbody tr.module-row').forEach(row => {
-                        const label = row.querySelector('.sticky-col')?.textContent.toLowerCase() || '';
-                        row.style.display = label.includes(q) ? '' : 'none';
-                    });
-                }
-                document.querySelectorAll('.permission-card').forEach(card => {
+            if (table) {
+                table.querySelectorAll('tbody tr.module-row').forEach(row => {
+                    const label = row.querySelector('.sticky-col')?.textContent.toLowerCase() || '';
+                    row.style.display = label.includes(q) ? '' : 'none';
+                });
+            }
+            if (cardsView.dataset.rendered === 'true') {
+                cardsView.querySelectorAll('.permission-card').forEach(card => {
                     const label = card.querySelector('.card-title')?.textContent.toLowerCase() || '';
                     card.style.display = label.includes(q) ? '' : 'none';
                 });
-            }, 120);
+            }
         });
     }
 
-    // Bulk Buttons
+    // 8. Bulk Buttons
     const selectAllBtn = document.getElementById('selectAllTable');
     const deselectAllBtn = document.getElementById('deselectAllTable');
+
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', () => {
-            document.querySelectorAll('.perm-checkbox:not(:disabled)').forEach(cb => {
-                cb.checked = true;
-                const item = cb.closest('.perm-item');
-                if (item) item.classList.add('has-permission');
-            });
-            document.querySelectorAll('.card-select-all-checkbox, .row-select-all, .select-all-header').forEach(cb => {
-                cb.checked = true;
-            });
-            if (table) {
-                table.querySelectorAll('tbody tr.module-row').forEach(r => r.classList.remove('inactive'));
+            const headerCb = table.querySelector('.select-all-header');
+            if (headerCb) {
+                headerCb.checked = true;
+                headerCb.dispatchEvent(new Event('change', { bubbles: true }));
             }
-            document.querySelectorAll('.main-module-switch:not(:disabled)').forEach(ms => ms.checked = true);
-            debouncedUpdateStats();
-        });
-    }
-    if (deselectAllBtn) {
-        deselectAllBtn.addEventListener('click', () => {
-            document.querySelectorAll('.perm-checkbox:not(:disabled)').forEach(cb => {
-                cb.checked = false;
-                const item = cb.closest('.perm-item');
-                if (item) item.classList.remove('has-permission');
-            });
-            document.querySelectorAll('.card-select-all-checkbox, .row-select-all, .select-all-header').forEach(cb => {
-                cb.checked = false;
-            });
-            if (table) {
-                table.querySelectorAll('tbody tr.module-row').forEach(r => r.classList.add('inactive'));
-            }
-            document.querySelectorAll('.main-module-switch:not(:disabled)').forEach(ms => ms.checked = false);
-            debouncedUpdateStats();
         });
     }
 
-    // Full Access Toggle
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', () => {
+            const headerCb = table.querySelector('.select-all-header');
+            if (headerCb) {
+                headerCb.checked = false;
+                headerCb.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    }
+
+    // 9. Full Access Toggle
     const fullAccess = document.getElementById('fullAccessToggle');
     if (fullAccess) {
         fullAccess.addEventListener('change', function () {
@@ -1698,14 +2100,15 @@ document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('.perm-checkbox').forEach(cb => {
                 if (on) cb.checked = true;
                 cb.disabled = on ? true : cb.dataset.originalDisabled === 'true';
-                const item = cb.closest('.perm-item');
-                if (item && on) item.classList.add('has-permission');
             });
-            debouncedUpdateStats();
+            table.querySelectorAll('tbody tr.module-row').forEach(row => {
+                row.classList.toggle('inactive', !on);
+            });
+            updateStats();
         });
     }
 
-    // Copy from Role AJAX
+    // 10. Copy from Role
     const copyFromRole = document.getElementById('copyFromRole');
     if (copyFromRole) {
         copyFromRole.addEventListener('change', async function() {
@@ -1718,44 +2121,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
             try {
                 const response = await fetch(`/roles/${roleId}/permissions`, {
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
-                if (!response.ok) throw new Error('Network response error');
+
+                if (!response.ok) throw new Error('Network response was not ok');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     if (fullAccess) fullAccess.checked = data.full_access;
 
+                    const permSet = new Set((data.permissions || []).map(String));
                     document.querySelectorAll('.perm-checkbox').forEach(cb => {
-                        cb.checked = false;
+                        cb.checked = permSet.has(String(cb.value)) || data.full_access;
                         cb.disabled = data.full_access ? true : cb.dataset.originalDisabled === 'true';
-                        const item = cb.closest('.perm-item');
-                        if (item) item.classList.remove('has-permission');
                     });
 
-                    if (data.permissions && Array.isArray(data.permissions)) {
-                        const permSet = new Set(data.permissions.map(String));
-                        document.querySelectorAll('.perm-checkbox').forEach(cb => {
-                            if (permSet.has(String(cb.value)) || data.full_access) {
-                                cb.checked = true;
-                                const item = cb.closest('.perm-item');
-                                if (item) item.classList.add('has-permission');
-                            }
-                        });
-                    }
+                    table.querySelectorAll('tbody tr.module-row').forEach(row => {
+                        const anyChecked = row.querySelectorAll('.perm-checkbox:checked').length > 0;
+                        row.classList.toggle('inactive', !anyChecked);
+                        const rowSelect = row.querySelector('.row-select-all');
+                        if (rowSelect) {
+                            const all = row.querySelectorAll('.perm-checkbox:not(:disabled)');
+                            const checked = row.querySelectorAll('.perm-checkbox:checked:not(:disabled)');
+                            rowSelect.checked = all.length > 0 && all.length === checked.length;
+                        }
+                    });
 
-                    if (table) {
-                        table.querySelectorAll('tbody tr.module-row').forEach(row => {
-                            const anyChecked = Array.from(row.querySelectorAll('.perm-checkbox:checked')).length > 0;
-                            row.classList.toggle('inactive', !anyChecked);
-                        });
-                    }
-                    debouncedUpdateStats();
-                    if (typeof toastr !== 'undefined') toastr.success('تم نسخ الصلاحيات بنجاح!');
+                    updateStats();
+                    alert('تم نسخ الصلاحيات بنجاح!');
                 }
             } catch (error) {
-                console.error(error);
-                if (typeof toastr !== 'undefined') toastr.error('حدث خطأ أثناء نسخ الصلاحيات');
+                console.error('Error copying permissions:', error);
+                alert('حدث خطأ أثناء نسخ الصلاحيات');
             } finally {
                 this.disabled = false;
                 this.options[this.selectedIndex].text = originalText;
@@ -1764,28 +2164,30 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Clipboard Copy & Paste
+    // 11. Clipboard Copy & Paste
     const copyToClipboardBtn = document.getElementById('copyToClipboardBtn');
     const pasteFromClipboardBtn = document.getElementById('pasteFromClipboardBtn');
-    
+
     function checkClipboardData() {
         if (pasteFromClipboardBtn) {
-            const data = localStorage.getItem('role_permissions_clipboard');
-            pasteFromClipboardBtn.style.display = data ? 'inline-flex' : 'none';
+            pasteFromClipboardBtn.style.display = localStorage.getItem('role_permissions_clipboard') ? 'inline-flex' : 'none';
         }
     }
     checkClipboardData();
-    
+
     if (copyToClipboardBtn) {
         copyToClipboardBtn.addEventListener('click', function() {
-            const checkedPerms = [];
-            document.querySelectorAll('.perm-checkbox:checked:not(:disabled)').forEach(cb => checkedPerms.push(cb.value));
-            localStorage.setItem('role_permissions_clipboard', JSON.stringify({
-                permissions: checkedPerms,
+            const checkedPerms = new Set();
+            document.querySelectorAll('#permMatrixTable .perm-checkbox:checked:not(:disabled)').forEach(cb => {
+                checkedPerms.add(cb.value);
+            });
+            const clipboardData = {
+                permissions: Array.from(checkedPerms),
                 full_access: fullAccess?.checked || false
-            }));
+            };
+            localStorage.setItem('role_permissions_clipboard', JSON.stringify(clipboardData));
             checkClipboardData();
-            if (typeof toastr !== 'undefined') toastr.success('تم نسخ الصلاحيات إلى الحافظة بنجاح!');
+            alert('تم نسخ الصلاحيات إلى الحافظة بنجاح!');
         });
     }
 
@@ -1795,43 +2197,36 @@ document.addEventListener('DOMContentLoaded', function () {
                 const dataStr = localStorage.getItem('role_permissions_clipboard');
                 if (!dataStr) return;
                 const data = JSON.parse(dataStr);
-                
+
                 if (fullAccess) fullAccess.checked = data.full_access;
+                const permSet = new Set((data.permissions || []).map(String));
 
                 document.querySelectorAll('.perm-checkbox').forEach(cb => {
-                    cb.checked = false;
+                    cb.checked = permSet.has(String(cb.value)) || data.full_access;
                     cb.disabled = data.full_access ? true : cb.dataset.originalDisabled === 'true';
-                    const item = cb.closest('.perm-item');
-                    if (item) item.classList.remove('has-permission');
                 });
 
-                if (data.permissions && Array.isArray(data.permissions)) {
-                    const permSet = new Set(data.permissions.map(String));
-                    document.querySelectorAll('.perm-checkbox').forEach(cb => {
-                        if (permSet.has(String(cb.value)) || data.full_access) {
-                            cb.checked = true;
-                            const item = cb.closest('.perm-item');
-                            if (item) item.classList.add('has-permission');
-                        }
-                    });
-                }
+                table.querySelectorAll('tbody tr.module-row').forEach(row => {
+                    const anyChecked = row.querySelectorAll('.perm-checkbox:checked').length > 0;
+                    row.classList.toggle('inactive', !anyChecked);
+                    const rowSelect = row.querySelector('.row-select-all');
+                    if (rowSelect) {
+                        const all = row.querySelectorAll('.perm-checkbox:not(:disabled)');
+                        const checked = row.querySelectorAll('.perm-checkbox:checked:not(:disabled)');
+                        rowSelect.checked = all.length > 0 && all.length === checked.length;
+                    }
+                });
 
-                if (table) {
-                    table.querySelectorAll('tbody tr.module-row').forEach(row => {
-                        const anyChecked = Array.from(row.querySelectorAll('.perm-checkbox:checked')).length > 0;
-                        row.classList.toggle('inactive', !anyChecked);
-                    });
-                }
-                debouncedUpdateStats();
-                if (typeof toastr !== 'undefined') toastr.success('تم لصق الصلاحيات بنجاح!');
+                updateStats();
+                alert('تم لصق الصلاحيات بنجاح!');
             } catch (error) {
-                console.error(error);
-                if (typeof toastr !== 'undefined') toastr.error('حدث خطأ أثناء لصق الصلاحيات');
+                console.error('Error pasting permissions:', error);
+                alert('حدث خطأ أثناء لصق الصلاحيات');
             }
         });
     }
 
-    // Initial stats
-    debouncedUpdateStats();
+    // 12. Fast Initial Stats Setup
+    updateStats();
 });
 </script>

@@ -18,15 +18,7 @@ class PermissionResolver
      */
     public static function getPermissions(): array
     {
-        $path = base_path(self::$matrixPath);
-        $mtime = file_exists($path) ? filemtime($path) : 0;
-
-        return Cache::remember('permissions_matrix_registry_v3', now()->addHours(24), function () {
-            $parsed = self::parseMatrixFile();
-            if (! empty($parsed)) {
-                return $parsed;
-            }
-            // Fallback to DB if JSON markers are missing from the blade file
+        return Cache::remember('permissions_matrix_registry_v4', now()->addHours(24), function () {
             if (Schema::hasTable('permissions')) {
                 return Permission::select('id', 'name', 'slug', 'module', 'type')->get()->toArray();
             }

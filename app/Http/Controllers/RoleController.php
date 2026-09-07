@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -24,8 +25,25 @@ class RoleController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Fetch Roles
-        $roles = Role::withCount('users')->paginate(15);
+        $query = Role::withCount('users');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            if ($request->input('status') === 'active') {
+                $query->where('is_active', true);
+            } elseif ($request->input('status') === 'inactive') {
+                $query->where('is_active', false);
+            }
+        }
+
+        $roles = $query->paginate(15);
 
         return view('roles.index', compact('roles'));
     }
@@ -35,16 +53,11 @@ class RoleController extends Controller
      */
     public function create()
     {
-        // Fetch All Permissions Grouped by Module
-        $allPermissions = Permission::select('id', 'module', 'slug')->orderBy('module')->get();
-        $categorized = $this->categorizePermissions($allPermissions);
-        $allModuleNames = $allPermissions->pluck('module')->unique()->sort()->values();
-
-        $moduleTranslations = $this->getModuleTranslations();
+        $permissionMatrixData = $this->getPermissionMatrixData();
         $rolePermissions = [];
         $internalEntities = InternalEntity::active()->visibleToUser()->get();
 
-        return view('roles.create', compact('allModuleNames', 'categorized', 'moduleTranslations', 'rolePermissions', 'internalEntities'));
+        return view('roles.create', array_merge($permissionMatrixData, compact('rolePermissions', 'internalEntities')));
     }
 
     /**
@@ -196,27 +209,24 @@ class RoleController extends Controller
         if ($this->isAdminRole($role)) {
             abort(403, 'صلاحيات مدير النظام غير قابلة للتعديل.');
         }
-        // Fetch All Permissions Grouped by Module
-        $allPermissions = Permission::select('id', 'module', 'slug')->orderBy('module')->get();
-        $categorized = $this->categorizePermissions($allPermissions);
-        $allModuleNames = $allPermissions->pluck('module')->unique()->sort()->values();
+
+        $permissionMatrixData = $this->getPermissionMatrixData();
 
         // Get current role permissions
-        $rolePermissions = RolePermission::where('role_id', $role->id)->pluck('permission_id')->toArray();
-
-        $moduleTranslations = $this->getModuleTranslations();
+        $rolePermissionRows = RolePermission::where('role_id', $role->id)->get(['permission_id', 'entity_id']);
+        $rolePermissions = $rolePermissionRows->pluck('permission_id')->toArray();
         $internalEntities = InternalEntity::active()->visibleToUser()->get();
 
         // Find common entity_id if all permissions belong to same entity
         $commonEntityId = null;
         if (count($rolePermissions) > 0) {
-            $entityIds = RolePermission::where('role_id', $role->id)->pluck('entity_id')->unique();
+            $entityIds = $rolePermissionRows->pluck('entity_id')->unique();
             if ($entityIds->count() === 1) {
                 $commonEntityId = $entityIds->first();
             }
         }
 
-        return view('roles.edit', compact('role', 'allModuleNames', 'categorized', 'moduleTranslations', 'rolePermissions', 'internalEntities', 'commonEntityId'));
+        return view('roles.edit', array_merge($permissionMatrixData, compact('role', 'rolePermissions', 'internalEntities', 'commonEntityId')));
     }
 
     /**
@@ -646,6 +656,67 @@ class RoleController extends Controller
     }
 
     /**
+     * AJAX Endpoint to return permissions matrix table rows for a specific main module group
+     */
+    public function getMatrixModuleRows(Request $request)
+    {
+        $mainModuleKey = $request->query('main_module', 'projects');
+        $roleId = $request->query('role_id');
+        $viewOnly = $request->boolean('viewOnly', false);
+
+        $role = $roleId ? Role::find($roleId) : null;
+        $rolePermissions = $role ? RolePermission::where('role_id', $role->id)->pluck('permission_id')->toArray() : [];
+
+        $matrixData = $this->getPermissionMatrixData();
+        $subModulesMap = $this->getSubModulesMap();
+
+        if ($mainModuleKey !== 'all') {
+            $allowedSubs = $subModulesMap[$mainModuleKey] ?? [$mainModuleKey];
+            $allModuleNames = $matrixData['allModuleNames']->filter(function ($moduleName) use ($allowedSubs, $mainModuleKey) {
+                $mKey = strtolower($moduleName);
+                if (in_array($mKey, $allowedSubs)) {
+                    return true;
+                }
+                if ($mKey === $mainModuleKey || str_starts_with($mKey, $mainModuleKey.'-') || str_starts_with($mKey, $mainModuleKey.'_')) {
+                    return true;
+                }
+
+                return false;
+            })->values();
+        } else {
+            $allModuleNames = $matrixData['allModuleNames'];
+        }
+
+        return view('roles.partials._permissions_matrix_rows', array_merge($matrixData, [
+            'allModuleNames' => $allModuleNames,
+            'rolePermissions' => $rolePermissions,
+            'role' => $role,
+            'rolePermsLookup' => array_flip($rolePermissions),
+            'viewOnly' => $viewOnly,
+            'mainModuleKey' => $mainModuleKey,
+        ]));
+    }
+
+    public function getSubModulesMap(): array
+    {
+        return [
+            'dashboard' => ['dashboard', 'home'],
+            'projects' => ['projects', 'projects-implementation', 'project-requests', 'project-drafts', 'project-files', 'project-risks', 'project-outputs', 'project-activity', 'project-documents', 'project-drafts-enhanced', 'executive-activities', 'execution', 'execution-log', 'schedule', 'quality', 'erp-integration'],
+            'tasks' => ['tasks'],
+            'requests-descend' => ['requests_descend', 'requests-descend'],
+            'correspondence' => ['correspondence', 'referrals', 'project-referrals', 'memoirs', 'messaging', 'department-reports'],
+            'planning' => ['planning', 'plans', 'reviews'],
+            'reports' => [
+                'reports', 'reports-implementation', 'reports-quality', 'reports-financial', 'reports-progress', 'reports-erpnext-financial', 'reports-pl-expense-summary', 'reports-profit-and-loss', 'reports-official-summary', 'reports-stakeholders', 'reports-permissions',
+            ],
+            'empowerment' => ['empowerment', 'financial-justifications'],
+            'value-chains' => ['value-chains', 'value-chain-members', 'global-financings', 'chain_plans'],
+            'encoding' => ['encoding', 'configuration', 'programs', 'domains', 'subdomains', 'interventions', 'governorates', 'directorates', 'sub-areas', 'villages', 'financial-items', 'funding-sources', 'financing-types', 'form-financing', 'formfinancing', 'subfinancing-forms', 'authorities', 'main-routers', 'sub-routers', 'priorities', 'units', 'beneficiary-groups', 'signatures', 'internal-entities', 'entity-officers', 'entity-authorities', 'entities', 'associations', 'donors', 'executors', 'funded-entities', 'target-categories', 'participation', 'beneficiaries', 'stages', 'supervising-entities', 'supervisors', 'entity-father', 'entity-scopes', 'execution-procedures', 'financing-forms', 'procedure-budget-justifications'],
+            'users' => ['users', 'roles', 'roles-permissions', 'audit-logs', 'audit_logs', 'system-operations', 'authentication', 'profile', 'activity-history', 'approvals', 'notifications'],
+        ];
+    }
+
+    /**
      * Categorize permissions by type (sidebars, pages, actions, scopes)
      */
     private function categorizePermissions($allPermissions)
@@ -681,11 +752,135 @@ class RoleController extends Controller
             }
             $categorized[$type][$module][] = (object) [
                 'id' => $permission->id,
+                'name' => $permission->name,
                 'slug' => $permission->slug,
             ];
         }
 
         return $categorized;
+    }
+
+    private function getPermissionMatrixData(): array
+    {
+        return Cache::remember('roles.permission_matrix_v4', now()->addHours(24), function (): array {
+            $allPermissions = Permission::select('id', 'name', 'module', 'slug')
+                ->orderBy('module')
+                ->orderBy('slug')
+                ->get();
+
+            $categorized = $this->categorizePermissions($allPermissions);
+            $allModuleNames = $allPermissions
+                ->pluck('module')
+                ->unique()
+                ->sort()
+                ->reject(fn ($moduleName) => strtolower($moduleName) === 'main_modules')
+                ->values();
+            $modulePermsMap = $this->buildModulePermissionsMap($allModuleNames, $categorized);
+
+            return [
+                'allModuleNames' => $allModuleNames,
+                'categorized' => $categorized,
+                'moduleTranslations' => $this->getModuleTranslations(),
+                'moduleConfigs' => [],
+                'modulePermsMap' => $modulePermsMap,
+                'uniqueExtraSlugKeys' => [],
+                'mainModulePerms' => $this->getMainModulePermissions($categorized),
+            ];
+        });
+    }
+
+    private function buildModulePermissionsMap($allModuleNames, array $categorized): array
+    {
+        $standardSuffixes = ['sidebar', 'view', 'show', 'index', 'create', 'add', 'edit', 'update', 'delete', 'destroy', 'print', 'search', 'export', 'import'];
+        $modulePermsMap = [];
+
+        foreach ($allModuleNames as $moduleName) {
+            $modulePermissions = [];
+
+            foreach (['sidebars', 'pages', 'buttons', 'icons', 'actions', 'settings'] as $category) {
+                if (isset($categorized[$category][$moduleName])) {
+                    foreach ($categorized[$category][$moduleName] as $permission) {
+                        $modulePermissions[] = $permission;
+                    }
+                }
+            }
+
+            $indexedPermissions = [];
+            foreach ($modulePermissions as $permission) {
+                $slugParts = explode('.', $permission->slug);
+                $indexedPermissions[end($slugParts)] = $permission;
+            }
+
+            $standardPermissionIds = [];
+            foreach ($standardSuffixes as $suffix) {
+                if (isset($indexedPermissions[$suffix])) {
+                    $standardPermissionIds[$indexedPermissions[$suffix]->id] = true;
+                }
+                if (isset($indexedPermissions[$suffix.'s'])) {
+                    $standardPermissionIds[$indexedPermissions[$suffix.'s']->id] = true;
+                }
+            }
+
+            $extraPermissions = [];
+            foreach ($modulePermissions as $permission) {
+                if (! isset($standardPermissionIds[$permission->id])) {
+                    $extraPermissions[] = $permission;
+                }
+            }
+
+            $modulePermsMap[$moduleName] = [
+                'perms' => $modulePermissions,
+                'indexed' => $indexedPermissions,
+                'extras' => $extraPermissions,
+            ];
+        }
+
+        return $modulePermsMap;
+    }
+
+    private function getUniqueExtraSlugKeys(array $modulePermsMap): array
+    {
+        $standardSuffixes = ['sidebar', 'view', 'show', 'index', 'create', 'add', 'edit', 'update', 'delete', 'destroy', 'export', 'import'];
+        $extraSlugKeys = [];
+
+        foreach ($modulePermsMap as $modulePermissions) {
+            $standardPermissionIds = [];
+            $indexedPermissions = $modulePermissions['indexed'] ?? [];
+
+            foreach ($standardSuffixes as $suffix) {
+                if (isset($indexedPermissions[$suffix])) {
+                    $standardPermissionIds[$indexedPermissions[$suffix]->id] = true;
+                }
+                if (isset($indexedPermissions[$suffix.'s'])) {
+                    $standardPermissionIds[$indexedPermissions[$suffix.'s']->id] = true;
+                }
+            }
+
+            foreach ($modulePermissions['perms'] ?? [] as $permission) {
+                if (! isset($standardPermissionIds[$permission->id])) {
+                    $slugParts = explode('.', $permission->slug);
+                    $extraSlugKeys[end($slugParts)] = true;
+                }
+            }
+        }
+
+        $uniqueExtraSlugKeys = array_keys($extraSlugKeys);
+        sort($uniqueExtraSlugKeys);
+
+        return $uniqueExtraSlugKeys;
+    }
+
+    private function getMainModulePermissions(array $categorized)
+    {
+        $mainModulePermissions = collect();
+
+        foreach (['sidebars', 'pages', 'actions'] as $category) {
+            if (isset($categorized[$category]['main_modules'])) {
+                $mainModulePermissions = $mainModulePermissions->merge($categorized[$category]['main_modules']);
+            }
+        }
+
+        return $mainModulePermissions;
     }
 
     /**

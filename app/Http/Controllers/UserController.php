@@ -227,7 +227,7 @@ class UserController extends Controller
                 'directorate_id' => $scope->directorate_id !== null ? $scope->directorate_id : '',
             ];
         })->filter(function ($scope) {
-            return !empty($scope['governorate_id']) || !empty($scope['directorate_id']);
+            return ! empty($scope['governorate_id']) || ! empty($scope['directorate_id']);
         })->values()->toArray();
 
         return view('user.edit', compact('user', 'roles', 'statuses', 'entities', 'governorates', 'directorates', 'geographicScopes'));

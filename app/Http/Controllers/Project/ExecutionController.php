@@ -582,35 +582,45 @@ class ExecutionController extends Controller
     public function executiveIndex(Project $project)
     {
         $this->projectService->authorizeProjectAccess($project);
-        $project->load('executiveActivities.actions');
+        $project->load([
+            'executiveActivities.actions.executions' => fn ($query) => $query->orderBy('sequence'),
+        ]);
 
         return view('projects.implementation.execution-executive', compact('project'));
     }
 
     public function executiveForm(Project $project)
     {
-        $project->load('executiveActivities.actions');
+        $project->load([
+            'executiveActivities.actions.executions' => fn ($query) => $query->orderBy('sequence'),
+        ]);
 
         return view('projects.implementation.execution-executive-form', compact('project'));
     }
 
     public function executiveDisplay(Project $project)
     {
-        $project->load('executiveActivities.actions');
+        $project->load([
+            'executiveActivities.actions.executions' => fn ($query) => $query->orderBy('sequence'),
+        ]);
 
         return view('projects.implementation.execution-executive-display', compact('project'));
     }
 
     public function executiveFinancialJustification(Project $project)
     {
-        $project->load('executiveActivities.actions');
+        $project->load([
+            'executiveActivities.actions.executions' => fn ($query) => $query->orderBy('sequence'),
+        ]);
 
         return view('projects.implementation.execution-executive-financial-justification', compact('project'));
     }
 
     public function executiveTechnicalJustification(Project $project)
     {
-        $project->load('executiveActivities.actions');
+        $project->load([
+            'executiveActivities.actions.executions' => fn ($query) => $query->orderBy('sequence'),
+        ]);
 
         return view('projects.implementation.execution-executive-technical-justification', compact('project'));
     }
