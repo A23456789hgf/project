@@ -34,6 +34,7 @@ class AuthServiceProvider extends ServiceProvider
         'App\Models\ValueChainFinancingType' => 'App\Policies\ValueChainFinancingTypePolicy',
         'App\Models\ValueChainMember' => 'App\Policies\ValueChainMemberPolicy',
         'App\Models\ChainPlan' => 'App\Policies\ChainPlanPolicy',
+        'App\Models\ProjectReferral' => 'App\Policies\ProjectReferralPolicy',
     ];
 
     /**
@@ -94,7 +95,7 @@ class AuthServiceProvider extends ServiceProvider
                 // perform its own matrix-validated slug check (e.g. correspondence.view).
                 $policyVerbs = [
                     'view', 'create', 'update', 'delete', 'restore', 'forceDelete', 'viewAny',
-                    'refer', 'reply', 'forward', 'close', 'approve', 'reject',
+                    'refer', 'respond', 'reply', 'forward', 'close', 'approve', 'reject', 'closeDraft', 'requestAction', 'resubmit',
                     'resume', 'revert', 'execute', 'viewSchedule', 'reviewFinancial', 'reviewTechnical',
                     'print', 'viewWorkflow', 'import', 'exportExcel', 'exportPdf',
                     'exportPivot', 'exportComprehensive', 'viewDraft', 'review',

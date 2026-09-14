@@ -11,6 +11,7 @@ use App\Models\InternalEntity;
 use App\Models\Plan;
 use App\Models\Priority;
 use App\Services\ImportTrackingService;
+use App\Services\NotificationService;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Database\Eloquent\Builder;
@@ -235,6 +236,12 @@ class PlanController extends Controller
             DB::commit();
             Log::info('✅ تم حفظ الخطة بنجاح', ['plan_id' => $plan->id]);
 
+            try {
+                app(NotificationService::class)->notifyPlan($plan, 'created', auth()->user());
+            } catch (\Exception $e) {
+                Log::error('Notification error in PlanController store: '.$e->getMessage());
+            }
+
             return redirect()->route('plans.index')->with('success', 'تم حفظ الخطة بنجاح');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -451,6 +458,12 @@ class PlanController extends Controller
             DB::commit();
             Log::info('✅ تم تحديث الخطة بنجاح', ['plan_id' => $plan->id]);
 
+            try {
+                app(NotificationService::class)->notifyPlan($plan, 'updated', auth()->user());
+            } catch (\Exception $e) {
+                Log::error('Notification error in PlanController update: '.$e->getMessage());
+            }
+
             return redirect()->route('plans.index')->with('success', 'تم تحديث الخطة بنجاح');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -580,6 +593,12 @@ class PlanController extends Controller
 
             DB::commit();
             Log::info('✅ تم حفظ الخطة التنفيذية بنجاح', ['plan_id' => $plan->id]);
+
+            try {
+                app(NotificationService::class)->notifyPlan($plan, 'implementation_updated', auth()->user());
+            } catch (\Exception $e) {
+                Log::error('Notification error in PlanController updateImplementation: '.$e->getMessage());
+            }
 
             return redirect()->route('plans.index')->with('success', 'تم حفظ الخطة التنفيذية بنجاح');
         } catch (\Exception $e) {

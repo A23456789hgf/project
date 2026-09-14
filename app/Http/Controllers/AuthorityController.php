@@ -153,6 +153,15 @@ class AuthorityController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
+                | Funded Filter
+                |--------------------------------------------------------------------------
+                */
+                if ($request->filled('is_funded')) {
+                    $query->where('is_funded', $request->is_funded);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
                 | Parent Filter
                 |--------------------------------------------------------------------------
                 */
@@ -347,7 +356,8 @@ class AuthorityController extends Controller
                         return $query->where('parent_id', $request->parent_id);
                     }),
                 ],
-                'is_active' => 'boolean',
+                'is_active' => 'nullable|boolean',
+                'is_funded' => 'nullable|boolean',
                 'parent_id' => 'nullable|sometimes|exists:authorities,id',
                 'governorate_id' => 'nullable|exists:governorates,id',
                 'directorate_id' => 'nullable|exists:directorates,id',
@@ -358,6 +368,9 @@ class AuthorityController extends Controller
             ], [
                 'agency_name.unique' => 'اسم الجهة موجود بالفعل في نفس المستوى التنظيمي.',
             ]);
+
+            $validated['is_active'] = $request->boolean('is_active');
+            $validated['is_funded'] = $request->boolean('is_funded');
 
             // معالجة parent_id ليكون null إذا كان فارغًا
             if (empty($validated['parent_id'])) {
@@ -550,7 +563,8 @@ class AuthorityController extends Controller
                             ->where('id', '!=', $authority->id);
                     }),
                 ],
-                'is_active' => 'boolean',
+                'is_active' => 'nullable|boolean',
+                'is_funded' => 'nullable|boolean',
                 'parent_id' => [
                     'nullable',
                     'sometimes',
@@ -570,6 +584,9 @@ class AuthorityController extends Controller
             ], [
                 'agency_name.unique' => 'اسم الجهة موجود بالفعل في نفس المستوى التنظيمي.',
             ]);
+
+            $validated['is_active'] = $request->boolean('is_active');
+            $validated['is_funded'] = $request->boolean('is_funded');
 
             if (empty($validated['parent_id'])) {
                 $validated['parent_id'] = null;
@@ -1060,6 +1077,7 @@ class AuthorityController extends Controller
                 'ids' => 'required|array|min:1',
                 'ids.*' => 'exists:authorities,id',
                 'is_active' => 'nullable|in:0,1',
+                'is_funded' => 'nullable|in:0,1',
                 'parent_id' => 'nullable',
                 'governorate_id' => 'nullable',
                 'directorate_id' => 'nullable',
@@ -1071,6 +1089,10 @@ class AuthorityController extends Controller
 
             if ($request->filled('is_active') && $request->input('is_active') !== '') {
                 $updateData['is_active'] = (bool) $request->input('is_active');
+            }
+
+            if ($request->filled('is_funded') && $request->input('is_funded') !== '') {
+                $updateData['is_funded'] = (bool) $request->input('is_funded');
             }
 
             if ($request->has('governorate_id') && $request->input('governorate_id') !== '') {
@@ -1211,6 +1233,10 @@ class AuthorityController extends Controller
                 $authority->is_active = (bool) $data['is_active'];
             }
 
+            if (isset($data['is_funded']) && $data['is_funded'] !== '') {
+                $authority->is_funded = (bool) $data['is_funded'];
+            }
+
             $authority->parent_id = $parentId;
 
             $govId = ! empty($data['governorate_id']) && $data['governorate_id'] !== 'null' ? (int) $data['governorate_id'] : null;
@@ -1282,7 +1308,7 @@ class AuthorityController extends Controller
                 'scope' => 'sometimes|in:all,active,inactive',
                 'format' => 'sometimes|in:xlsx,csv,pdf',
                 'fields' => 'sometimes|array',
-                'fields.*' => 'in:id,agency_name,parent_id,governorate_id,directorate_id,type_entity_id,entity_scope,financing_type_id,financing_form_id,is_active,created_at',
+                'fields.*' => 'in:id,agency_name,parent_id,governorate_id,directorate_id,type_entity_id,entity_scope,financing_type_id,financing_form_id,is_active,is_funded,created_at',
                 'sort_by' => 'sometimes|in:id,agency_name,created_at',
                 'sort_order' => 'sometimes|in:asc,desc',
             ]);
@@ -1617,12 +1643,12 @@ class AuthorityController extends Controller
             $format = $request->get('format', 'xlsx');
 
             $data = [
-                ['id' => 1, 'agency_name' => 'وزارة الدفاع', 'parent_id' => '-', 'governorate_id' => 'أمانة العاصمة', 'directorate_id' => 'السبعين', 'entity_scope' => 'داخلي', 'financing_type_id' => 'حكومي', 'is_active' => 'نشط', 'created_at' => now()->format('Y-m-d')],
-                ['id' => 2, 'agency_name' => 'هيئة الاستخبارات', 'parent_id' => 'وزارة الدفاع', 'governorate_id' => 'صنعاء', 'directorate_id' => 'سنحان', 'entity_scope' => 'داخلي', 'financing_type_id' => 'ذاتي', 'is_active' => 'نشط', 'created_at' => now()->format('Y-m-d')],
-                ['id' => 3, 'agency_name' => 'إدارة التخطيط', 'parent_id' => 'هيئة الاستخبارات', 'governorate_id' => '-', 'directorate_id' => '-', 'entity_scope' => 'خارجي', 'financing_type_id' => '-', 'is_active' => 'غير نشط', 'created_at' => now()->format('Y-m-d')],
+                ['id' => 1, 'agency_name' => 'وزارة الدفاع', 'parent_id' => '-', 'governorate_id' => 'أمانة العاصمة', 'directorate_id' => 'السبعين', 'entity_scope' => 'داخلي', 'financing_type_id' => 'حكومي', 'is_active' => 'نشط', 'is_funded' => 'ممولة', 'created_at' => now()->format('Y-m-d')],
+                ['id' => 2, 'agency_name' => 'هيئة الاستخبارات', 'parent_id' => 'وزارة الدفاع', 'governorate_id' => 'صنعاء', 'directorate_id' => 'سنحان', 'entity_scope' => 'داخلي', 'financing_type_id' => 'ذاتي', 'is_active' => 'نشط', 'is_funded' => 'غير ممولة', 'created_at' => now()->format('Y-m-d')],
+                ['id' => 3, 'agency_name' => 'إدارة التخطيط', 'parent_id' => 'هيئة الاستخبارات', 'governorate_id' => '-', 'directorate_id' => '-', 'entity_scope' => 'خارجي', 'financing_type_id' => '-', 'is_active' => 'غير نشط', 'is_funded' => 'غير ممولة', 'created_at' => now()->format('Y-m-d')],
             ];
 
-            $headers = ['id', 'agency_name', 'parent_id', 'governorate_id', 'directorate_id', 'entity_scope', 'financing_type_id', 'is_active', 'created_at'];
+            $headers = ['id', 'agency_name', 'parent_id', 'governorate_id', 'directorate_id', 'entity_scope', 'financing_type_id', 'is_active', 'is_funded', 'created_at'];
 
             $timestamp = now()->format('Y-m-d');
             $filename = "authorities_template_{$timestamp}.{$format}";
@@ -1663,6 +1689,33 @@ class AuthorityController extends Controller
             Log::error('Error normalizing active status: '.$e->getMessage());
 
             return true;
+        }
+    }
+
+    /**
+     * دالة مساعدة لتحويل حالة التمويل إلى قيمة منطقية
+     */
+    private function normalizeFundedStatus($status): bool
+    {
+        try {
+            $status = strtolower(trim((string) $status));
+
+            $fundedValues = ['ممولة', 'ممولة', 'funded', '1', 'true', 'yes', 'نعم'];
+            $unfundedValues = ['غير ممولة', 'غير ممول', 'unfunded', '0', 'false', 'no', 'لا'];
+
+            if (in_array($status, $fundedValues)) {
+                return true;
+            }
+
+            if (in_array($status, $unfundedValues)) {
+                return false;
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            Log::error('Error normalizing funded status: '.$e->getMessage());
+
+            return false;
         }
     }
 

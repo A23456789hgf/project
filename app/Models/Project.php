@@ -67,6 +67,7 @@ class Project extends Model
         'updated_by_user_id',
         'updated_by_entity',
         'current_stage',
+        'current_stage_order',
         'completed_at',
         'internal_entity_id',
         'authority_id',
@@ -269,7 +270,7 @@ class Project extends Model
      */
     public function isDraft(): bool
     {
-        return in_array($this->status, ['draft', 'completed_draft']);
+        return in_array($this->status, ['draft', 'completed_draft'], true);
     }
 
     /**
@@ -278,6 +279,50 @@ class Project extends Model
     public function isCompletedDraft(): bool
     {
         return $this->status === 'completed_draft';
+    }
+
+    /**
+     * Check if project is currently in the approval workflow.
+     */
+    public function isPendingApproval(): bool
+    {
+        return in_array($this->status, ['pending_approval', 'financial_technical_review', 'internally_approved', 'final'], true);
+    }
+
+    /**
+     * Check if project was rolled back for action/completion.
+     */
+    public function isRolledBackForReview(): bool
+    {
+        return $this->status === 'rolled_back_for_review';
+    }
+
+    /**
+     * Check if project is in execution.
+     */
+    public function isInExecution(): bool
+    {
+        return in_array($this->status, ['in_execution', 'in_progress', 'implementation', 'completed'], true);
+    }
+
+    /**
+     * Get the single currently active approval step.
+     */
+    public function getActiveApprovalStep(): ?ProjectApproval
+    {
+        if ($this->relationLoaded('projectApprovals')) {
+            $active = $this->projectApprovals->firstWhere('is_active', true);
+            if ($active) {
+                return $active;
+            }
+            if ($this->current_stage) {
+                return $this->projectApprovals->firstWhere('drop', $this->current_stage);
+            }
+        }
+
+        return $this->projectApprovals()
+            ->where('is_active', true)
+            ->first() ?? ($this->current_stage ? $this->projectApprovals()->where('drop', $this->current_stage)->first() : null);
     }
 
     public function getProjectDurationAttribute(): int
@@ -356,10 +401,10 @@ class Project extends Model
         $stageCode = $this->current_stage ?? $this->status;
 
         if ($stageCode) {
-            // Handle entity-based stages: "entity_{id}"
+            // Handle entity-based stages: "entity_{id}" or "entity_{id}_{phase}"
             if (str_starts_with($stageCode, 'entity_')) {
-                $entityId = str_replace('entity_', '', $stageCode);
-                if (is_numeric($entityId)) {
+                if (preg_match('/^entity_(\d+)(?:_(technical_review|financial_review|stage_approval))?$/', $stageCode, $matches) === 1) {
+                    $entityId = $matches[1];
                     static $stageEntityCache = [];
                     if (! array_key_exists($entityId, $stageEntityCache)) {
                         // Use direct DB query to bypass ALL scopes and models
@@ -369,7 +414,17 @@ class Project extends Model
                         $stageEntityCache[$entityId] = $entityName;
                     }
                     if ($stageEntityCache[$entityId]) {
-                        return (string) $stageEntityCache[$entityId];
+                        $phaseNames = [
+                            'technical_review' => 'مراجعة فنية',
+                            'financial_review' => 'مراجعة مالية',
+                            'stage_approval' => 'اعتماد للمرحلة',
+                        ];
+
+                        $phase = $matches[2] ?? null;
+
+                        return $phase && isset($phaseNames[$phase])
+                            ? (string) $stageEntityCache[$entityId].' - '.$phaseNames[$phase]
+                            : (string) $stageEntityCache[$entityId];
                     }
                 }
             }
@@ -520,6 +575,11 @@ class Project extends Model
     public function cost(): HasOne
     {
         return $this->hasOne(ProjectCost::class);
+    }
+
+    public function getTotalCostAttribute(): float
+    {
+        return (float) ($this->cost?->total_cost ?? 0);
     }
 
     public function projectRequest(): HasOne
@@ -797,10 +857,10 @@ class Project extends Model
     {
         $originEntityId = $this->getOriginEntityId();
 
-        // 1. If current_stage is an entity stage (e.g. "entity_5")
+        // 1. If current_stage is an entity stage (e.g. "entity_5_technical_review")
         if (! empty($this->current_stage) && str_starts_with($this->current_stage, 'entity_')) {
-            if ($originEntityId) {
-                return $this->current_stage === 'entity_'.$originEntityId;
+            if ($originEntityId && preg_match('/^entity_(\d+)/', $this->current_stage, $matches) === 1) {
+                return (int) $matches[1] === $originEntityId;
             }
 
             return ($this->current_stage_order ?? 1) <= 1;
@@ -1067,6 +1127,8 @@ class Project extends Model
         return static::query();
     }
 
+    protected array $visibilityCheckCache = [];
+
     /**
      * Check visibility for current user
      */
@@ -1082,7 +1144,12 @@ class Project extends Model
             return true;
         }
 
-        return static::query()
+        $userId = $user->id;
+        if (isset($this->visibilityCheckCache[$userId])) {
+            return $this->visibilityCheckCache[$userId];
+        }
+
+        return $this->visibilityCheckCache[$userId] = static::query()
             ->withVisibility($user)
             ->whereKey($this->getKey())
             ->exists();

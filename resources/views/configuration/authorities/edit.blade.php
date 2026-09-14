@@ -40,13 +40,29 @@
                         </div>
 
                         <!-- حالة التفعيل -->
-                        <div class="col-md-6">
+                        <div class="col-md-3">
                             <label class="field-label">الحالة</label>
-                            <div class="form-check form-switch custom-switch p-3 bg-light rounded-3 border mt-1">
-                                <input class="form-check-input ms-0 me-3" type="checkbox" id="is_active" name="is_active" value="1" {{ old('is_active', $authority->is_active) ? 'checked' : '' }}>
-                                <label class="form-check-label fw-bold" for="is_active" style="color: #001f3f;">مفعل</label>
+                            <div class="form-check form-switch custom-switch p-3 bg-light rounded-3 border mt-1 d-flex align-items-center justify-content-between">
+                                <label class="form-check-label fw-bold mb-0" for="is_active" style="color: #001f3f;" id="is_active_label">
+                                    {{ old('is_active', $authority->is_active) ? 'مفعل' : 'غير مفعل' }}
+                                </label>
+                                <input class="form-check-input ms-0" type="checkbox" id="is_active" name="is_active" value="1" {{ old('is_active', $authority->is_active) ? 'checked' : '' }} onchange="document.getElementById('is_active_label').textContent = this.checked ? 'مفعل' : 'غير مفعل'">
                             </div>
                             @error('is_active')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- جهة ممولة -->
+                        <div class="col-md-3">
+                            <label class="field-label">جهة ممولة</label>
+                            <div class="form-check form-switch custom-switch p-3 bg-light rounded-3 border mt-1 d-flex align-items-center justify-content-between">
+                                <label class="form-check-label fw-bold mb-0" for="is_funded" style="color: #001f3f;" id="is_funded_label">
+                                    {{ old('is_funded', $authority->is_funded) ? 'ممولة' : 'غير ممولة' }}
+                                </label>
+                                <input class="form-check-input ms-0" type="checkbox" id="is_funded" name="is_funded" value="1" {{ old('is_funded', $authority->is_funded) ? 'checked' : '' }} onchange="document.getElementById('is_funded_label').textContent = this.checked ? 'ممولة' : 'غير ممولة'">
+                            </div>
+                            @error('is_funded')
                                 <div class="text-danger small mt-1">{{ $message }}</div>
                             @enderror
                         </div>

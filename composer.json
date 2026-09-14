@@ -7,6 +7,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "ar-php/ar-php": "*",
+        "khaled.alshamaa/ar-php": "*",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "php-flasher/flasher-laravel": "^2.6"

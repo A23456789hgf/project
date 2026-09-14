@@ -116,6 +116,8 @@ class PermissionResolver
      */
     public static function clearCache(): void
     {
+        self::$slugsCache = null;
         Cache::forget('permissions_matrix_registry');
+        Cache::forget('permissions_matrix_registry_v4');
     }
 }

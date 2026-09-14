@@ -10,6 +10,7 @@ use App\Models\InternalEntity;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserGeographicScope;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -182,6 +183,12 @@ class UserController extends Controller
             ]);
 
             DB::commit();
+
+            try {
+                app(NotificationService::class)->notifyUserAccount($user, 'created', auth()->user());
+            } catch (\Exception $e) {
+                \Log::error('Notification error in UserController store: '.$e->getMessage());
+            }
 
             return redirect()->route('users.index')->with('success', 'تم إنشاء المستخدم بنجاح');
         } catch (\Exception $e) {
@@ -367,6 +374,12 @@ class UserController extends Controller
             'ip_address' => request()->ip(),
         ]);
 
+        try {
+            app(NotificationService::class)->notifyUserAccount($user, 'disabled', auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in UserController disable: '.$e->getMessage());
+        }
+
         return back()->with('success', 'تم تعطيل المستخدم بنجاح');
     }
 
@@ -382,6 +395,12 @@ class UserController extends Controller
             'description' => 'تم تفعيل المستخدم: '.$user->name,
             'ip_address' => request()->ip(),
         ]);
+
+        try {
+            app(NotificationService::class)->notifyUserAccount($user, 'enabled', auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in UserController enable: '.$e->getMessage());
+        }
 
         return back()->with('success', 'تم تفعيل المستخدم بنجاح');
     }
@@ -412,6 +431,12 @@ class UserController extends Controller
             'description' => 'تم إعادة تعيين كلمة مرور المستخدم: '.$user->name,
             'ip_address' => $request->ip(),
         ]);
+
+        try {
+            app(NotificationService::class)->notifyUserAccount($user, 'password_reset', auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in UserController updatePassword: '.$e->getMessage());
+        }
 
         return redirect()->route('users.show', $user)->with('success', 'تم إعادة تعيين كلمة المرور بنجاح');
     }

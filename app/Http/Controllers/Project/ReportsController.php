@@ -47,9 +47,9 @@ class ReportsController extends Controller
     }
 
     /**
-     * لوحة تقارير مركز البيانات الموحد (Overview Dashboard)
+     * استخراج إحصائيات مركز البيانات الموحد
      */
-    public function index(Request $request)
+    private function getIndexStats(Request $request): array
     {
         $projectsQuery = $this->getFilteredProjectsQuery($request);
         $totalProjects = (clone $projectsQuery)->count();
@@ -143,7 +143,20 @@ class ReportsController extends Controller
             ? ($stats['financial']['total_spent'] / $stats['financial']['total_budget']) * 100
             : 0;
 
+        return $stats;
+    }
+
+    /**
+     * لوحة تقارير مركز البيانات الموحد (Overview Dashboard)
+     */
+    public function index(Request $request)
+    {
+        $stats = $this->getIndexStats($request);
         $dropdownData = $this->scopeFilter->getFilterDropdownData($request);
+
+        if ($request->has('print') || $request->input('export') === 'print') {
+            return view('projects.reports.print_index', array_merge(compact('stats'), $dropdownData));
+        }
 
         return view('projects.reports.index', array_merge(compact('stats'), $dropdownData));
     }
@@ -282,7 +295,11 @@ class ReportsController extends Controller
 
         $dropdownData = $this->scopeFilter->getFilterDropdownData($request);
 
-        return view('projects.reports.implementation', array_merge(compact(
+        $viewName = ($request->has('print') || $request->input('export') === 'print')
+            ? 'projects.reports.print_implementation'
+            : 'projects.reports.implementation';
+
+        return view($viewName, array_merge(compact(
             'preliminaryExecutions',
             'executiveExecutions',
             'implementationData',
@@ -327,7 +344,10 @@ class ReportsController extends Controller
             'avg_financial_variance' => (clone $query)->where('quality_aspect', 'financial')->avg('variance_amount'),
         ];
 
-        $qualityRecords = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+        $isPrint = $request->has('print') || $request->input('export') === 'print';
+        $qualityRecords = $isPrint
+            ? (clone $query)->orderBy('created_at', 'desc')->get()
+            : $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
 
         $projects = $this->getFilteredProjectsQuery($request)
             ->select('id', 'project_name', 'form_number')
@@ -336,7 +356,9 @@ class ReportsController extends Controller
 
         $dropdownData = $this->scopeFilter->getFilterDropdownData($request);
 
-        return view('projects.reports.quality', array_merge(compact(
+        $viewName = $isPrint ? 'projects.reports.print_quality' : 'projects.reports.quality';
+
+        return view($viewName, array_merge(compact(
             'qualityRecords',
             'stats',
             'projects',
@@ -415,7 +437,11 @@ class ReportsController extends Controller
 
         $dropdownData = $this->scopeFilter->getFilterDropdownData($request);
 
-        return view('projects.reports.financial', array_merge(compact(
+        $viewName = ($request->has('print') || $request->input('export') === 'print')
+            ? 'projects.reports.print_financial'
+            : 'projects.reports.financial';
+
+        return view($viewName, array_merge(compact(
             'projectsData',
             'stats',
             'allProjects',
@@ -435,7 +461,8 @@ class ReportsController extends Controller
             'executiveActivityActions.executions',
         ]);
 
-        $projects = $query->paginate(20)->withQueryString();
+        $isPrint = $request->has('print') || $request->input('export') === 'print';
+        $projects = $isPrint ? $query->get() : $query->paginate(20)->withQueryString();
         $projectsProgress = [];
 
         foreach ($projects as $project) {
@@ -504,7 +531,9 @@ class ReportsController extends Controller
 
         $dropdownData = $this->scopeFilter->getFilterDropdownData($request);
 
-        return view('projects.reports.progress', array_merge(compact(
+        $viewName = $isPrint ? 'projects.reports.print_progress' : 'projects.reports.progress';
+
+        return view($viewName, array_merge(compact(
             'projectsProgress',
             'stats',
             'allProjects',
@@ -562,12 +591,17 @@ class ReportsController extends Controller
         $user = auth()->user();
         $entityName = $user->entity?->name ?? 'وزارة الزراعة والثروة السمكية والموارد المائية';
 
+        $logoPath = public_path('images/logo.png');
+        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath)) : '';
+
         $data = [
             'projects' => $projects,
             'totalBudget' => $totalBudget,
             'totalProjects' => $totalProjects,
             'entityName' => $entityName,
             'date' => now()->format('Y-m-d'),
+            'logoBase64' => $logoBase64,
+            'stats' => $this->getIndexStats($request),
         ];
 
         if ($request->has('pdf')) {

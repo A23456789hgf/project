@@ -1,4 +1,4 @@
-{{-- dedicated_scopes.blade.php --}}
+{-- dedicated_scopes.blade.php --}}
 @php
     // This partial receives: $moduleName, $moduleLabel, $moduleConfig, $scopeType, $role, $viewOnly, $selectedScope, $savedGeoScope
 @endphp

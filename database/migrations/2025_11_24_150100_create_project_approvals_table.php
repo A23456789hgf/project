@@ -15,8 +15,10 @@ return new class extends Migration
             Schema::create('project_approvals', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('project_id')->constrained('projects')->onDelete('cascade');
-                $table->foreignId('authority_id')->constrained('authorities')->onDelete('cascade');
+                $table->unsignedBigInteger('entity_id')->nullable();
+                $table->unsignedBigInteger('authority_id')->nullable();
                 $table->foreignId('approval_flow_id')->nullable()->references('id')->on('approval_flows')->onDelete('set null');
+                $table->string('drop', 50)->nullable();
                 $table->integer('step_order');
                 $table->enum('status', ['pending', 'approved', 'rejected', 'needs_revision', 'on_hold'])->default('pending');
                 $table->text('notes')->nullable();

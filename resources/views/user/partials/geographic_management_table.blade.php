@@ -1,4 +1,5 @@
 
+
 @php
     $entities = $entities ?? collect();
     $governorates = $governorates ?? collect();

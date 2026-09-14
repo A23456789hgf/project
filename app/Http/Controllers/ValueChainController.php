@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ValueChain;
 use App\Services\FileImportService;
 use App\Services\ImportTrackingService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -41,11 +42,17 @@ class ValueChainController extends Controller
             'parent_id' => 'nullable|exists:value_chains,id',
         ]);
 
-        ValueChain::create([
+        $valueChain = ValueChain::create([
             'name' => $request->name,
             'parent_id' => $request->parent_id,
             'created_by' => auth()->id(),
         ]);
+
+        try {
+            app(NotificationService::class)->notifyValueChain($valueChain, 'created', auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in ValueChainController store: '.$e->getMessage());
+        }
 
         session()->flash('success', 'تم إضافة بنجاح');
 
@@ -71,6 +78,12 @@ class ValueChainController extends Controller
         $valueChain->update(
             $request->only(['name', 'parent_id'])
         );
+
+        try {
+            app(NotificationService::class)->notifyValueChain($valueChain, 'updated', auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in ValueChainController update: '.$e->getMessage());
+        }
 
         return redirect()->route('value-chains.index')
             ->with('success', 'تم التعديل بنجاح');

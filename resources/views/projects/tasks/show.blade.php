@@ -731,22 +731,35 @@
                         <i class="fas fa-home"></i>
                     </a>
                 </li>
-                <li class="separator"><i class="fas fa-chevron-left"></i></li>
-                <li><a href="{{ route('projects.index') }}">المشاريع</a></li>
-                <li class="separator"><i class="fas fa-chevron-left"></i></li>
-                <li><a href="{{ route('projects.show', $project->id) }}">{{ Str::limit($project->project_name, 20) }}</a>
-                </li>
-                <li class="separator"><i class="fas fa-chevron-left"></i></li>
-                <li><a href="{{ route('projects.tasks.index', $project->id) }}">المهام</a></li>
+                @if(isset($project) && $project && $project->id)
+                    <li class="separator"><i class="fas fa-chevron-left"></i></li>
+                    <li><a href="{{ route('projects.index') }}">المشاريع</a></li>
+                    <li class="separator"><i class="fas fa-chevron-left"></i></li>
+                    <li><a href="{{ route('projects.show', $project->id) }}">{{ Str::limit($project->project_name, 20) }}</a></li>
+                    <li class="separator"><i class="fas fa-chevron-left"></i></li>
+                    <li><a href="{{ route('projects.tasks.index', $project->id) }}">المهام</a></li>
+                @else
+                    <li class="separator"><i class="fas fa-chevron-left"></i></li>
+                    <li><a href="{{ route('tasks.index') }}">إدارة المهام</a></li>
+                @endif
                 <li class="separator"><i class="fas fa-chevron-left"></i></li>
                 <li class="active">التفاصيل</li>
             </ul>
-            <a href="{{ route('projects.tasks.print', [$project->id, $task->id]) }}" target="_blank"
-                class="btn btn-secondary no-print">طباعة المهمة</a>
-            <a href="{{ route('projects.tasks.index', $project->id) }}" class="btn-back">
-                <i class="fas fa-arrow-right"></i>
-                العودة
-            </a>
+            @if(isset($project) && $project && $project->id)
+                <a href="{{ route('projects.tasks.print', [$project->id, $task->id]) }}" target="_blank"
+                    class="btn btn-secondary no-print">طباعة المهمة</a>
+                <a href="{{ route('projects.tasks.index', $project->id) }}" class="btn-back">
+                    <i class="fas fa-arrow-right"></i>
+                    العودة
+                </a>
+            @else
+                <a href="{{ route('tasks.print', $task->id) }}" target="_blank"
+                    class="btn btn-secondary no-print">طباعة المهمة</a>
+                <a href="{{ route('tasks.index') }}" class="btn-back">
+                    <i class="fas fa-arrow-right"></i>
+                    العودة
+                </a>
+            @endif
         </div>
 
         {{-- ===== عنوان المهمة ===== --}}

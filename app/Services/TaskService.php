@@ -35,43 +35,38 @@ class TaskService
         $usersToNotify = collect();
 
         // 1. Notify directly assigned users
-        if ($task->assignees()->exists()) {
+        $task->loadMissing('assignees');
+        if ($task->assignees->isNotEmpty()) {
             foreach ($task->assignees as $user) {
-                if ($user && $user->hasPermission('task.view')) {
+                if ($user) {
                     $usersToNotify->push($user);
                 }
             }
         }
         // 2. Notify assigned entity users
-        elseif ($task->assigned_entity_id) {
+        if ($task->assigned_entity_id) {
             $entityIds = InternalEntity::getAllChildrenIds($task->assigned_entity_id);
             $entityUsers = User::active()
                 ->whereIn('entity_id', $entityIds)
-                ->get()
-                ->filter(function ($u) {
-                    return $u->hasPermission('task.view');
-                });
+                ->get();
             $usersToNotify = $usersToNotify->merge($entityUsers);
         }
         // 3. Notify department if no direct user is assigned
-        elseif ($task->project_entities_id) {
+        if ($usersToNotify->isEmpty() && $task->project_entities_id) {
             // Determine assignable users in the creator's administrative scope
             $creator = User::find($task->created_by ?? auth()->id());
             if ($creator && $creator->entity_id) {
                 $entityIds = InternalEntity::getAllChildrenIds($creator->entity_id);
                 $deptUsers = User::active()
                     ->whereIn('entity_id', $entityIds)
-                    ->get()
-                    ->filter(function ($u) {
-                        return $u->hasPermission('task.view');
-                    });
+                    ->get();
 
                 $usersToNotify = $usersToNotify->merge($deptUsers);
             }
         }
 
         $usersToNotify = $usersToNotify->unique('id');
-        $actionUrl = $task->project_id ? route('projects.tasks.show', [$task->project_id, $task->id]) : route('tasks.index');
+        $actionUrl = $task->project_id ? route('projects.tasks.show', [$task->project_id, $task->id]) : route('tasks.show', $task->id);
 
         $actualUsersToNotify = $usersToNotify->filter(function ($user) {
             return app()->runningInConsole() || $user->id !== auth()->id();
@@ -88,8 +83,8 @@ class TaskService
             ));
         }
 
-        // Send SMS notifications for creation and updates
-        if ($actionType === 'created' || $actionType === 'updated') {
+        // Send SMS notifications for creation, updates, and stop/resume
+        if (in_array($actionType, ['created', 'updated', 'stopped', 'resumed'])) {
             try {
                 $smsService = app(SmppSmsService::class);
                 $smsService->sendToMultiple($actualUsersToNotify, $message, 'task_assignment');

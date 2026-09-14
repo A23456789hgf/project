@@ -67,4 +67,24 @@ class PreliminaryCost extends Model
     {
         return $this->belongsTo(Unit::class, 'unit_id')->withTrashed();
     }
+
+    public function getUnitPriceAttribute()
+    {
+        return $this->attributes['amount'] ?? null;
+    }
+
+    public function setUnitPriceAttribute($value): void
+    {
+        $this->attributes['amount'] = $value;
+    }
+
+    public function getTotalCostAttribute()
+    {
+        return $this->attributes['total'] ?? null;
+    }
+
+    public function setTotalCostAttribute($value): void
+    {
+        $this->attributes['total'] = $value;
+    }
 }

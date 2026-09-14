@@ -12,10 +12,13 @@
             </div>
 
             {{-- الجهة (الافتراضي هو جهة المستخدم) --}}
+            {{-- الجهة (الافتراضي هو جهة المستخدم) --}}
             <div class="col-12 col-md-3">
-                <label for="filter_organization" class="form-label text-muted small fw-bold mb-1">
-                    الجهة <span class="text-primary fw-normal">(الافتراضي: جهتك)</span>
-                </label>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label for="filter_organization" class="form-label text-muted small fw-bold mb-0">
+                        الجهة <span class="text-primary fw-normal">(الافتراضي: جهتك)</span>
+                    </label>
+                </div>
                 <select class="form-select form-select-sm border-0 bg-light" id="filter_organization" name="organization" onchange="this.form.submit()">
                     <option value="all" {{ request('organization') === 'all' ? 'selected' : '' }}>-- كل الجهات المتاحة --</option>
                     @if(isset($entities) && $entities->isNotEmpty())
@@ -30,6 +33,12 @@
                         @endforeach
                     @endif
                 </select>
+                <div class="form-check mt-1">
+                    <input class="form-check-input" type="checkbox" name="include_children" id="include_children" value="1" {{ request()->boolean('include_children') ? 'checked' : '' }} onchange="this.form.submit()">
+                    <label class="form-check-label text-muted" for="include_children" style="font-size: 0.72rem; cursor: pointer;">
+                        تضمين الجهات الأبناء
+                    </label>
+                </div>
             </div>
 
             {{-- المحافظة --}}

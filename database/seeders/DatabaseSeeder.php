@@ -13,17 +13,35 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            // Permission types and permissions
+            PermissionTypeSeeder::class,
             PermissionsSeeder::class,
+            PermissionsTableSeeder::class,
+
+            // Roles and role permissions
+            RoleSeeder::class,
             RolePermissionsSeeder::class,
+            AssignDefaultRolePermissionsSeeder::class,
+
+            // Specific permissions
+            AdminPermissionsSeeder::class,
+            DashboardPermissionsSeeder::class,
+            ChatPermissionSeeder::class,
+            ReportsPermissionsSeeder::class,
+            SmsPermissionsSeeder::class,
+            SyncTaskPermissionsSeeder::class,
+            ValueChainsPermissionsSeeder::class,
+            ParallelScopePermissionsSeeder::class,
+
+            // Super Admin
+            SuperAdminSeeder::class,
+
+            // Existing user seeders
             DefaultUserSeeder::class,
             UserSeeder::class,
-            DashboardPermissionsSeeder::class,
-            DefaultUserSeeder::class,
-            PermissionsTableSeeder::class,
-            PermissionTypeSeeder::class,
-            ReportsPermissionsSeeder::class,
-            AuthorityTemplateSeeder::class,
 
+            // Other existing seeder
+            AuthorityTemplateSeeder::class,
         ]);
     }
 }

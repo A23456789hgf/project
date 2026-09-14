@@ -23,6 +23,7 @@ class Authority extends Model
         'directorate_id',
         'type_entity_id',
         'is_active',
+        'is_funded',
         'creator_username',
         'creator_entity_id',
         'entity_scope',
@@ -32,6 +33,7 @@ class Authority extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_funded' => 'boolean',
     ];
 
     // -----------------------------------------------------------------------
@@ -291,6 +293,22 @@ class Authority extends Model
     public function scopeInactive(Builder $query)
     {
         return $query->where('is_active', false);
+    }
+
+    /**
+     * Scope للجهات الممولة
+     */
+    public function scopeFunded(Builder $query)
+    {
+        return $query->where('is_funded', true);
+    }
+
+    /**
+     * Scope للجهات غير الممولة
+     */
+    public function scopeUnfunded(Builder $query)
+    {
+        return $query->where('is_funded', false);
     }
 
     /**

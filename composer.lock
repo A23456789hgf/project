@@ -4,8 +4,58 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "04fb2f714079221b98eb1104378c28a5",
+    "content-hash": "b0c451cdbfe1b1e0cc618f36b23aeb22",
     "packages": [
+        {
+            "name": "ar-php/ar-php",
+            "version": "v1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/tawfekov/ar-php.git",
+                "reference": "4438469e70970ad059ae7536e1c928e879e40e04"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/tawfekov/ar-php/zipball/4438469e70970ad059ae7536e1c928e879e40e04",
+                "reference": "4438469e70970ad059ae7536e1c928e879e40e04",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.3.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "Arphp": "src/"
+                },
+                "classmap": [
+                    "autoload_classmap.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "Khaled Al-Sham'aa",
+                    "email": "khaled@ar-php.org",
+                    "homepage": "http://www.ar-php.org/"
+                },
+                {
+                    "name": "Tawfek Daghistani",
+                    "email": "tawfekov@gmail.com"
+                }
+            ],
+            "description": "helper library for dealing with arabic language",
+            "homepage": "http://www.ar-php.org/",
+            "support": {
+                "issues": "https://github.com/tawfekov/ar-php/issues",
+                "source": "https://github.com/tawfekov/ar-php/tree/master"
+            },
+            "abandoned": "khaled.alshamaa/ar-php",
+            "time": "2018-06-22T19:02:45+00:00"
+        },
         {
             "name": "brick/math",
             "version": "0.18.0",
@@ -1055,17 +1105,80 @@
             "time": "2026-08-24T17:13:02+00:00"
         },
         {
-            "name": "laravel/framework",
-            "version": "v13.29.0",
+            "name": "khaled.alshamaa/ar-php",
+            "version": "v7.0.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/laravel/framework.git",
-                "reference": "6e2c363716964d8238cee7097b258119a984f0cf"
+                "url": "https://github.com/khaled-alshamaa/ar-php.git",
+                "reference": "1e2d3fa335ce57ff261920228dd6e73fe7e49e19"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/6e2c363716964d8238cee7097b258119a984f0cf",
-                "reference": "6e2c363716964d8238cee7097b258119a984f0cf",
+                "url": "https://api.github.com/repos/khaled-alshamaa/ar-php/zipball/1e2d3fa335ce57ff261920228dd6e73fe7e49e19",
+                "reference": "1e2d3fa335ce57ff261920228dd6e73fe7e49e19",
+                "shasum": ""
+            },
+            "require": {
+                "ext-calendar": "*",
+                "ext-mbstring": "*",
+                "php": ">=5.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "9.*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "ArPHP\\I18N\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "Khaled Al-Sham'aa",
+                    "email": "khaled@ar-php.org",
+                    "homepage": "http://www.ar-php.org",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Set of functionalities enable Arabic website developers to serve professional search, present and process Arabic content in PHP",
+            "homepage": "https://github.com/khaled-alshamaa/ar-php",
+            "keywords": [
+                "arabic",
+                "arabic-calendar",
+                "arabic-glyphs",
+                "arabic-numbers",
+                "arabic-segments-identifier",
+                "arabic-sentiment",
+                "arabic-sql-query"
+            ],
+            "support": {
+                "issues": "https://github.com/khaled-alshamaa/ar-php/issues",
+                "source": "https://github.com/khaled-alshamaa/ar-php/tree/v7.0.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/khaled-alshamaa",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-03-07T22:46:10+00:00"
+        },
+        {
+            "name": "laravel/framework",
+            "version": "v13.30.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel/framework.git",
+                "reference": "718d17db56861e0a49f644217c8853dab1bff8ce"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/718d17db56861e0a49f644217c8853dab1bff8ce",
+                "reference": "718d17db56861e0a49f644217c8853dab1bff8ce",
                 "shasum": ""
             },
             "require": {
@@ -1279,7 +1392,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-08-25T20:57:16+00:00"
+            "time": "2026-09-01T21:42:30+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -1661,16 +1774,16 @@
         },
         {
             "name": "league/flysystem",
-            "version": "3.35.3",
+            "version": "3.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem.git",
-                "reference": "5fc8404762179ae514678487b23494fd69b2309c"
+                "reference": "f7fb152932f30072d573510cbd4dd657d6475b25"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/5fc8404762179ae514678487b23494fd69b2309c",
-                "reference": "5fc8404762179ae514678487b23494fd69b2309c",
+                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/f7fb152932f30072d573510cbd4dd657d6475b25",
+                "reference": "f7fb152932f30072d573510cbd4dd657d6475b25",
                 "shasum": ""
             },
             "require": {
@@ -1738,9 +1851,9 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem/issues",
-                "source": "https://github.com/thephpleague/flysystem/tree/3.35.3"
+                "source": "https://github.com/thephpleague/flysystem/tree/3.36.0"
             },
-            "time": "2026-08-22T12:55:54+00:00"
+            "time": "2026-09-02T08:00:27+00:00"
         },
         {
             "name": "league/flysystem-local",
@@ -2031,16 +2144,16 @@
         },
         {
             "name": "monolog/monolog",
-            "version": "3.10.0",
+            "version": "3.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Seldaek/monolog.git",
-                "reference": "b321dd6749f0bf7189444158a3ce785cc16d69b0"
+                "reference": "147f303310f06334f03f409e49d7ad1e275ff05a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/b321dd6749f0bf7189444158a3ce785cc16d69b0",
-                "reference": "b321dd6749f0bf7189444158a3ce785cc16d69b0",
+                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/147f303310f06334f03f409e49d7ad1e275ff05a",
+                "reference": "147f303310f06334f03f409e49d7ad1e275ff05a",
                 "shasum": ""
             },
             "require": {
@@ -2118,7 +2231,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Seldaek/monolog/issues",
-                "source": "https://github.com/Seldaek/monolog/tree/3.10.0"
+                "source": "https://github.com/Seldaek/monolog/tree/3.11.0"
             },
             "funding": [
                 {
@@ -2130,7 +2243,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-01-02T08:56:05+00:00"
+            "time": "2026-09-02T12:39:56+00:00"
         },
         {
             "name": "nesbot/carbon",

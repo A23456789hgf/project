@@ -13,6 +13,8 @@ use App\Models\ProcedureTechnicalJustification;
 use App\Models\Project;
 use App\Models\ProjectActivityHistory;
 use App\Models\ProjectExecution;
+use App\Models\User;
+use App\Services\NotificationService;
 use App\Services\ScopeFilterService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -745,6 +747,12 @@ class ExecutionController extends Controller
             ]);
         }
 
+        try {
+            app(NotificationService::class)->notifyExecutionDelay($project, $explanation, 'submitted', auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in storeDelayExplanation: '.$e->getMessage());
+        }
+
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
@@ -801,6 +809,12 @@ class ExecutionController extends Controller
             'reviewed_by' => auth()->id(),
             'reviewed_at' => now(),
         ]);
+
+        try {
+            app(NotificationService::class)->notifyExecutionDelay($project, $explanation, $validated['approval_status'], auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in approveDelayExplanation: '.$e->getMessage());
+        }
 
         return response()->json([
             'success' => true,
@@ -1028,6 +1042,30 @@ class ExecutionController extends Controller
             'metadata' => ['execution_id' => $execution->id, 'type' => 'preliminary'],
         ]);
 
+        if ($execution->created_by && $execution->created_by !== auth()->id()) {
+            try {
+                $creator = User::find($execution->created_by);
+                if ($creator) {
+                    app(NotificationService::class)->sendNotification(
+                        $creator,
+                        [
+                            'type' => 'execution',
+                            'action_type' => 'approved',
+                            'title' => 'اعتماد سجل تنفيذ: '.$project->project_name,
+                            'message' => 'تمت الموافقة على سجل التنفيذ (تمهيدي) للمشروع بواسطة '.(auth()->user()?->name ?? 'النظام'),
+                            'page_name' => 'متابعة التنفيذ',
+                            'action_url' => route('projects.execution', $project->id),
+                            'icon' => 'fas fa-check-circle',
+                            'causer_id' => auth()->id(),
+                            'causer_name' => auth()->user()?->name,
+                        ]
+                    );
+                }
+            } catch (\Exception $e) {
+                \Log::error('Notification error in approvePreliminaryExecution: '.$e->getMessage());
+            }
+        }
+
         if (request()->expectsJson()) {
             return response()->json([
                 'success' => true,
@@ -1068,6 +1106,30 @@ class ExecutionController extends Controller
             'metadata' => ['execution_id' => $execution->id, 'type' => 'preliminary'],
         ]);
 
+        if ($execution->created_by && $execution->created_by !== auth()->id()) {
+            try {
+                $creator = User::find($execution->created_by);
+                if ($creator) {
+                    app(NotificationService::class)->sendNotification(
+                        $creator,
+                        [
+                            'type' => 'execution',
+                            'action_type' => 'rejected',
+                            'title' => 'رفض سجل تنفيذ: '.$project->project_name,
+                            'message' => 'تم رفض سجل التنفيذ (تمهيدي) للمشروع: '.$validated['rejection_reason'],
+                            'page_name' => 'متابعة التنفيذ',
+                            'action_url' => route('projects.execution', $project->id),
+                            'icon' => 'fas fa-times-circle',
+                            'causer_id' => auth()->id(),
+                            'causer_name' => auth()->user()?->name,
+                        ]
+                    );
+                }
+            } catch (\Exception $e) {
+                \Log::error('Notification error in rejectPreliminaryExecution: '.$e->getMessage());
+            }
+        }
+
         if (request()->expectsJson()) {
             return response()->json([
                 'success' => true,
@@ -1102,6 +1164,30 @@ class ExecutionController extends Controller
             'action_details' => "المبلغ المصروف: {$execution->amount_spent}",
             'metadata' => ['execution_id' => $execution->id, 'type' => 'executive'],
         ]);
+
+        if ($execution->created_by && $execution->created_by !== auth()->id()) {
+            try {
+                $creator = User::find($execution->created_by);
+                if ($creator) {
+                    app(NotificationService::class)->sendNotification(
+                        $creator,
+                        [
+                            'type' => 'execution',
+                            'action_type' => 'approved',
+                            'title' => 'اعتماد سجل تنفيذ: '.$project->project_name,
+                            'message' => 'تمت الموافقة على سجل التنفيذ (تنفيذي) للمشروع بواسطة '.(auth()->user()?->name ?? 'النظام'),
+                            'page_name' => 'متابعة التنفيذ',
+                            'action_url' => route('projects.execution', $project->id),
+                            'icon' => 'fas fa-check-circle',
+                            'causer_id' => auth()->id(),
+                            'causer_name' => auth()->user()?->name,
+                        ]
+                    );
+                }
+            } catch (\Exception $e) {
+                \Log::error('Notification error in approveExecutiveExecution: '.$e->getMessage());
+            }
+        }
 
         if (request()->expectsJson()) {
             return response()->json([
@@ -1142,6 +1228,30 @@ class ExecutionController extends Controller
             'action_details' => "سبب الرفض: {$validated['rejection_reason']}",
             'metadata' => ['execution_id' => $execution->id, 'type' => 'executive'],
         ]);
+
+        if ($execution->created_by && $execution->created_by !== auth()->id()) {
+            try {
+                $creator = User::find($execution->created_by);
+                if ($creator) {
+                    app(NotificationService::class)->sendNotification(
+                        $creator,
+                        [
+                            'type' => 'execution',
+                            'action_type' => 'rejected',
+                            'title' => 'رفض سجل تنفيذ: '.$project->project_name,
+                            'message' => 'تم رفض سجل التنفيذ (تنفيذي) للمشروع: '.$validated['rejection_reason'],
+                            'page_name' => 'متابعة التنفيذ',
+                            'action_url' => route('projects.execution', $project->id),
+                            'icon' => 'fas fa-times-circle',
+                            'causer_id' => auth()->id(),
+                            'causer_name' => auth()->user()?->name,
+                        ]
+                    );
+                }
+            } catch (\Exception $e) {
+                \Log::error('Notification error in rejectExecutiveExecution: '.$e->getMessage());
+            }
+        }
 
         if (request()->expectsJson()) {
             return response()->json([

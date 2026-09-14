@@ -13,7 +13,7 @@ class EntitiesExport implements FromCollection, WithHeadings
         return Entity::with('father')->get()->map(function ($entity) {
             return [
                 'الاسم' => $entity->name,
-                'الجهة الأب' => $entity->father?->name ?? $entity->father?->entity_father ?? '-',
+                'الجهة الأب' => $entity->father?->entity_father ?? '-',
                 'الحالة' => $entity->is_active ? 'نشط' : 'غير نشط',
             ];
         });

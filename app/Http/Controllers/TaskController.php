@@ -55,31 +55,28 @@ class TaskController extends Controller
      */
     protected function assignTaskAndNotify(Task $task, string $actionType = 'created', ?string $customMessage = null): void
     {
-        $task->loadMissing(['project', 'valueChain']);
+        $task->loadMissing(['project', 'valueChain', 'assignees']);
 
         $contextParts = [];
         if ($task->project) {
-            $contextParts[] = 'م:'.mb_substr($task->project->project_name, 0, 15);
+            $contextParts[] = 'مشروع: '.mb_substr($task->project->project_name, 0, 20);
         }
         if ($task->valueChain) {
-            $contextParts[] = 'س:'.mb_substr($task->valueChain->name, 0, 15);
+            $contextParts[] = 'سلسلة: '.mb_substr($task->valueChain->name, 0, 20);
         }
 
-        $contextString = ! empty($contextParts) ? ' ('.implode('|', $contextParts).')' : '';
+        $contextString = ! empty($contextParts) ? ' ('.implode(' - ', $contextParts).')' : '';
 
         $baseMessage = match ($actionType) {
-            'created' => 'تكليف',
-            'updated' => 'تعديل',
-            'deleted' => 'حذف',
-            default => 'تحديث'
+            'created' => 'تم إسناد مهمة جديدة إليك',
+            'updated' => 'تم تعديل بيانات المهمة المسندة إليك',
+            'deleted' => 'تم حذف المهمة المسندة إليك',
+            'stopped' => 'تم إيقاف المهمة المسندة إليك',
+            'resumed' => 'تم استئناف المهمة المسندة إليك',
+            default => 'تحديث في المهمة المسندة إليك'
         };
 
-        $title = mb_substr($task->title, 0, 20);
-        $message = "{$baseMessage}: {$title}{$contextString}";
-
-        if (mb_strlen($message) > 69) {
-            $message = mb_substr($message, 0, 69);
-        }
+        $message = $customMessage ?? "{$baseMessage}: {$task->title}{$contextString}";
 
         $this->taskService->notifyAssignees($task, $actionType, $message);
     }
@@ -740,8 +737,19 @@ class TaskController extends Controller
     /**
      * عرض تفاصيل مهمة
      */
-    public function show(Project $project, Task $task)
+    public function show($projectOrTask, $task = null)
     {
+        if ($task === null) {
+            $task = $projectOrTask instanceof Task ? $projectOrTask : Task::findOrFail($projectOrTask);
+            $project = $task->project ?? new Project;
+        } else {
+            $project = $projectOrTask instanceof Project ? $projectOrTask : Project::find($projectOrTask);
+            if (! $project) {
+                $project = new Project;
+            }
+            $task = $task instanceof Task ? $task : Task::findOrFail($task);
+        }
+
         $this->authorize('view', $task);
 
         $task->load([
@@ -774,12 +782,12 @@ class TaskController extends Controller
         ]);
 
         $users = $this->assignableUsers();
-        $projectEntities = $project->projectEntities;
-        $executiveActions = $project->executiveActivityActions()
+        $projectEntities = $project->id ? $project->projectEntities : collect();
+        $executiveActions = $project->id ? $project->executiveActivityActions()
             ->orderBy('action')
-            ->get(['id', 'action']);
+            ->get(['id', 'action']) : collect();
 
-        $correspondences = Correspondence::where('project_id', $project->id)->get();
+        $correspondences = $project->id ? Correspondence::where('project_id', $project->id)->get() : Correspondence::where('task_id', $task->id)->get();
         $entities = InternalEntity::where('is_active', true)->orderBy('name')->get();
 
         $user = auth()->user();
@@ -945,6 +953,98 @@ class TaskController extends Controller
         session()->flash('success', 'تم حذف المهمة بنجاح.');
 
         return redirect()->route('projects.tasks.index', $project->id);
+    }
+
+    /**
+     * إيقاف أو تعليق مهمة مع إشعار المستخدمين المكلفين في النظام ورسائل SMS
+     */
+    public function stopTask(Request $request, Project $project, Task $task)
+    {
+        $this->authorize('update', $task);
+
+        $reason = $request->input('reason', '');
+        $isCancelled = $task->status === 'cancelled';
+
+        $newStatus = $isCancelled ? 'todo' : 'cancelled';
+        $task->update(['status' => $newStatus]);
+
+        $actionType = $newStatus === 'cancelled' ? 'stopped' : 'resumed';
+        $actionVerb = $newStatus === 'cancelled' ? 'إيقاف' : 'استئناف';
+
+        $this->taskService->logActivity($task, $actionType, $task, [
+            'reason' => $reason,
+            'user' => auth()->user()?->name,
+            'status' => $newStatus,
+        ]);
+
+        // إشعار المستخدمين المكلفين في النظام وعبر SMS
+        $task->loadMissing(['project', 'assignees']);
+        $projectName = $project->project_name ?? ($task->project?->project_name ?? '');
+        $causerName = auth()->user()?->name ?? 'النظام';
+
+        $msg = "تم {$actionVerb} المهمة \"{$task->title}\"".($projectName ? " في مشروع ({$projectName})" : '')." بواسطة {$causerName}";
+        if (! empty($reason)) {
+            $msg .= " - السبب: {$reason}";
+        }
+
+        $this->taskService->notifyAssignees($task, $actionType, $msg, $newStatus === 'cancelled' ? 'fas fa-pause-circle' : 'fas fa-play-circle');
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "تم {$actionVerb} المهمة وإشعار المكلفين بنجاح.",
+                'new_status' => $newStatus,
+            ]);
+        }
+
+        session()->flash('success', "تم {$actionVerb} المهمة وإشعار المكلفين بنجاح.");
+
+        return redirect()->back();
+    }
+
+    /**
+     * إيقاف أو تعليق مهمة عامة
+     */
+    public function stopGlobalTask(Request $request, Task $task)
+    {
+        $this->authorize('update', $task);
+
+        $reason = $request->input('reason', '');
+        $isCancelled = $task->status === 'cancelled';
+
+        $newStatus = $isCancelled ? 'todo' : 'cancelled';
+        $task->update(['status' => $newStatus]);
+
+        $actionType = $newStatus === 'cancelled' ? 'stopped' : 'resumed';
+        $actionVerb = $newStatus === 'cancelled' ? 'إيقاف' : 'استئناف';
+
+        $this->taskService->logActivity($task, $actionType, $task, [
+            'reason' => $reason,
+            'user' => auth()->user()?->name,
+            'status' => $newStatus,
+        ]);
+
+        $task->loadMissing(['project', 'assignees']);
+        $causerName = auth()->user()?->name ?? 'النظام';
+
+        $msg = "تم {$actionVerb} المهمة \"{$task->title}\" بواسطة {$causerName}";
+        if (! empty($reason)) {
+            $msg .= " - السبب: {$reason}";
+        }
+
+        $this->taskService->notifyAssignees($task, $actionType, $msg, $newStatus === 'cancelled' ? 'fas fa-pause-circle' : 'fas fa-play-circle');
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "تم {$actionVerb} المهمة وإشعار المكلفين بنجاح.",
+                'new_status' => $newStatus,
+            ]);
+        }
+
+        session()->flash('success', "تم {$actionVerb} المهمة وإشعار المكلفين بنجاح.");
+
+        return redirect()->back();
     }
 
     /**

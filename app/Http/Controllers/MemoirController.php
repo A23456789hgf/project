@@ -7,6 +7,7 @@ use App\Models\InternalEntity;
 use App\Models\Memoir;
 use App\Models\PrintableSignature;
 use App\Models\Project;
+use App\Services\NotificationService;
 use ArPHP\I18N\Arabic;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -203,6 +204,9 @@ class MemoirController extends Controller
             $memoir = Memoir::create($validated);
             DB::commit();
 
+            // إرسال الإشعار لإنشاء المذكرة
+            app(NotificationService::class)->notifyMemoir($memoir, 'created');
+
             session()->flash('success', 'تم إنشاء المذكرة بنجاح. رقم المذكرة: '.$memoir->memoir_number);
 
             return redirect()->route('memoirs.index');
@@ -250,6 +254,9 @@ class MemoirController extends Controller
             'user_id' => auth()->id(),
             'created_at' => now(),
         ]]);
+
+        // إشعار تجهيز وطباعة وتوقيع المذكرة
+        app(NotificationService::class)->notifyMemoir($memoir, 'printed');
 
         return response()->json([
             'token' => $token,

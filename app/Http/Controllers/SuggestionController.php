@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Suggestion;
+use App\Scopes\DomainScope;
+use App\Services\NotificationService;
 use ArPHP\I18N\Arabic;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -15,6 +17,7 @@ class SuggestionController extends Controller
         $user = Auth::user();
 
         $query = Suggestion::query()
+            ->withoutGlobalScope(DomainScope::class)
             ->select([
                 'suggestions.id',
                 'suggestions.content',
@@ -30,7 +33,7 @@ class SuggestionController extends Controller
                 'entity:id,name',
             ]);
 
-        if (! $user->hasPermission('suggestions.view')) {
+        if (! $user->isAdmin() && ! $user->hasPermission('suggestions.view')) {
             $this->applySuggestionsScope($query, $user);
         }
 
@@ -79,6 +82,9 @@ class SuggestionController extends Controller
                 'created_by' => $user->id,
             ]);
 
+            // إرسال إشعار المقترح الجديد
+            app(NotificationService::class)->notifySuggestion($suggestion, 'created');
+
             // Return a lean response — only what the frontend needs
             return response()->json([
                 'success' => true,
@@ -113,6 +119,9 @@ class SuggestionController extends Controller
         // update() fires full model events; use updateQuietly to skip audit for simple toggles
         $suggestion->updateQuietly(['is_completed' => $newState]);
 
+        // إرسال إشعار تحديث حالة المقترح
+        app(NotificationService::class)->notifySuggestion($suggestion, 'status_changed');
+
         return response()->json(['success' => true, 'is_completed' => $newState]);
     }
 
@@ -121,58 +130,35 @@ class SuggestionController extends Controller
         $adminScope = $user->getModuleAdminScope('suggestions');
         $geoScope = $user->getModuleGeoScope('suggestions');
 
-        $isGeoUser = ($user->governorate_id && $user->directorate_id) ||
-            ($user->entity && $user->entity->governorate_id && $user->entity->directorate_id);
+        $query->where(function ($q) use ($user, $geoScope) {
+            // 1. Always allow user to see their own suggestions
+            $q->where('suggestions.user_id', $user->id)
+                ->orWhere('suggestions.created_by', $user->id);
 
-        if ($isGeoUser) {
-            // Geographic user filtering
-            if ($geoScope === 'none') {
-                $query->whereRaw('1=0');
+            // 2. Geographic scope
+            $govId = $user->getAssignedGovernorateId();
+            $dirId = $user->getAssignedDirectorateId();
 
-                return;
+            if ($govId || $dirId) {
+                $q->orWhere(function ($geoQ) use ($govId, $dirId, $geoScope) {
+                    if ($geoScope === 'all') {
+                        $geoQ->whereNotNull('suggestions.governorate_id');
+                    } elseif ($geoScope === 'same_directorate' && $dirId) {
+                        $geoQ->where('suggestions.directorate_id', $dirId);
+                    } elseif ($govId) {
+                        $geoQ->where('suggestions.governorate_id', $govId);
+                    }
+                });
             }
 
-            if ($geoScope === 'all') {
-                // User said: "from other governorates"
-                $uGovId = $user->getAssignedGovernorateId();
-                if ($uGovId) {
-                    $query->where('governorate_id', '!=', $uGovId);
-                }
-            } elseif ($geoScope === 'same_governorate') {
-                $uGovId = $user->getAssignedGovernorateId();
-                $query->where('governorate_id', $uGovId);
-            } elseif ($geoScope === 'same_directorate') {
-                $uDirId = $user->getAssignedDirectorateId();
-                $query->where('directorate_id', $uDirId);
-            } elseif ($geoScope === 'custom') {
-                $this->applyAdministrativeScope($query, $user, $adminScope);
-            }
-        } else {
-            // Central user filtering
-            $this->applyAdministrativeScope($query, $user, $adminScope);
-        }
-    }
-
-    protected function applyAdministrativeScope($query, $user, $scope)
-    {
-        switch ($scope) {
-            case 'none':
-                $query->whereRaw('1=0');
-                break;
-            case 'user':
-                $query->where('created_by', $user->id);
-                break;
-            case 'own':
-                $query->where('entity_id', $user->entity_id);
-                break;
-            case 'dept_in_gen_dir':
+            // 3. Administrative / Entity scope
+            if ($user->entity_id) {
                 $allowedIds = $this->getChildEntityIds($user->entity_id);
-                $query->whereIn('entity_id', $allowedIds);
-                break;
-            case 'all':
-                // Centralised system records - usually means everything
-                break;
-        }
+                if (! empty($allowedIds)) {
+                    $q->orWhereIn('suggestions.entity_id', $allowedIds);
+                }
+            }
+        });
     }
 
     protected function getChildEntityIds($entityId)
@@ -183,15 +169,16 @@ class SuggestionController extends Controller
 
         return \Cache::remember("suggestion_child_entities_{$entityId}", now()->addMinutes(10), function () use ($entityId) {
             $parentId = \DB::table('internal_entities')->where('id', $entityId)->value('parent_id');
-            if (! $parentId) {
-                return [$entityId];
+            $ids = [$entityId];
+            if ($parentId) {
+                $ids[] = $parentId;
+                $siblingIds = \DB::table('internal_entities')->where('parent_id', $parentId)->pluck('id')->toArray();
+                $ids = array_merge($ids, $siblingIds);
             }
+            $childIds = \DB::table('internal_entities')->where('parent_id', $entityId)->pluck('id')->toArray();
+            $ids = array_merge($ids, $childIds);
 
-            return \DB::table('internal_entities')
-                ->where('parent_id', $parentId)
-                ->orWhere('id', $parentId)
-                ->pluck('id')
-                ->toArray();
+            return array_values(array_unique(array_filter($ids)));
         });
     }
 }

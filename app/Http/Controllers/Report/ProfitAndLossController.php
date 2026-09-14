@@ -179,6 +179,17 @@ class ProfitAndLossController extends Controller
             ],
         ];
 
+        if ($request->input('export') === 'print' || $request->has('print')) {
+            return view('reports.profit-and-loss-print', [
+                'filters' => $filters,
+                'reportData' => $reportData,
+                'companies' => $companies,
+                'projects' => $projects,
+                'summaryData' => $summaryData,
+                'company' => $selectedCompany,
+            ]);
+        }
+
         return view('reports.profit-and-loss', [
             'filters' => $filters,
             'reportData' => $reportData,

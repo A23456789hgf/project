@@ -305,7 +305,7 @@ class ErpNextReportService
                 ])
                 ->get($this->baseUrl.'/api/resource/Account', [
                     'limit_page_length' => 5000,
-                    'fields' => '["name","account_number"]',
+                    'fields' => '["name","account_number","root_type","account_type"]',
                 ]);
 
             if ($response->successful()) {
@@ -314,7 +314,11 @@ class ErpNextReportService
 
                 if (isset($data['data']) && is_array($data['data'])) {
                     foreach ($data['data'] as $acc) {
-                        $accounts[$acc['name']] = $acc['account_number'] ?? '';
+                        $accounts[$acc['name']] = [
+                            'account_number' => $acc['account_number'] ?? '',
+                            'root_type' => $acc['root_type'] ?? '',
+                            'account_type' => $acc['account_type'] ?? '',
+                        ];
                     }
                 }
 
@@ -466,7 +470,40 @@ class ErpNextReportService
         }
 
         try {
+            // 1. Try official Frappe Desk Query Report for 'General Ledger'
+            // This guarantees exact 1:1 match with ERPNext desk/query-report/General Ledger URL
             $response = Http::timeout($this->timeout)
+                ->withHeaders([
+                    'Authorization' => 'token '.$this->apiKey.':'.$this->apiSecret,
+                    'Accept' => 'application/json',
+                ])
+                ->post($this->baseUrl.'/api/method/frappe.desk.query_report.run', [
+                    'report_name' => 'General Ledger',
+                    'filters' => $filters,
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $responseData = $data['message'] ?? $data;
+                $rows = $responseData['result'] ?? [];
+
+                if (! empty($rows) || (isset($data['message']) && is_array($data['message']))) {
+                    $result = [
+                        'success' => true,
+                        'columns' => $responseData['columns'] ?? [],
+                        'result' => $rows,
+                    ];
+
+                    if ($useCache) {
+                        Cache::put($cacheKey, $result, now()->addMinutes(15));
+                    }
+
+                    return $result;
+                }
+            }
+
+            // 2. Fallback to custom /api/method/get_gl_report
+            $fallbackResponse = Http::timeout($this->timeout)
                 ->withHeaders([
                     'Authorization' => 'token '.$this->apiKey.':'.$this->apiSecret,
                     'Accept' => 'application/json',
@@ -475,9 +512,8 @@ class ErpNextReportService
                     'filters' => json_encode($filters),
                 ]);
 
-            if ($response->successful()) {
-                $data = $response->json();
-
+            if ($fallbackResponse->successful()) {
+                $data = $fallbackResponse->json();
                 $responseData = $data['message'] ?? $data;
 
                 $result = [
@@ -492,10 +528,9 @@ class ErpNextReportService
                 return $result;
             }
 
-            $status = $response->status();
-            $errorMessage = 'حدث خطأ غير متوقع أثناء جلب العمليات المالية.';
-
-            $errorData = $response->json();
+            $status = $response->status() ?: $fallbackResponse->status();
+            $errorData = $response->json() ?: $fallbackResponse->json();
+            $errorMessage = 'حدث خطأ غير متوقع أثناء جلب العمليات المالية من دفتر الأستاذ العام.';
 
             if (is_array($errorData) && isset($errorData['_server_messages'])) {
                 try {
@@ -524,7 +559,7 @@ class ErpNextReportService
 
             Log::error("ERPNext GL Report Error [{$status}]", [
                 'filters' => $filters,
-                'response' => $response->body(),
+                'response' => $response->body() ?: $fallbackResponse->body(),
             ]);
 
             return [
@@ -533,6 +568,13 @@ class ErpNextReportService
                 'status_code' => $status,
             ];
 
+        } catch (ConnectionException $e) {
+            Log::error('ERPNext GL Connection Exception', ['error' => $e->getMessage()]);
+
+            return [
+                'success' => false,
+                'error' => 'تعذر الاتصال بخادم ERPNext. الخادم قد يكون معطلاً أو غير متاح.',
+            ];
         } catch (\Exception $e) {
             Log::error('ERPNext Get GL Report Exception', ['error' => $e->getMessage()]);
 

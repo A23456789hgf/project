@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers\Project\Traits;
 
-use App\Models\Authority;
 use App\Models\Project;
-use App\Models\ProjectApproval;
 use App\Models\Stage;
 use App\Services\NotificationService;
 use Illuminate\Database\QueryException;
@@ -861,93 +859,24 @@ trait ProjectHandlingTrait
     }
 
     /**
-     * Create the initial approval stage when a project is first created
+     * Legacy Compatibility Shim: createInitialAssemblyApprovalStage
+     *
+     * In the new Dynamic Approval Workflow, project creation ALWAYS starts in 'draft' state
+     * with ZERO approvals created.
+     *
+     * The dynamic approval chain is generated ONLY upon closing the draft via:
+     * ApprovalService::closeDraftAndGenerateApprovalChain($project, $user)
+     *
+     * This method is retained as a safe, no-op compatibility shim to avoid breaking legacy callers.
      */
-    protected function createInitialAssemblyApprovalStage(Project $project, array $validated)
+    protected function createInitialAssemblyApprovalStage(Project $project, array $validated = []): void
     {
-        try {
-            // Use the dynamic approval stages to determine the first stage
-            $approvalStages = $this->projectService->getApprovalStages($project);
-
-            if (empty($approvalStages)) {
-                Log::warning('No dynamic approval stages found for project creation, falling back to manual detection', ['project_id' => $project->id]);
-
-                // Fallback to manual detection if dynamic fails
-                $authorityId = null;
-                if (isset($validated['supervising_entities']) && is_array($validated['supervising_entities'])) {
-                    foreach ($validated['supervising_entities'] as $supervisingEntity) {
-                        if (isset($supervisingEntity['authority_id'])) {
-                            $authorityId = $supervisingEntity['authority_id'];
-                            break;
-                        }
-                    }
-                }
-
-                if (! $authorityId) {
-                    $authority = Authority::first();
-                    $authorityId = $authority ? $authority->id : 1;
-                }
-
-                ProjectApproval::create([
-                    'project_id' => $project->id,
-                    'authority_id' => $authorityId,
-                    'drop' => 'assembly', // Legacy fallback
-                    'step_order' => 1,
-                    'status' => 'pending',
-                    'notes' => $validated['assembly_approval_notes'] ?? 'بداية عملية الاعتماد',
-                    'created_by' => auth()->id(),
-                ]);
-
-                return;
-            }
-
-            // Get the first stage from the dynamic chain
-            $firstStageData = $approvalStages[0];
-
-            // Ensure the Stage model exists for this code
-            $stage = Stage::where('code', $firstStageData['drop'])->first();
-            if (! $stage) {
-                $stage = Stage::create([
-                    'code' => $firstStageData['drop'],
-                    'name_ar' => $firstStageData['stage_name'],
-                    'name_en' => $firstStageData['stage_name_en'] ?? $firstStageData['stage_name'],
-                    'order' => $firstStageData['drop_order'],
-                    'type' => 'approval',
-                    'is_active' => true,
-                    'is_system' => true,
-                ]);
-            }
-
-            ProjectApproval::create([
-                'project_id' => $project->id,
-                'authority_id' => $firstStageData['authority_id'] ?? $firstStageData['entity_id'],
-                'drop' => $firstStageData['drop'],
-                'stage_id' => $stage->id,
-                'step_order' => $firstStageData['drop_order'],
-                'status' => 'pending',
-                'notes' => $validated['assembly_approval_notes'] ?? 'بداية عملية الاعتماد',
-                'created_by' => auth()->id(),
-            ]);
-
-            // Update project with initial stage info
-            $project->update([
-                'current_approval_stage_id' => $stage->id,
-                'current_stage_id' => $stage->id,
-                'current_stage_name' => $stage->name_ar,
-                'current_stage_order' => $stage->order,
-            ]);
-
-            Log::info('Initial dynamic approval stage created', [
-                'project_id' => $project->id,
-                'stage_code' => $firstStageData['drop'],
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Failed to create initial approval stage', [
-                'project_id' => $project->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-        }
+        // Safe No-Op: Draft projects never generate premature approvals.
+        // Full dynamic hierarchical chain is created on closeDraft.
+        Log::info('Project created in draft mode - dynamic approval chain will be generated upon closeDraft', [
+            'project_id' => $project->id,
+            'status' => $project->status,
+        ]);
     }
 
     /**

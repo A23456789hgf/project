@@ -1,10 +1,10 @@
-<div class="mb-4">
-    <div class="project-table-header mb-3">
-        <i class="fas fa-handshake"></i> الجهات المشاركة
+<div class="project-table-container">
+    <div class="project-table-header">
+        <i class="fas fa-handshake me-1"></i>الجهات المشاركة
     </div>
 
-    <div class="table-responsive">
-        <table class="project-table w-100" id="participatingEntitiesTable">
+    <div class="project-table-wrapper">
+        <table class="project-table" id="participatingEntitiesTable">
             <thead>
                 <tr>
                     <th>نوع الجهة</th>

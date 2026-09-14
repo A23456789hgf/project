@@ -28,7 +28,6 @@ class ProjectInfoSheet implements FromArray, WithHeadings, WithStyles, WithTitle
         return [
             'رقم المشروع',
             'اسم المشروع',
-            'نوع المشروع',
             'البرنامج',
             'المجال',
             'المجال الفرعي',
@@ -42,15 +41,12 @@ class ProjectInfoSheet implements FromArray, WithHeadings, WithStyles, WithTitle
             'تاريخ النهاية (م)',
             'تاريخ النهاية (هـ)',
             'عدد المستفيدين',
-            'إجمالي التكلفة',
-            'المبلغ المصروف',
-            'المبلغ المتبقي',
-            'السنة الهجرية',
-            'اسم الجهة المنشئة',
             'التوجهات الرئيسية',
             'التوجهات الفرعية',
             'الفئات المستهدفة',
             'فئة المستفيد',
+            'الموجه الرئيسي',
+            'الموجه الفرعي',
         ];
     }
 
@@ -61,7 +57,6 @@ class ProjectInfoSheet implements FromArray, WithHeadings, WithStyles, WithTitle
                 return [
                     $project->form_number,
                     $project->project_name,
-                    $project->project_type,
                     $project->program_id,
                     $project->domain_id,
                     $project->subdomain_id,
@@ -75,15 +70,12 @@ class ProjectInfoSheet implements FromArray, WithHeadings, WithStyles, WithTitle
                     $project->end_date_gregorian,
                     $project->end_date_hijri,
                     $project->number_of_beneficiaries,
-                    $project->cost->total_cost ?? '',
-                    $project->cost->spent_amount ?? '',
-                    $project->cost->remaining_amount ?? '',
-                    $project->cost->hijri_year ?? '',
-                    $project->creatorEntityName,
                     $project->main_directives,
                     $project->subdirectives,
                     $project->target_categories,
                     $project->target_category_id,
+                    $project->main_router_id,
+                    $project->sub_router_id,
                 ];
             })->toArray();
         }
@@ -92,7 +84,6 @@ class ProjectInfoSheet implements FromArray, WithHeadings, WithStyles, WithTitle
             [
                 'PRO14470001',        // رقم المشروع (اختياري)
                 'مشروع تجريبي',       // اسم المشروع
-                'new',                 // نوع المشروع
                 '1',                   // البرنامج
                 '1',                   // المجال
                 '1',                   // المجال الفرعي
@@ -106,15 +97,12 @@ class ProjectInfoSheet implements FromArray, WithHeadings, WithStyles, WithTitle
                 '2026-12-31',          // تاريخ النهاية (م)
                 '1448-06-30',          // تاريخ النهاية (هـ)
                 '500',                 // عدد المستفيدين
-                '100000',              // إجمالي التكلفة
-                '20000',               // المبلغ المصروف
-                '80000',               // المبلغ المتبقي
-                '1445',                // السنة الهجرية
-                'الجهة المانحة',         // اسم الجهة المنشئة
                 '',                    // التوجهات الرئيسية
                 '',                    // التوجهات الفرعية
                 '',                    // الفئات المستهدفة
                 '',                    // فئة المستفيد
+                '',                    // الموجه الرئيسي
+                '',                    // الموجه الفرعي
             ],
         ];
     }

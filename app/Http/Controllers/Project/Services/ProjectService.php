@@ -8,6 +8,7 @@ use App\Models\Authority;
 use App\Models\BeneficiaryGroup;
 use App\Models\Domain;
 use App\Models\EmpowermentProject;
+use App\Models\ExecutiveActionCost;
 use App\Models\FinancialItem;
 use App\Models\FinancingForm;
 use App\Models\FinancingType;
@@ -32,6 +33,7 @@ use App\Models\Unit;
 use App\Scopes\DomainScope;
 use App\Services\ApprovalService;
 use App\Services\EntityHierarchyService;
+use App\Services\ErpNextReportService;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Contracts\View\View;
@@ -541,7 +543,7 @@ class ProjectService
         // ── أ) النطاق الإداري: الجلسة أولاً، ثم قاعدة البيانات ──────────────
         $activeAdminScopeId = session(
             'selected_administrative_scope_id',
-            $user->administrative_scope_id
+            $user?->administrative_scope_id
         );
         $entityIdsByEnt = $activeAdminScopeId ? InternalEntity::getAllChildrenIds($activeAdminScopeId) : [];
 
@@ -551,7 +553,7 @@ class ProjectService
             // إذا كانت في الجلسة كمصفوفة نحوّلها لـ Collection من Objects
             $entityIdsByGovAndDist = collect($activeGeoScopes)->map(fn ($s) => (object) $s);
         } else {
-            $entityIdsByGovAndDist = $user->geographicScopes ?? collect();
+            $entityIdsByGovAndDist = $user?->geographicScopes ?? collect();
         }
 
         $entityIdsByGeo = [];
@@ -575,7 +577,7 @@ class ProjectService
         }
 
         // ── ب) النطاق بحسب الكيان (entity_id): الجلسة أولاً، ثم قاعدة البيانات ──
-        $activeEntityId = session('selected_entity_id', $user->entity_id);
+        $activeEntityId = session('selected_entity_id', $user?->entity_id);
         $entityIdsByMyEnt = [];
         if (empty($entityIdsByEnt) && empty($entityIdsByGeo)) {
             $entityIdsByMyEnt = $activeEntityId ? InternalEntity::getAllChildrenIds($activeEntityId) : [];
@@ -590,15 +592,17 @@ class ProjectService
         // تطبيق الفلترة على الاستعلام
         // ================================================================
 
-        if ($user->isAdmin()) {
+        if ($user?->isAdmin()) {
             // المدير يرى الكل — لا فلترة
         } elseif (! empty($entityIds)) {
             // فلترة على creator_entity_id أو internal_entity_id أو اسم الكيان أو المستخدم نفسه
             $entityNames = DB::table('internal_entities')->whereIn('id', $entityIds)->pluck('name')->filter()->toArray();
             $query->where(function ($q) use ($entityIds, $entityNames, $user) {
                 $q->whereIn('creator_entity_id', $entityIds)
-                    ->orWhereIn('internal_entity_id', $entityIds)
-                    ->orWhere('created_by_user_id', $user->id);
+                    ->orWhereIn('internal_entity_id', $entityIds);
+                if ($user?->id) {
+                    $q->orWhere('created_by_user_id', $user->id);
+                }
 
                 $cleanEntityNames = array_filter(array_map(function ($name) {
                     return trim(preg_replace('/\s+/u', ' ', $name));
@@ -610,10 +614,12 @@ class ProjectService
             });
         } else {
             // لا نطاق مُعيَّن → المستخدم يرى مشاريعه الشخصية أو مشاريع كيانه فقط
-            $userEntityId = $user->entity_id;
-            $userEntityName = $user->entity?->name;
+            $userEntityId = $user?->entity_id;
+            $userEntityName = $user?->entity?->name;
             $query->where(function ($q) use ($user, $userEntityId, $userEntityName) {
-                $q->where('created_by_user_id', $user->id);
+                if ($user?->id) {
+                    $q->where('created_by_user_id', $user->id);
+                }
                 if (! empty($userEntityId)) {
                     $q->orWhere('creator_entity_id', $userEntityId)
                         ->orWhere('internal_entity_id', $userEntityId);
@@ -971,11 +977,214 @@ class ProjectService
             // Fallback to a placeholder or empty string if generation fails
         }
 
+        $financialStatus = $this->calculateProjectFinancialStatus($project);
+
         if ($project->project_type === 'old') {
-            return view('projects.show-old', compact('project', 'qrCodeBase64'));
+            return view('projects.show-old', compact('project', 'qrCodeBase64', 'financialStatus'));
         }
 
-        return view('projects.show', compact('project', 'approvalStages', 'reviewerType', 'qrCodeBase64'));
+        return view('projects.show', compact('project', 'approvalStages', 'reviewerType', 'qrCodeBase64', 'financialStatus'));
+    }
+
+    /**
+     * Calculate Project Financial Status according to strict accounting rules.
+     */
+    public function calculateProjectFinancialStatus(Project $project): array
+    {
+        $budget = (float) ($project->cost?->total_cost ?? ($project->costs ? $project->costs->sum('total_cost') : 0));
+
+        $projectIdentifiers = array_filter([
+            $project->erpnext_project_id,
+            $project->frappe_project_name,
+            $project->frappe_project_id,
+            $project->project_name,
+            $project->form_number,
+        ]);
+
+        $company = $project->created_by_entity;
+        $erpService = app(ErpNextReportService::class);
+        $glData = $erpService->getGlReport($company ? ['company' => $company] : [], true);
+
+        // Fallback: if company-scoped query returned no data or failed, try fetching general GL report
+        if (! isset($glData['success']) || ! $glData['success'] || empty($glData['result'])) {
+            $fallbackGlData = $erpService->getGlReport([], true);
+            if (isset($fallbackGlData['success']) && $fallbackGlData['success'] && ! empty($fallbackGlData['result'])) {
+                $glData = $fallbackGlData;
+            }
+        }
+
+        $accountsMap = $erpService->getAccountsMap();
+
+        $projectGlEntries = [];
+        $actualExpense = 0.0;
+        $actualIncome = 0.0;
+        $linkedExpenses = [];
+        $unlinkedExpenses = [];
+
+        $dbFinancialItems = FinancialItem::pluck('name')->toArray();
+
+        if (isset($glData['success']) && $glData['success'] && isset($glData['result']) && is_array($glData['result'])) {
+            foreach ($glData['result'] as $glRow) {
+                $debit = (float) ($glRow['debit'] ?? 0);
+                $credit = (float) ($glRow['credit'] ?? 0);
+
+                if ($debit == 0 && $credit == 0) {
+                    continue;
+                }
+
+                $glProject = trim($glRow['project'] ?? '');
+                if (empty($glProject)) {
+                    continue;
+                }
+
+                $isMatch = false;
+                foreach ($projectIdentifiers as $ident) {
+                    $trimmedIdent = trim($ident);
+                    if (empty($trimmedIdent)) {
+                        continue;
+                    }
+
+                    if (strcasecmp($glProject, $trimmedIdent) === 0 || str_contains(strtolower($glProject), strtolower($trimmedIdent)) || str_contains(strtolower($trimmedIdent), strtolower($glProject))) {
+                        $isMatch = true;
+                        break;
+                    }
+                }
+
+                if (! $isMatch) {
+                    continue;
+                }
+
+                $accName = trim($glRow['account'] ?? '', "'");
+                $baseAccName = explode(' - ', $accName)[0] ?? '';
+                $rootType = strtolower($accountsMap[$accName]['root_type'] ?? ($accountsMap[$baseAccName]['root_type'] ?? ($glRow['root_type'] ?? '')));
+                $accountType = strtolower($accountsMap[$accName]['account_type'] ?? ($accountsMap[$baseAccName]['account_type'] ?? ($glRow['account_type'] ?? '')));
+
+                // Intelligent fallback for rootType if missing from accountsMap
+                if (empty($rootType) && empty($accountType)) {
+                    $lowerAcc = strtolower($accName);
+                    if (str_contains($lowerAcc, 'expense') || str_contains($accName, 'مصاريف') || str_contains($accName, 'نفقات') || str_contains($accName, 'إيجار') || str_contains($accName, 'ايجار')) {
+                        $rootType = 'expense';
+                    } elseif (str_contains($lowerAcc, 'income') || str_contains($accName, 'إيرادات') || str_contains($accName, 'ايرادات') || str_contains($accName, 'مبيعات')) {
+                        $rootType = 'income';
+                    }
+                }
+
+                $glRow['root_type'] = $rootType;
+                $glRow['account_type'] = $accountType;
+
+                $amount = 0;
+                $isExpense = false;
+
+                if ($rootType === 'income' || strpos($accountType, 'income') !== false) {
+                    $amount = $credit - $debit;
+                    $actualIncome += $amount;
+                } elseif ($rootType === 'expense' || strpos($accountType, 'expense') !== false) {
+                    $isExpense = true;
+                    $amount = $debit - $credit;
+                    $actualExpense += $amount;
+                }
+
+                $glRow['computed_amount'] = $amount;
+                $projectGlEntries[] = $glRow;
+
+                if ($isExpense) {
+                    $claimType = trim($glRow['claim_expense_type'] ?? '');
+                    if (! empty($claimType) && $claimType !== 'No Expense Type found' && in_array($claimType, $dbFinancialItems, true)) {
+                        if (! isset($linkedExpenses[$claimType])) {
+                            $linkedExpenses[$claimType] = 0.0;
+                        }
+                        $linkedExpenses[$claimType] += $amount;
+                    } else {
+                        $displayLabel = (empty($claimType) || $claimType === 'No Expense Type found') ? 'مصروف غير محدد البند' : $claimType.' (Unlinked)';
+                        if (! isset($unlinkedExpenses[$displayLabel])) {
+                            $unlinkedExpenses[$displayLabel] = 0.0;
+                        }
+                        $unlinkedExpenses[$displayLabel] += $amount;
+                    }
+                }
+            }
+        }
+
+        $actionCosts = ExecutiveActionCost::where('project_id', $project->id)
+            ->with(['activity', 'action', 'financialItem'])
+            ->get();
+
+        $activityBreakdown = [];
+        $itemBudgets = [];
+
+        foreach ($actionCosts as $costRow) {
+            $actId = $costRow->executive_activity_id;
+            $actName = $costRow->activity?->name ?? 'نشاط غير محدد';
+            $actionId = $costRow->executive_activity_action_id;
+            $actionName = $costRow->action?->action ?? 'إجراء غير محدد';
+            $finItemId = $costRow->financial_item_id;
+            $finItemName = $costRow->financialItem?->name ?? 'بند غير محدد';
+            $qty = (float) $costRow->quantity;
+            $unitCost = (float) $costRow->amount;
+            $approvedBudget = (float) ($costRow->total ?: ($costRow->amount * $costRow->quantity));
+
+            $activityBreakdown[] = [
+                'activity_id' => $actId,
+                'activity_name' => $actName,
+                'action_id' => $actionId,
+                'action_name' => $actionName,
+                'financial_item_id' => $finItemId,
+                'financial_item_name' => $finItemName,
+                'quantity' => $qty,
+                'unit_cost' => $unitCost,
+                'approved_budget' => $approvedBudget,
+                'expense_link_status' => 'Unlinked',
+            ];
+
+            if ($finItemName && $finItemName !== 'بند غير محدد') {
+                if (! isset($itemBudgets[$finItemName])) {
+                    $itemBudgets[$finItemName] = 0.0;
+                }
+                $itemBudgets[$finItemName] += $approvedBudget;
+            }
+        }
+
+        $allItemNames = array_unique(array_merge(
+            array_keys($itemBudgets),
+            array_keys($linkedExpenses)
+        ));
+
+        $itemReconciliation = [];
+        foreach ($allItemNames as $itemName) {
+            $itemBudget = $itemBudgets[$itemName] ?? 0.0;
+            $linkedExp = $linkedExpenses[$itemName] ?? 0.0;
+            $variance = $itemBudget - $linkedExp;
+
+            $itemReconciliation[] = [
+                'item_name' => $itemName,
+                'approved_budget' => $itemBudget,
+                'linked_expense' => $linkedExp,
+                'variance' => $variance,
+            ];
+        }
+
+        $activitiesTotalBudget = array_sum(array_column($activityBreakdown, 'approved_budget'));
+        $hasBudgetMismatch = abs($activitiesTotalBudget - $budget) > 0.01;
+        $mismatchDifference = $activitiesTotalBudget - $budget;
+
+        $remaining = $budget - $actualExpense;
+        $executionPercentage = $budget > 0 ? round(($actualExpense / $budget) * 100, 2) : 0.0;
+
+        return [
+            'budget' => $budget,
+            'actual_expense' => $actualExpense,
+            'actual_income' => $actualIncome,
+            'remaining' => $remaining,
+            'execution_percentage' => $executionPercentage,
+            'linked_expenses' => $linkedExpenses,
+            'unlinked_expenses' => $unlinkedExpenses,
+            'gl_entries' => $projectGlEntries,
+            'activity_breakdown' => $activityBreakdown,
+            'item_reconciliation' => $itemReconciliation,
+            'activities_total_budget' => $activitiesTotalBudget,
+            'has_budget_mismatch' => $hasBudgetMismatch,
+            'mismatch_difference' => $mismatchDifference,
+        ];
     }
 
     /**
@@ -2348,10 +2557,11 @@ class ProjectService
                 }
             }
 
-            // Fallback: extract from current_stage string  (e.g. "entity_5" → 5)
+            // Fallback: extract from current_stage string  (e.g. "entity_5_technical_review" → 5)
             if (! $originEntityId && $project->current_stage && str_starts_with($project->current_stage, 'entity_')) {
-                $extracted = (int) str_replace('entity_', '', $project->current_stage);
-                $originEntityId = $resolveEntity($extracted);
+                if (preg_match('/^entity_(\d+)/', $project->current_stage, $matches) === 1) {
+                    $originEntityId = $resolveEntity((int) $matches[1]);
+                }
             }
 
             // Fallback: look at the earliest approval record for this project
@@ -2375,13 +2585,13 @@ class ProjectService
                 }
             }
 
-            // Fallback: look at supervising authorities for this project
+            // Fallback: look at internal supervising entities for this project
             if (! $originEntityId) {
                 $sup = ProjectSupervisingAuthority::where('project_id', $project->id)
-                    ->whereNotNull('authority_id')
+                    ->whereNotNull('internal_entity_id')
                     ->first();
-                if ($sup && $sup->authority_id) {
-                    $originEntityId = $resolveEntity($sup->authority_id);
+                if ($sup && $sup->internal_entity_id) {
+                    $originEntityId = $resolveEntity($sup->internal_entity_id);
                 }
             }
 
@@ -2461,6 +2671,10 @@ class ProjectService
                     'is_current_stage' => $isCurrent,
                     'is_entity_stage' => $stage['is_entity_stage'],
                     'is_implementation' => $stage['is_implementation'],
+                    'entity_name' => $stage['entity_name'] ?? $stage['name_ar'],
+                    'phase' => $stage['phase'] ?? null,
+                    'phase_name_ar' => $stage['phase_name_ar'] ?? null,
+                    'phase_name_en' => $stage['phase_name_en'] ?? null,
                     'show_resubmit' => $showResubmit,
                     'show_approve' => $showApprove,
                     'allowed_authorities' => [],

@@ -98,18 +98,10 @@ class InternalEntity extends Model
      */
     public static function getAllDescendantIds($parentId): array
     {
-        static $descendantsCache = [];
-
         if (! $parentId) {
             return [];
         }
 
-        $cacheKey = (int) $parentId;
-        if (isset($descendantsCache[$cacheKey])) {
-            return $descendantsCache[$cacheKey];
-        }
-
-        $ids = [(int) $parentId];
         $toProcess = [(int) $parentId];
         $allDescendants = [];
         $visited = [(int) $parentId => true];
@@ -137,7 +129,7 @@ class InternalEntity extends Model
             $toProcess = $newToProcess;
         }
 
-        return $descendantsCache[$cacheKey] = array_unique($allDescendants);
+        return array_unique($allDescendants);
     }
 
     /**

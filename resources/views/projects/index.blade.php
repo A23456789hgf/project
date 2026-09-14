@@ -656,7 +656,14 @@
                                         @if($isOldProject)
                                             @if(!$project->entity_modified)
                                                 @can('editEntity', $project)
-                                                    <button type="button" class="btn-action-artistic btn-edit" style="background:#e67e22;" title="تعديل جهة" data-bs-toggle="modal" data-bs-target="#editEntityModal{{ $project->id }}"><x-icon name="building" size="10" /></button>
+                                                    <button type="button" class="btn-action-artistic btn-edit btn-trigger-edit-entity" style="background:#e67e22;" title="تعديل جهة"
+                                                            data-bs-toggle="modal" data-bs-target="#editEntityModal"
+                                                            data-project-name="{{ $project->project_name }}"
+                                                            data-form-number="{{ $project->form_number }}"
+                                                            data-program-domain="{{ optional($project->program)->name }} / {{ optional($project->domain)->name }}"
+                                                            data-current-entity="{{ $project->created_by_entity }}"
+                                                            data-creator-entity-id="{{ $project->creator_entity_id }}"
+                                                            data-action="{{ route('projects.update-entity', $project) }}"><x-icon name="building" size="10" /></button>
                                                 @endcan
                                             @elseif(!$project->is_data_completed)
                                                 @can('completeData', $project)
@@ -728,7 +735,11 @@
 
                                                 @if($isFinal && $isPendingApproval)
                                                     @can('submit', $project)
-                                                        <button type="button" class="btn-action-artistic btn-view" style="background:#1e3a5f;" title="إرسال" data-bs-toggle="modal" data-bs-target="#submitApprovalModal{{ $project->id }}"><x-icon name="paper-plane" size="10" /></button>
+                                                         <button type="button" class="btn-action-artistic btn-view btn-trigger-submit-approval" style="background:#1e3a5f;" title="إرسال"
+                                                                 data-bs-toggle="modal" data-bs-target="#submitApprovalModal"
+                                                                 data-project-name="{{ $project->project_name }}"
+                                                                 data-form-number="{{ $project->form_number }}"
+                                                                 data-action="{{ route('projects.approval.submit', $project) }}"><x-icon name="paper-plane" size="10" /></button>
                                                     @endcan
                                                 @endif
 
@@ -800,92 +811,88 @@
         </x-slot>
     </x-index-page>
 
-    @php
-        $stageTypes = ['assembly', 'union', 'committee', 'implementation'];
-        $stageNames = ['assembly' => 'الجمعية', 'union' => 'الاتحاد', 'committee' => 'اللجنة', 'implementation' => 'التنفيذ'];
-        $stageIcons = ['assembly' => 'users-cog', 'union' => 'hand-holding-usd', 'committee' => 'shield-check', 'implementation' => 'play'];
-    @endphp
-
-    @foreach($projects as $project)
-        @foreach($stageTypes as $stageType)
-            <div class="modal fade modal-artistic" id="stageModal{{ $project->id }}_{{ $stageType }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <div class="d-flex align-items-center gap-2">
-                                <x-icon name="{{ $stageIcons[$stageType] }}" size="16" class="text-white" />
-                                <h6 class="modal-title text-white mb-0" style="font-size:0.8rem;">{{ $stageNames[$stageType] }}</h6>
-                            </div>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body py-2">
-                            <div class="row mb-2 g-1">
-                                <div class="col-12"><p class="mb-0 small"><strong>المشروع:</strong> {{ $project->project_name }}</p></div>
-                                <div class="col-12"><p class="mb-0 small"><strong>الرقم:</strong> {{ $project->form_number }}</p></div>
-                            </div>
-                            <ul class="nav nav-tabs nav-tabs-sm mb-2" role="tablist">
-                                <li class="nav-item"><button class="nav-link active py-1 small" data-bs-toggle="tab" data-bs-target="#approve-{{ $project->id }}-{{ $stageType }}" type="button"><x-icon name="check-circle" size="10" /> موافقة</button></li>
-                                <li class="nav-item"><button class="nav-link py-1 small" data-bs-toggle="tab" data-bs-target="#action-{{ $project->id }}-{{ $stageType }}" type="button"><x-icon name="exclamation-triangle" size="10" /> إجراء</button></li>
-                                <li class="nav-item"><button class="nav-link py-1 small" data-bs-toggle="tab" data-bs-target="#reject-{{ $project->id }}-{{ $stageType }}" type="button"><x-icon name="times-circle" size="10" /> رفض</button></li>
-                            </ul>
-                            <div class="tab-content">
-                                <div class="tab-pane fade show active" id="approve-{{ $project->id }}-{{ $stageType }}">
-                                    <form action="{{ route('projects.approval.approve', $project) }}" method="POST">
-                                        @csrf
-                                        <input type="hidden" name="stage_type" value="{{ $stageType }}">
-                                        <div class="mb-2"><textarea class="form-control form-control-sm rounded-2" name="notes" rows="2" placeholder="ملاحظات..."></textarea></div>
-                                        <div class="d-grid"><button type="submit" class="header-btn btn-primary-gradient py-1 justify-content-center" style="font-size:0.7rem;">موافقة</button></div>
-                                    </form>
-                                </div>
-                                <div class="tab-pane fade" id="action-{{ $project->id }}-{{ $stageType }}">
-                                    <form action="{{ route('projects.approval.requestAction', $project) }}" method="POST">
-                                        @csrf
-                                        <input type="hidden" name="stage_type" value="{{ $stageType }}">
-                                        <div class="mb-1"><textarea class="form-control form-control-sm rounded-2" name="action_required" rows="2" placeholder="الإجراء المطلوب..." required></textarea></div>
-                                        <div class="mb-2"><textarea class="form-control form-control-sm rounded-2" name="notes" rows="1" placeholder="ملاحظات..."></textarea></div>
-                                        <div class="d-grid"><button type="submit" class="header-btn btn-outline-gradient py-1 justify-content-center" style="background:#f59e0b;color:white;border:none;font-size:0.7rem;">طلب</button></div>
-                                    </form>
-                                </div>
-                                <div class="tab-pane fade" id="reject-{{ $project->id }}-{{ $stageType }}">
-                                    <form action="{{ route('projects.approval.reject', $project) }}" method="POST">
-                                        @csrf
-                                        <input type="hidden" name="stage_type" value="{{ $stageType }}">
-                                        <div class="mb-2"><textarea class="form-control form-control-sm rounded-2" name="reason" rows="2" placeholder="سبب الرفض..." required></textarea></div>
-                                        <div class="d-grid"><button type="submit" class="header-btn btn-outline-gradient py-1 justify-content-center" style="background:#ef4444;color:white;border:none;font-size:0.7rem;">رفض</button></div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer py-1"><button type="button" class="header-btn btn-outline-gradient py-1" data-bs-dismiss="modal" style="font-size:0.7rem;">إغلاق</button></div>
+    {{-- نافذة إرسال للموافقة الموحدة والخفيفة --}}
+    <div class="modal fade modal-artistic" id="submitApprovalModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header"><h6 class="modal-title text-white mb-0" style="font-size:0.8rem;">إرسال للموافقة</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <form id="submitApprovalSharedForm" action="" method="POST">
+                    @csrf
+                    <div class="modal-body py-2">
+                        <p class="small mb-1"><strong>المشروع:</strong> <span id="submitApprovalProjectName"></span></p>
+                        <p class="small mb-2"><strong>الرقم:</strong> <span id="submitApprovalFormNumber"></span></p>
+                        <div class="alert alert-info py-1 small mb-0 rounded-2"><x-icon name="info-circle" size="10" class="me-1" /> لن تتمكن من التعديل بعد الإرسال.</div>
                     </div>
-                </div>
-            </div>
-        @endforeach
-
-        @if($project->status === 'final' && $project->approval_status === 'pending')
-            <div class="modal fade modal-artistic" id="submitApprovalModal{{ $project->id }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
-                    <div class="modal-content">
-                        <div class="modal-header"><h6 class="modal-title text-white mb-0" style="font-size:0.8rem;">إرسال للموافقة</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-                        <form action="{{ route('projects.approval.submit', $project) }}" method="POST">
-                            @csrf
-                            <div class="modal-body py-2">
-                                <p class="small mb-1"><strong>المشروع:</strong> {{ $project->project_name }}</p>
-                                <p class="small mb-2"><strong>الرقم:</strong> {{ $project->form_number }}</p>
-                                <div class="alert alert-info py-1 small mb-0 rounded-2"><x-icon name="info-circle" size="10" class="me-1" /> لن تتمكن من التعديل بعد الإرسال.</div>
-                            </div>
-                            <div class="modal-footer py-1">
-                                <button type="button" class="header-btn btn-outline-gradient py-1" data-bs-dismiss="modal" style="font-size:0.7rem;">إلغاء</button>
-                                <button type="submit" class="header-btn btn-primary-gradient py-1" style="font-size:0.7rem;">إرسال</button>
-                            </div>
-                        </form>
+                    <div class="modal-footer py-1">
+                        <button type="button" class="header-btn btn-outline-gradient py-1" data-bs-dismiss="modal" style="font-size:0.7rem;">إلغاء</button>
+                        <button type="submit" class="header-btn btn-primary-gradient py-1" style="font-size:0.7rem;">إرسال</button>
                     </div>
-                </div>
+                </form>
             </div>
-        @endif
+        </div>
+    </div>
 
-        @include('projects.partials.modals._edit_entity_modal')
-    @endforeach
+    {{-- نافذة تعديل الجهة الموحدة والخفيفة --}}
+    <div class="modal fade" id="editEntityModal" tabindex="-1" aria-labelledby="editEntityModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark py-2">
+                    <h6 class="modal-title mb-0" id="editEntityModalLabel">تعديل الجهة المقدمة للمشروع</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editEntitySharedForm" action="" method="POST" onsubmit="return confirm('تنبيه: تغيير الجهة المقدمة هو إجراء نهائي لمرة واحدة فقط ولا يمكن التراجع عنه أو تعديله لاحقًا. هل أنت متأكد من الاستمرار؟');">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-body py-3">
+                        <div class="alert alert-danger small py-2">
+                            <strong>تنبيه هام!</strong>
+                            تغيير الجهة المقدمة هو إجراء نهائي لمرة واحدة فقط ولا يمكن التراجع عنه أو تعديله لاحقًا.
+                        </div>
+                        <table class="table table-sm table-bordered small">
+                            <tbody>
+                                <tr>
+                                    <th class="bg-light" style="width: 35%;">اسم المشروع</th>
+                                    <td id="editEntityProjectName"></td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">رقم النموذج</th>
+                                    <td id="editEntityFormNumber"></td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">التمويل (برنامج/مجال)</th>
+                                    <td id="editEntityProgramDomain"></td>
+                                </tr>
+                                <tr>
+                                    <th class="bg-light">الجهة المقدمة الحالية</th>
+                                    <td class="text-danger fw-bold" id="editEntityCurrentEntity"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="mb-3 mt-3">
+                            <label for="shared_creator_entity_id" class="form-label small fw-bold">اختر الجهة المقدمة الجديدة</label>
+                            <select class="form-select form-select-sm" id="shared_creator_entity_id" name="creator_entity_id" required>
+                                <option value="">-- اختر الجهة --</option>
+                                @if(isset($entities) && (is_countable($entities) ? count($entities) > 0 : !empty($entities)))
+                                    @foreach($entities as $entity)
+                                        @php
+                                            $entityId = data_get($entity, 'id');
+                                            $entityName = data_get($entity, 'displayName') ?? data_get($entity, 'name');
+                                        @endphp
+                                        <option value="{{ $entityId }}">{{ $entityName }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2 bg-light">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-warning btn-sm fw-bold">حفظ التعديل</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -920,6 +927,36 @@
                     const checked = document.querySelectorAll('.project-checkbox:checked');
                     if (selectAll) selectAll.checked = (all.length > 0 && all.length === checked.length);
                 }
+            });
+
+            // إعداد نافذة إرسال للموافقة الموحدة
+            document.querySelectorAll('.btn-trigger-submit-approval').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const form = document.getElementById('submitApprovalSharedForm');
+                    if (form) form.action = this.dataset.action || '';
+                    const nameEl = document.getElementById('submitApprovalProjectName');
+                    if (nameEl) nameEl.textContent = this.dataset.projectName || '';
+                    const numEl = document.getElementById('submitApprovalFormNumber');
+                    if (numEl) numEl.textContent = this.dataset.formNumber || '';
+                });
+            });
+
+            // إعداد نافذة تعديل الجهة الموحدة
+            document.querySelectorAll('.btn-trigger-edit-entity').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const form = document.getElementById('editEntitySharedForm');
+                    if (form) form.action = this.dataset.action || '';
+                    const nameEl = document.getElementById('editEntityProjectName');
+                    if (nameEl) nameEl.textContent = this.dataset.projectName || '';
+                    const numEl = document.getElementById('editEntityFormNumber');
+                    if (numEl) numEl.textContent = this.dataset.formNumber || '';
+                    const progEl = document.getElementById('editEntityProgramDomain');
+                    if (progEl) progEl.textContent = this.dataset.programDomain || '';
+                    const entEl = document.getElementById('editEntityCurrentEntity');
+                    if (entEl) entEl.textContent = this.dataset.currentEntity || '';
+                    const select = document.getElementById('shared_creator_entity_id');
+                    if (select) select.value = this.dataset.creatorEntityId || '';
+                });
             });
         });
 

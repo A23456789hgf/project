@@ -1,64 +1,84 @@
 /**
- * Global Select2 Initialization
- * Applies searchable dropdowns to all select elements
+ * Global Searchable Select2 Dropdowns
+ * =====================================
+ * يُطبّق ميزة البحث على جميع قوائم الـ dropdown في النظام بشكل موحّد
+ * مع دعم كامل للغة العربية وواجهة RTL وجميع أنواع القوائم المترابطة
+ *
+ * الاستخدام:
+ *  - تلقائياً على جميع الـ <select> عند تحميل الصفحة
+ *  - إضافة class="no-search" لاستثناء قائمة معينة
+ *  - window.initGlobalSelect2(container, force) لتهيئة يدوية
+ *  - window.getGlobalSelect2Config($element) للحصول على الإعدادات
  */
 (function ($) {
     'use strict';
 
     /**
-     * Get the standard Select2 configuration
-     * @param {jQuery} $element - The element to get config for (for modal parent check)
-     * @returns {Object} Select2 configuration object
+     * الحصول على إعدادات Select2 الموحّدة
+     * @param {jQuery} $element - العنصر المراد تهيئته
+     * @returns {Object} كائن الإعدادات
      */
     window.getGlobalSelect2Config = function ($element) {
-        var parent = $element ? $element.closest('.modal') : [];
-        
-        // Extract original classes to preserve formatting
+        // تحديد الحاوي الأب (مودال إن وُجد)
+        var $modal = $element ? $element.closest('.modal') : $();
+        var parent = $modal.length > 0 ? $modal : $(document.body);
+
+        // الحفاظ على الكلاسات الأصلية (باستثناء كلاسات select2 وform-select)
         var originalClasses = $element ? ($element.attr('class') || '') : '';
-        // Remove structural classes that might conflict with Select2 rendering, but keep sizing and borders
-        // Use split and filter to avoid partial matches on hyphenated classes
-        var classesArray = originalClasses.split(/\s+/);
-        var cssClassesToPreserve = classesArray.filter(function(c) {
-            return c !== 'form-select' && c !== 'form-control' && c !== 'select2-hidden-accessible';
+        var allowedClasses = originalClasses.split(/\s+/).filter(function (c) {
+            return c &&
+                c !== 'form-select' &&
+                c !== 'form-control' &&
+                c !== 'select2-hidden-accessible' &&
+                !/^select2/.test(c);
+        });
+        var selectionCssClass = allowedClasses.join(' ');
+
+        // كلاسات الـ dropdown بدون كلاسات الحجم (sm/lg) لتجنب تقييد الارتفاع
+        var dropdownCssClass = allowedClasses.filter(function (c) {
+            return c !== 'form-select-sm' && c !== 'form-control-sm' &&
+                   c !== 'form-select-lg' && c !== 'form-control-lg';
         }).join(' ');
-        
-        // Exclude size classes for dropdown so its height is not restricted to 36px
-        var dropdownClassesToPreserve = classesArray.filter(function(c) {
-            return c !== 'form-select' && c !== 'form-control' && c !== 'select2-hidden-accessible' && c !== 'form-select-sm' && c !== 'form-control-sm' && c !== 'form-select-lg' && c !== 'form-control-lg';
-        }).join(' ');
-        
+
         var config = {
             theme: 'bootstrap-5',
-            dir: "rtl",
+            dir: 'rtl',
             width: '100%',
-            selectionCssClass: cssClassesToPreserve,
-            dropdownCssClass: dropdownClassesToPreserve,
+            dropdownParent: parent,
+            selectionCssClass: selectionCssClass || ':keep',
+            dropdownCssClass: dropdownCssClass,
             language: {
                 noResults: function () {
-                    return "لا توجد نتائج";
+                    return 'لا توجد نتائج مطابقة';
                 },
                 searching: function () {
-                    return "جاري البحث...";
+                    return 'جارٍ البحث...';
                 },
-                inputTooShort: function (args) {
-                    return "يرجى إدخال حرف واحد أو أكثر";
+                inputTooShort: function () {
+                    return 'يرجى كتابة حرف واحد على الأقل للبحث';
+                },
+                inputTooLong: function (args) {
+                    return 'يرجى حذف ' + (args.input.length - args.maximum) + ' حرف';
+                },
+                maximumSelected: function (args) {
+                    return 'يمكنك اختيار ' + args.maximum + ' عناصر فقط';
                 },
                 loadingMore: function () {
-                    return "جاري تحميل المزيد...";
+                    return 'جارٍ تحميل المزيد...';
                 }
             }
         };
 
-        if (parent.length > 0) {
-            config.dropdownParent = parent;
+        // دعم placeholder وزر المسح
+        if ($element) {
+            var placeholder = $element.attr('placeholder') || $element.data('placeholder');
+            if (placeholder) {
+                config.placeholder = placeholder;
+                config.allowClear = true;
+            }
         }
 
-        if ($element && $element.attr('placeholder')) {
-            config.placeholder = $element.attr('placeholder');
-            config.allowClear = true;
-        }
-
-        // AJAX Support for Searchable Dropdowns
+        // دعم AJAX للقوائم الديناميكية
         if ($element && $element.data('ajax-url')) {
             config.ajax = {
                 url: $element.data('ajax-url'),
@@ -66,26 +86,24 @@
                 delay: 250,
                 data: function (params) {
                     var query = {
-                        q: params.term,
-                        type: $element.attr('data-ajax-type') || $element.data('ajax-type'),
+                        q: params.term || '',
+                        type: $element.data('ajax-type') || '',
                         page: params.page || 1
                     };
 
-                    // Add dynamic parameters if specified
-                    // Format: data-ajax-params="parent_id=#parent_select_id"
+                    // معاملات ديناميكية إضافية: data-ajax-params="parent_id=#select_id"
                     var extraParams = $element.data('ajax-params');
                     if (extraParams) {
                         try {
-                            extraParams.split(',').forEach(function (item) {
+                            String(extraParams).split(',').forEach(function (item) {
                                 var parts = item.split('=');
                                 if (parts.length === 2) {
                                     var key = parts[0].trim();
                                     var selector = parts[1].trim();
-
                                     if (selector.indexOf('|') !== -1) {
-                                        var selectorParts = selector.split('|');
-                                        var container = selectorParts[0].replace('closest:', '').trim();
-                                        var target = selectorParts[1].trim();
+                                        var sp = selector.split('|');
+                                        var container = sp[0].replace('closest:', '').trim();
+                                        var target = sp[1].trim();
                                         query[key] = $element.closest(container).find(target).val();
                                     } else {
                                         query[key] = $(selector).val();
@@ -93,15 +111,14 @@
                                 }
                             });
                         } catch (e) {
-                            console.error('Error parsing ajax-params:', e);
+                            console.warn('[Select2] خطأ في تحليل ajax-params:', e);
                         }
                     }
-
                     return query;
                 },
-                processResults: function (data, params) {
+                processResults: function (data) {
                     return {
-                        results: data.results,
+                        results: data.results || [],
                         pagination: {
                             more: data.pagination ? data.pagination.more : false
                         }
@@ -109,8 +126,6 @@
                 },
                 cache: false
             };
-
-            // If it has initial data, don't require input to show them
             config.minimumInputLength = 0;
         }
 
@@ -118,42 +133,117 @@
     };
 
     /**
-     * Function to initialize Select2
-     * @param {jQuery|HTMLElement|String} container - Optional container to scope the search
-     * @param {Boolean} force - If true, re-initialize even if already initialized
+     * تهيئة Select2 على الحاوي المحدد
+     * @param {jQuery|HTMLElement|String|null} container - الحاوي (null = كامل الصفحة)
+     * @param {Boolean} force - إعادة التهيئة حتى لو مُهيَّأة مسبقاً
      */
     window.initGlobalSelect2 = function (container, force) {
-        const $container = container ? $(container) : $('body');
-
-        // If the container itself is a select, use it directly
-        if ($container.is('select')) {
-            if (force && $container.hasClass('select2-hidden-accessible')) {
-                $container.select2('destroy');
-            }
-            if (force || !$container.hasClass('select2-hidden-accessible')) {
-                $container.select2(window.getGlobalSelect2Config($container));
-            }
+        if (typeof $ === 'undefined' || typeof $.fn.select2 === 'undefined') {
+            console.warn('[Select2] jQuery أو Select2 غير محمّل بعد');
             return;
         }
 
-        const selector = force ? 'select:not(.no-search)' : 'select:not(.no-search):not(.select2-hidden-accessible)';
+        var $container = container ? $(container) : $('body');
+
+        // إذا كان الحاوي نفسه هو عنصر select
+        if ($container.is('select')) {
+            _initSingleSelect($container, force);
+            return;
+        }
+
+        var selector = force
+            ? 'select:not(.no-search)'
+            : 'select:not(.no-search):not(.select2-hidden-accessible)';
 
         $container.find(selector).each(function () {
-            var $this = $(this);
-            if (force && $this.hasClass('select2-hidden-accessible')) {
-                $this.select2('destroy');
-            }
-            $this.select2(window.getGlobalSelect2Config($this));
+            _initSingleSelect($(this), force);
         });
     };
 
+    /**
+     * تهيئة عنصر select واحد
+     * @private
+     */
+    function _initSingleSelect($select, force) {
+        if (force && $select.hasClass('select2-hidden-accessible')) {
+            try {
+                $select.select2('destroy');
+            } catch (e) { /* تجاهل أخطاء الـ destroy */ }
+        }
+
+        if (!$select.hasClass('select2-hidden-accessible')) {
+            try {
+                $select.select2(window.getGlobalSelect2Config($select));
+            } catch (e) {
+                console.warn('[Select2] فشل تهيئة العنصر:', $select.attr('id') || $select.attr('name'), e);
+            }
+        }
+    }
+
+    /**
+     * مُراقب للعناصر الديناميكية (Dynamic DOM Observer)
+     * يرصد إضافة عناصر <select> جديدة إلى DOM ويُهيّئها تلقائياً
+     */
+    function _observeDynamicSelects() {
+        if (typeof MutationObserver === 'undefined') { return; }
+
+        var observer = new MutationObserver(function (mutations) {
+            var pending = [];
+            mutations.forEach(function (mutation) {
+                mutation.addedNodes.forEach(function (node) {
+                    if (node.nodeType !== 1) { return; } // عناصر DOM فقط
+                    // العنصر نفسه إن كان select
+                    if (node.tagName === 'SELECT' && !node.classList.contains('no-search')) {
+                        pending.push(node);
+                    }
+                    // أو البحث داخله عن selects
+                    var nested = node.querySelectorAll
+                        ? node.querySelectorAll('select:not(.no-search)')
+                        : [];
+                    nested.forEach(function (el) { pending.push(el); });
+                });
+            });
+
+            if (pending.length > 0) {
+                // تأخير قصير للتأكد من اكتمال الـ render
+                setTimeout(function () {
+                    pending.forEach(function (el) {
+                        var $el = $(el);
+                        if (!$el.hasClass('select2-hidden-accessible')) {
+                            _initSingleSelect($el, false);
+                        }
+                    });
+                }, 50);
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    // ===== التهيئة عند تحميل الصفحة =====
     $(function () {
-        // Initialize on load
+        // تهيئة جميع الـ selects
         window.initGlobalSelect2();
 
-        // Re-initialize when a modal is opened (in case of dynamic content)
-        $(document).on('shown.bs.modal', function () {
-            window.initGlobalSelect2(this);
+        // تهيئة عند فتح أي مودال
+        $(document).on('shown.bs.modal', function (e) {
+            window.initGlobalSelect2(e.target, false);
         });
+
+        // إعادة تهيئة بعد إغلاق وإعادة فتح المودال (في حالة تحديث المحتوى)
+        $(document).on('hidden.bs.modal', function (e) {
+            $(e.target).find('select.select2-hidden-accessible').each(function () {
+                try { $(this).select2('destroy'); } catch (e2) { /* تجاهل */ }
+            });
+        });
+
+        // مراقبة العناصر الديناميكية
+        _observeDynamicSelects();
+
+        console.log('[Select2] ✅ تم تهيئة قوائم البحث على جميع الـ Dropdowns');
     });
+
 })(jQuery);

@@ -47,24 +47,6 @@ class EntityHierarchyService
                 : null;
         }
 
-        // Ensure ministry (Entity ID 1) is always the final stage in the chain if not present
-        $hasMinistry = false;
-        foreach ($chain as $item) {
-            if ($item['id'] == 1) {
-                $hasMinistry = true;
-                break;
-            }
-        }
-        if (! $hasMinistry) {
-            $ministry = InternalEntity::withoutGlobalScopes()->find(1);
-            if ($ministry) {
-                $chain[] = [
-                    'id' => $ministry->id,
-                    'name' => $ministry->name,
-                ];
-            }
-        }
-
         return $chain;
     }
 
@@ -105,39 +87,9 @@ class EntityHierarchyService
      */
     public function generateApprovalStagesFromChain(string $userEntityId): array
     {
-        // Build approval chain from user's entity to top parent
-        // userEntityId is actually the entity name string
         $chain = $this->buildApprovalChain($userEntityId);
 
-        // Create stage array with increasing orders
-        $stages = [];
-        foreach ($chain as $index => $entityData) {
-            $entityName = $entityData['name'];
-            $entityId = $entityData['id'];
-
-            $stages[] = [
-                'order' => $index + 1,
-                'code' => 'entity_'.$entityId,
-                'name_ar' => $entityName,
-                'name_en' => $entityName.' Stage',
-                'entity_id' => $entityId,
-                'is_entity_stage' => true,
-                'is_implementation' => false,
-            ];
-        }
-
-        // Add implementation stage
-        $stages[] = [
-            'order' => count($chain) + 1,
-            'code' => 'implementation',
-            'name_ar' => 'التنفيذ',
-            'name_en' => 'Implementation',
-            'entity_id' => null,
-            'is_entity_stage' => false,
-            'is_implementation' => true,
-        ];
-
-        return $stages;
+        return $this->expandEntityChainIntoApprovalStages($chain);
     }
 
     /**
@@ -187,50 +139,45 @@ class EntityHierarchyService
             $currentId = $current->parent_id; // traverse up
         }
 
-        // Ensure ministry (Entity ID 1) is always the final stage in the chain if not already present
-        $hasMinistry = false;
-        foreach ($chain as $item) {
-            if ($item['id'] == 1) {
-                $hasMinistry = true;
-                break;
-            }
-        }
-        if (! $hasMinistry) {
-            $ministry = InternalEntity::withoutGlobalScopes()->find(1);
-            if ($ministry) {
-                $chain[] = [
-                    'id' => $ministry->id,
-                    'name' => $ministry->name,
+        return static::$chainCache[$entityId] = $this->expandEntityChainIntoApprovalStages($chain);
+    }
+
+    /**
+     * Expand each internal entity into the required approval workflow phases.
+     *
+     * @param  array<int, array{id:int, name:string}>  $chain
+     * @return array<int, array<string, mixed>>
+     */
+    private function expandEntityChainIntoApprovalStages(array $chain): array
+    {
+        $phases = [
+            'technical_review' => ['name_ar' => 'مراجعة فنية', 'name_en' => 'Technical Review'],
+            'financial_review' => ['name_ar' => 'مراجعة مالية', 'name_en' => 'Financial Review'],
+            'stage_approval' => ['name_ar' => 'اعتماد للمرحلة', 'name_en' => 'Stage Approval'],
+        ];
+
+        $stages = [];
+        $order = 1;
+
+        foreach ($chain as $entityData) {
+            foreach ($phases as $phaseCode => $phase) {
+                $stages[] = [
+                    'order' => $order++,
+                    'code' => 'entity_'.$entityData['id'].'_'.$phaseCode,
+                    'name_ar' => $entityData['name'].' - '.$phase['name_ar'],
+                    'name_en' => $entityData['name'].' - '.$phase['name_en'],
+                    'entity_id' => $entityData['id'],
+                    'entity_name' => $entityData['name'],
+                    'phase' => $phaseCode,
+                    'phase_name_ar' => $phase['name_ar'],
+                    'phase_name_en' => $phase['name_en'],
+                    'is_entity_stage' => true,
+                    'is_implementation' => false,
                 ];
             }
         }
 
-        // Create stage array with increasing orders (origin entity = order 1, root = highest)
-        $stages = [];
-        foreach ($chain as $index => $entityData) {
-            $stages[] = [
-                'order' => $index + 1,
-                'code' => 'entity_'.$entityData['id'],
-                'name_ar' => $entityData['name'],
-                'name_en' => $entityData['name'].' Stage',
-                'entity_id' => $entityData['id'],
-                'is_entity_stage' => true,
-                'is_implementation' => false,
-            ];
-        }
-
-        // Add implementation stage
-        $stages[] = [
-            'order' => count($chain) + 1,
-            'code' => 'implementation',
-            'name_ar' => 'التنفيذ',
-            'name_en' => 'Implementation',
-            'entity_id' => null,
-            'is_entity_stage' => false,
-            'is_implementation' => true,
-        ];
-
-        return static::$chainCache[$entityId] = $stages;
+        return $stages;
     }
 
     /**

@@ -2,22 +2,22 @@
 
 namespace App\Exports;
 
-use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
-class AuditLogExport implements FromQuery, WithHeadings, WithMapping
+class AuditLogExport implements FromCollection, WithHeadings, WithMapping
 {
-    protected $query;
+    protected $logs;
 
-    public function __construct($query)
+    public function __construct($logs)
     {
-        $this->query = $query;
+        $this->logs = $logs;
     }
 
-    public function query()
+    public function collection()
     {
-        return $this->query;
+        return $this->logs;
     }
 
     public function headings(): array

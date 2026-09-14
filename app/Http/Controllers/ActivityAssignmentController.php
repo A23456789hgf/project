@@ -143,13 +143,13 @@ class ActivityAssignmentController extends Controller
                 $title = $assignable->action ?? $assignable->procedure_name;
             }
 
-            Task::create([
+            $newTask = Task::create([
                 'project_id' => $project->id,
                 'title' => $title,
                 'description' => $validated['notes'],
                 'status' => 'todo',
                 'priority' => 'medium',
-                'assigned_to' => $userId,
+                'assignment_type' => 'user',
                 'created_by' => auth()->id(),
                 'due_date' => $validated['due_date'],
                 'is_within_activities' => true,
@@ -158,6 +158,8 @@ class ActivityAssignmentController extends Controller
                 'procedure_id' => $procedureId,
                 'executive_activity_action_id' => $executiveActionId,
             ]);
+
+            $newTask->assignees()->sync([$userId]);
 
             $assignment->load('assignedTo');
             $savedAssignments[] = [
@@ -238,7 +240,7 @@ class ActivityAssignmentController extends Controller
         }
 
         Task::where('project_id', $assignment->project_id)
-            ->where('assigned_to', $assignment->assigned_to)
+            ->whereHas('assignees', fn ($q) => $q->where('users.id', $assignment->assigned_to))
             ->where('is_within_activities', true)
             ->where('activity_type', $activityType)
             ->where('activity_id', $activityId)
@@ -305,7 +307,6 @@ class ActivityAssignmentController extends Controller
 
         $formatted = Cache::remember("my_assignments_{$user->id}", 300, function () use ($user) {
             $assignments = ActivityAssignment::where('assigned_to', $user->id)
-                ->where('status', 'active')
                 ->with([
                     'project',
                     'assignable' => function ($morphTo) {
@@ -343,43 +344,8 @@ class ActivityAssignmentController extends Controller
                     });
                 }
 
-                if ($isCompleted) {
-                    // Update status in database to completed so it does not load next time
+                if ($isCompleted && $assignment->status !== 'completed') {
                     $assignment->update(['status' => 'completed']);
-
-                    // Also update the synced task
-                    $activityType = null;
-                    $activityId = null;
-                    $procedureId = null;
-                    $executiveActionId = null;
-
-                    if ($assignment->assignable_type === ExecutiveActivity::class) {
-                        $activityType = 'executive';
-                        $activityId = $assignment->assignable_id;
-                    } elseif ($assignment->assignable_type === PreliminaryActivity::class) {
-                        $activityType = 'preliminary';
-                        $activityId = $assignment->assignable_id;
-                    } elseif ($assignment->assignable_type === ExecutiveActivityAction::class) {
-                        $activityType = 'executive';
-                        $activityId = $assignable->executive_activity_id;
-                        $procedureId = $assignment->assignable_id;
-                        $executiveActionId = $assignment->assignable_id;
-                    } elseif ($assignment->assignable_type === PreliminaryProcedure::class) {
-                        $activityType = 'preliminary';
-                        $activityId = $assignable->activity_id;
-                        $procedureId = $assignment->assignable_id;
-                    }
-
-                    Task::where('project_id', $assignment->project_id)
-                        ->where('assigned_to', $assignment->assigned_to)
-                        ->where('is_within_activities', true)
-                        ->where('activity_type', $activityType)
-                        ->where('activity_id', $activityId)
-                        ->where('procedure_id', $procedureId)
-                        ->where('executive_activity_action_id', $executiveActionId)
-                        ->update(['status' => 'completed', 'completed_at' => now()]);
-
-                    continue;
                 }
 
                 $taskName = '';
@@ -400,17 +366,24 @@ class ActivityAssignmentController extends Controller
                 }
 
                 // Categorize task
-                $category = 'current';
-                if ($daysRemaining !== null) {
-                    if ($daysRemaining < 0) {
-                        $category = 'overdue';
-                    } elseif ($daysRemaining <= 3) {
-                        $category = 'nearing';
+                if ($isCompleted || $assignment->status === 'completed') {
+                    $category = 'completed';
+                } else {
+                    $category = 'current';
+                    if ($daysRemaining !== null) {
+                        if ($daysRemaining < 0) {
+                            $category = 'overdue';
+                        } elseif ($daysRemaining <= 3) {
+                            $category = 'nearing';
+                        }
                     }
                 }
 
+                $viewUrl = $assignment->project_id ? route('projects.execution', $assignment->project_id) : '#';
+
                 $formattedArray[] = [
-                    'id' => $assignment->id,
+                    'id' => 'assign_'.$assignment->id,
+                    'assignment_id' => $assignment->id,
                     'project_name' => $assignment->project->project_name ?? 'مشروع غير معروف',
                     'project_id' => $assignment->project_id,
                     'task_name' => $taskName,
@@ -419,48 +392,88 @@ class ActivityAssignmentController extends Controller
                     'notes' => $assignment->notes,
                     'days_remaining' => $daysRemaining,
                     'category' => $category,
+                    'status' => $assignment->status,
+                    'priority' => 'medium',
+                    'is_completed' => ($category === 'completed'),
+                    'is_standalone_task' => false,
+                    'view_url' => $viewUrl,
                 ];
             }
 
-            // جلب المهام (Tasks) المسندة للمستخدم من جدول المهام
-            $tasks = Task::whereHas('assignees', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
+            // جلب كافة المهام (Tasks) المسندة للمستخدم أو جهته
+            $tasks = Task::where(function ($q) use ($user) {
+                $q->whereHas('assignees', function ($aq) use ($user) {
+                    $aq->where('users.id', $user->id);
+                });
+                if ($user->entity_id) {
+                    $q->orWhere(function ($eq) use ($user) {
+                        $eq->where('assignment_type', 'entity')
+                            ->where('assigned_entity_id', $user->entity_id);
+                    });
+                }
             })
-                ->whereNotIn('status', ['completed', 'cancelled'])
-                ->with(['project'])
+                ->where('status', '!=', 'cancelled')
+                ->with(['project', 'valueChain', 'assignees', 'createdBy', 'executiveAction', 'preliminaryActivity', 'executiveActivity', 'preliminaryProcedure'])
                 ->latest()
                 ->get();
 
             foreach ($tasks as $task) {
-                // تجنب التكرار إذا كانت المهمة ناتجة عن ActivityAssignment (لأنها ستكون مكررة إذا تم ربطها)
-                // لكن المهام التي تُضاف من tasks controller يتم إضافتها كمهام مباشرة
-
                 $daysRemaining = null;
                 if ($task->due_date) {
                     $daysRemaining = now()->startOfDay()->diffInDays($task->due_date, false);
                 }
 
-                $category = 'current';
-                if ($daysRemaining !== null) {
-                    if ($daysRemaining < 0) {
-                        $category = 'overdue';
-                    } elseif ($daysRemaining <= 3) {
-                        $category = 'nearing';
+                if ($task->status === 'completed') {
+                    $category = 'completed';
+                } else {
+                    $category = 'current';
+                    if ($daysRemaining !== null) {
+                        if ($daysRemaining < 0) {
+                            $category = 'overdue';
+                        } elseif ($daysRemaining <= 3) {
+                            $category = 'nearing';
+                        }
                     }
                 }
 
+                $typeLabel = 'مهمة';
+                if ($task->project_id && $task->value_chain_id) {
+                    $typeLabel = 'مشروع وسلسلة';
+                } elseif ($task->project_id) {
+                    $typeLabel = 'مهمة مشروع';
+                } elseif ($task->value_chain_id) {
+                    $typeLabel = 'مهمة سلسلة';
+                } else {
+                    $typeLabel = 'مهمة عامة';
+                }
+
+                $projectName = 'مهمة عامة / مستقلة';
+                if ($task->project) {
+                    $projectName = $task->project->project_name;
+                } elseif ($task->valueChain) {
+                    $projectName = $task->valueChain->name;
+                }
+
+                $viewUrl = $task->project_id
+                    ? route('projects.tasks.show', [$task->project_id, $task->id])
+                    : route('tasks.show', $task->id);
+
                 $formattedArray[] = [
                     'id' => 'task_'.$task->id,
-                    'project_name' => $task->project->project_name ?? 'مهمة عامة / بدون مشروع',
+                    'task_id' => $task->id,
+                    'project_name' => $projectName,
                     'project_id' => $task->project_id,
                     'task_name' => $task->title,
-                    'type_label' => 'مهمة إضافية',
+                    'type_label' => $typeLabel,
                     'due_date' => $task->due_date ? $task->due_date->format('Y-m-d') : null,
                     'notes' => $task->description,
                     'days_remaining' => $daysRemaining,
                     'category' => $category,
+                    'status' => $task->status,
+                    'priority' => $task->priority ?? 'medium',
+                    'is_completed' => ($task->status === 'completed'),
                     'is_standalone_task' => true,
-                    'task_id' => $task->id,
+                    'view_url' => $viewUrl,
                 ];
             }
 

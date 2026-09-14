@@ -236,7 +236,7 @@
                 </li>
             @endif
 
-            <!-- @php
+            {{-- @php
                 $isValueChainsActive = request()->routeIs('value-chains.*') || request()->routeIs('value-chain-members.*') || request()->routeIs('global-financings.*');
                 ob_start();
             @endphp
@@ -261,7 +261,7 @@
                         </ul>
                     </div>
                 </li>
-            @endif -->
+            @endif --}}
 
             @php
                 $isReportsActive = request()->routeIs('projects.reports.*');

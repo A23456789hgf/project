@@ -2,88 +2,33 @@
 
 namespace App\Exports;
 
-use Illuminate\Database\Eloquent\Builder;
+use App\Models\Plan;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class PlansExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
+class PlansExport implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
 {
-    protected Builder $query;
+    protected $search;
 
-    public function __construct(Builder $query)
+    protected $planId;
+
+    public function __construct(?string $search = null, $planId = null)
     {
-        $this->query = $query;
+        $this->search = $search;
+        $this->planId = $planId;
     }
 
-    /**
-     * @return Collection
-     */
-    public function collection()
+    public function title(): string
     {
-        $plans = $this->query->with([
-            'priority',
-            'submittingEntity',
-            'projects.participatingEntity',
-            'projects.fundingSource',
-            'projects.goals',
-            'projects.activities.actions',
-        ])->latest()->get();
-
-        $data = collect();
-
-        foreach ($plans as $plan) {
-            foreach ($plan->projects as $project) {
-                $goals = $project->goals;
-
-                $actions = collect();
-                foreach ($project->activities as $activity) {
-                    if ($activity->actions->count() === 0) {
-                        $actions->push([
-                            'activity' => $activity,
-                            'action' => null,
-                        ]);
-                    } else {
-                        foreach ($activity->actions as $action) {
-                            $actions->push([
-                                'activity' => $activity,
-                                'action' => $action,
-                            ]);
-                        }
-                    }
-                }
-
-                if ($actions->isEmpty()) {
-                    $actions->push([
-                        'activity' => null,
-                        'action' => null,
-                    ]);
-                }
-
-                $totalRows = max($goals->count(), $actions->count());
-
-                for ($i = 0; $i < $totalRows; $i++) {
-                    $goal = $goals->get($i);
-                    $actionData = $actions->get($i);
-
-                    $data->push([
-                        'plan' => $plan,
-                        'project' => $project,
-                        'goal' => $goal,
-                        'activity' => $actionData['activity'],
-                        'action' => $actionData['action'],
-                    ]);
-                }
-            }
-        }
-
-        return $data;
+        return 'المصفوفة التشغيلية';
     }
 
     public function headings(): array
@@ -91,100 +36,190 @@ class PlansExport implements FromCollection, ShouldAutoSize, WithHeadings, WithM
         return [
             'رقم الخطة',
             'الأولوية',
-            'الجهة المقدمة',
+            'الجهة المقدمة للخطة',
             'اسم المشروع',
             'الأهمية',
-            'حالة المشروع',
-            'خط الأساس',
-            'الهدف المحدد',
-            'الوزن %',
-            'قيمة المؤشر',
-            'وحدة القياس',
-            'نوع التكلفة',
+            'الحالة',
             'التكلفة',
+            'العملة',
+            'مؤشرات الأداء',
+            'المخرجات',
+            'الوضع الراهن (Baseline)',
+            'القيمة المستهدفة',
             'توفر التمويل',
             'مصدر التمويل',
-            'الجهة المشاركة',
+            'جهة التنفيذ',
             'اسم النشاط',
-            'وزن النشاط',
+            'وزن النشاط (%)',
             'اسم الإجراء',
-            'وزن الإجراء',
-            'تاريخ البداية',
-            'تاريخ النهاية',
-            'المدة',
+            'وزن الإجراء (%)',
+            'تاريخ البدء',
+            'تاريخ الانتهاء',
+            'المدة (أيام)',
         ];
     }
 
-    public function map($row): array
+    public function collection(): Collection
     {
-        $plan = $row['plan'];
-        $project = $row['project'];
-        $goal = $row['goal'] ?? null;
-        $activity = $row['activity'];
-        $action = $row['action'];
+        $query = Plan::with([
+            'projects.participatingEntity',
+            'projects.fundingSource',
+            'projects.activities.actions',
+            'submittingEntity',
+            'priority',
+        ]);
 
-        return [
-            $plan->plan_number,
-            $plan->priority->priority ?? '',
-            $plan->submittingEntity->name ?? '',
-            $project->name,
-            $this->getImportanceLabel($project->importance),
-            $this->getStatusLabel($project->status),
-            $project->baseline,
-            $goal?->specific_goal ?? '',
-            $goal?->weight ?? '',
-            $goal?->indicator_value ?? '',
-            $goal?->unit_of_measurement ?? '',
-            $project->cost_type,
-            $project->cost,
-            $project->funding_availability ? 'نعم' : 'لا',
-            $project->fundingSource->name ?? '',
-            $project->participatingEntity->name ?? '',
-            $activity?->name ?? '',
-            $activity?->weight ?? '',
-            $action?->name ?? '',
-            $action?->weight ?? '',
-            ($action?->start_date_g) ? $action->start_date_g->format('Y-m-d') : '',
-            ($action?->end_date_g) ? $action->end_date_g->format('Y-m-d') : '',
-            $action?->duration ?? '',
+        if ($this->planId) {
+            $query->where('id', $this->planId);
+        } elseif ($this->search) {
+            $search = $this->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('plan_number', 'like', "%{$search}%")
+                    ->orWhereHas('submittingEntity', fn ($sq) => $sq->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('priority', fn ($sq) => $sq->where('priority', 'like', "%{$search}%"));
+            });
+        }
+
+        $plans = $query->latest()->get();
+        $rows = collect();
+
+        $importanceMap = [
+            'normal' => 'عادي',
+            'important' => 'مهم',
+            'very_important' => 'مهم جداً',
         ];
+
+        $statusMap = [
+            'new' => 'جديد',
+            'terminated' => 'منتهٍ',
+        ];
+
+        foreach ($plans as $plan) {
+            foreach ($plan->projects as $project) {
+                $activities = $project->activities;
+
+                if ($activities->isEmpty()) {
+                    // Export project row with no activities/actions
+                    $rows->push([
+                        $plan->plan_number,
+                        optional($plan->priority)->priority ?? '',
+                        optional($plan->submittingEntity)->name ?? '',
+                        $project->name,
+                        $importanceMap[$project->importance] ?? $project->importance,
+                        $statusMap[$project->status] ?? $project->status,
+                        $project->cost,
+                        $project->cost_type,
+                        $project->indicators ?? '',
+                        $project->outputs ?? '',
+                        $project->baseline ?? '',
+                        $project->target_value ?? '',
+                        $project->funding_availability ? 'نعم' : 'لا',
+                        optional($project->fundingSource)->name ?? '',
+                        optional($project->participatingEntity)->name ?? '',
+                        '', // activity name
+                        '', // activity weight
+                        '', // action name
+                        '', // action weight
+                        '', // start date
+                        '', // end date
+                        '', // duration
+                    ]);
+                }
+
+                foreach ($activities as $activity) {
+                    $actions = $activity->actions;
+
+                    if ($actions->isEmpty()) {
+                        $rows->push([
+                            $plan->plan_number,
+                            optional($plan->priority)->priority ?? '',
+                            optional($plan->submittingEntity)->name ?? '',
+                            $project->name,
+                            $importanceMap[$project->importance] ?? $project->importance,
+                            $statusMap[$project->status] ?? $project->status,
+                            $project->cost,
+                            $project->cost_type,
+                            $project->indicators ?? '',
+                            $project->outputs ?? '',
+                            $project->baseline ?? '',
+                            $project->target_value ?? '',
+                            $project->funding_availability ? 'نعم' : 'لا',
+                            optional($project->fundingSource)->name ?? '',
+                            optional($project->participatingEntity)->name ?? '',
+                            $activity->name,
+                            $activity->weight,
+                            '', // action name
+                            '', // action weight
+                            '', // start date
+                            '', // end date
+                            '', // duration
+                        ]);
+
+                        continue;
+                    }
+
+                    foreach ($actions as $action) {
+                        $rows->push([
+                            $plan->plan_number,
+                            optional($plan->priority)->priority ?? '',
+                            optional($plan->submittingEntity)->name ?? '',
+                            $project->name,
+                            $importanceMap[$project->importance] ?? $project->importance,
+                            $statusMap[$project->status] ?? $project->status,
+                            $project->cost,
+                            $project->cost_type,
+                            $project->indicators ?? '',
+                            $project->outputs ?? '',
+                            $project->baseline ?? '',
+                            $project->target_value ?? '',
+                            $project->funding_availability ? 'نعم' : 'لا',
+                            optional($project->fundingSource)->name ?? '',
+                            optional($project->participatingEntity)->name ?? '',
+                            $activity->name,
+                            $activity->weight,
+                            $action->name,
+                            $action->weight,
+                            $action->start_date_g ? $action->start_date_g->format('Y-m-d') : '',
+                            $action->end_date_g ? $action->end_date_g->format('Y-m-d') : '',
+                            $action->duration ?? '',
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return $rows;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): array
     {
+        // Apply RTL direction
+        $sheet->setRightToLeft(true);
+
         return [
+            // Heading row styling
             1 => [
-                'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                    'size' => 11,
+                ],
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
-                    'startColor' => ['argb' => 'FF4472C4'],
+                    'startColor' => ['rgb' => '1B2A4A'], // Navy
                 ],
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
                     'vertical' => Alignment::VERTICAL_CENTER,
+                    'wrapText' => true,
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => 'FFFFFF'],
+                    ],
                 ],
             ],
         ];
-    }
-
-    private function getImportanceLabel($importance)
-    {
-        $labels = [
-            'normal' => 'عادي',
-            'important' => 'هام',
-            'very_important' => 'هام جداً',
-        ];
-
-        return $labels[$importance] ?? $importance;
-    }
-
-    private function getStatusLabel($status)
-    {
-        $labels = [
-            'new' => 'جديد',
-            'terminated' => 'مستمر',
-        ];
-
-        return $labels[$status] ?? $status;
     }
 }

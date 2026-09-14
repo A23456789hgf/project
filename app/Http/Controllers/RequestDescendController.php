@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\InternalEntity;
 use App\Models\Project;
 use App\Models\RequestDescend;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -299,6 +300,9 @@ class RequestDescendController extends Controller
 
             $requestDescend->update(['status' => 'pending_approval']);
 
+            // إرسال إشعار طلب النزول الميداني
+            app(NotificationService::class)->notifyRequestDescend($requestDescend, 'submitted');
+
             session()->flash('success', 'تم إرسال الطلب للاعتماد النهائي بنجاح.');
 
             return redirect()->route('requests_descend.index');
@@ -331,6 +335,10 @@ class RequestDescendController extends Controller
                 'status' => $newStatus,
                 'notes' => $request->notes,
             ]);
+
+            // إرسال إشعار معالجة القرار
+            $notifAction = $request->action === 'approve' ? 'approved' : ($request->action === 'return' ? 'rejected' : 'submitted');
+            app(NotificationService::class)->notifyRequestDescend($requestDescend, $notifAction);
 
             session()->flash('success', 'تم تسجيل القرار بنجاح.');
 
@@ -372,6 +380,10 @@ class RequestDescendController extends Controller
         ]);
         $requestDescend = RequestDescend::findOrFail($id);
         $requestDescend->update(['financial_status' => $request->financial_status]);
+
+        // إرسال إشعار تحديث الحالة المالية
+        app(NotificationService::class)->notifyRequestDescend($requestDescend, 'financial_updated');
+
         session()->flash('success', 'تم تحديث حالة الملف المالي بنجاح.');
 
         return back();

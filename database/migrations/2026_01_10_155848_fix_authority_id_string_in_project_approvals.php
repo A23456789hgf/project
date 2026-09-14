@@ -22,7 +22,7 @@ return new class extends Migration
 
         Schema::table('project_approvals', function (Blueprint $table) {
             // Change the column to string
-            $table->string('authority_id', 191)->change();
+            $table->string('authority_id', 191)->nullable()->change();
         });
     }
 

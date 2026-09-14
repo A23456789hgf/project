@@ -184,7 +184,7 @@
 
             // Only show loader for actual navigation (not javascript:void, etc.)
             if (href && !href.startsWith('javascript:') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
-                showPageLoader('جاري الانتقال...');
+                showPageLoader('جاري الانتقال...', 300);
             }
         }
     }

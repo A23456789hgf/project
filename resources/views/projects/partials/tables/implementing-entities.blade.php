@@ -1,10 +1,10 @@
-<div class="mb-4">
-    <div class="project-table-header mb-3">
-        <i class="fas fa-cogs"></i> الجهات المنفذة
+<div class="project-table-container">
+    <div class="project-table-header">
+        <i class="fas fa-cogs me-1"></i>الجهات المنفذة
     </div>
 
-    <div class="table-responsive">
-        <table class="project-table w-100" id="implementingEntitiesTable">
+    <div class="project-table-wrapper">
+        <table class="project-table" id="implementingEntitiesTable">
             <thead>
                 <tr>
                     <th>نوع الجهة</th>
@@ -133,10 +133,13 @@
 (function() {
     'use strict';
 
-    document.addEventListener('DOMContentLoaded', function() {
+    function initImplementingEntities() {
         // Get data from PHP
-        var authorities = @json($authorities ?? []);
-        var internalEntities = @json($internalEntities ?? []);
+        var rawAuthorities = @json($authorities ?? []);
+        var rawInternalEntities = @json($internalEntities ?? []);
+
+        var authorities = Array.isArray(rawAuthorities) ? rawAuthorities : Object.values(rawAuthorities || {});
+        var internalEntities = Array.isArray(rawInternalEntities) ? rawInternalEntities : Object.values(rawInternalEntities || {});
 
         console.log('Authorities count:', authorities.length);
         console.log('Internal Entities count:', internalEntities.length);
@@ -160,17 +163,18 @@
             },
 
             bindEvents: function() {
-                var addBtn = document.getElementById('addImplementingEntityBtn');
-                if (addBtn) {
-                    addBtn.addEventListener('click', function() {
-                        this.addEntity();
-                    }.bind(this));
-                }
-
                 document.addEventListener('click', function(e) {
-                    var btn = e.target.closest('.remove-entity');
-                    if (!btn || !btn.closest('#implementingEntitiesTable')) return;
-                    this.removeEntity(btn.closest('tr'));
+                    var addBtn = e.target.closest('#addImplementingEntityBtn');
+                    if (addBtn) {
+                        e.preventDefault();
+                        this.addEntity();
+                        return;
+                    }
+
+                    var removeBtn = e.target.closest('.remove-entity');
+                    if (removeBtn && removeBtn.closest('#implementingEntitiesTable')) {
+                        this.removeEntity(removeBtn.closest('tr'));
+                    }
                 }.bind(this));
 
                 document.addEventListener('change', function(e) {
@@ -205,10 +209,11 @@
             },
 
             addEntity: function() {
-                var emptyRow = document.querySelector('.project-empty-row');
+                var emptyRow = document.querySelector('#implementingEntitiesTable .project-empty-row');
                 if (emptyRow) emptyRow.remove();
 
                 var tbody = document.querySelector('#implementingEntitiesTable tbody');
+                if (!tbody) return;
                 var row = this.createEntityRow();
                 tbody.appendChild(row);
 
@@ -403,7 +408,7 @@
 
             checkEmptyTable: function() {
                 var tbody = document.querySelector('#implementingEntitiesTable tbody');
-                if (tbody.children.length === 0) {
+                if (tbody && tbody.querySelectorAll('tr:not(.project-empty-row)').length === 0) {
                     tbody.innerHTML = `
                         <tr class="project-empty-row">
                             <td colspan="4" class="text-center">
@@ -491,10 +496,15 @@
             }
         };
 
-        // Initialize the manager
         ImplementingEntityManager.init();
         window.ImplementingEntityManager = ImplementingEntityManager;
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initImplementingEntities);
+    } else {
+        initImplementingEntities();
+    }
 })();
 </script>
 

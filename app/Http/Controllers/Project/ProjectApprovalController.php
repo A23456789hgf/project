@@ -2,8 +2,15 @@
 
 namespace App\Http\Controllers\Project;
 
+use App\Enums\ReturnTarget;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Project\Services\ProjectService;
+use App\Http\Requests\Approval\ApproveStepRequest;
+use App\Http\Requests\Approval\CloseDraftRequest;
+use App\Http\Requests\Approval\RecordConsultationRequest;
+use App\Http\Requests\Approval\RejectStepRequest;
+use App\Http\Requests\Approval\RequestCompletionRequest;
+use App\Http\Requests\Approval\ResubmitProjectRequest;
 use App\Models\Authority;
 use App\Models\Domain;
 use App\Models\ExecutiveActionCost;
@@ -18,6 +25,7 @@ use App\Models\Program;
 use App\Models\Project;
 use App\Models\ProjectActivityHistory;
 use App\Models\ProjectApproval;
+use App\Models\ProjectReferral;
 use App\Models\Subdomain;
 use App\Models\User;
 use App\Services\ApprovalService;
@@ -56,27 +64,400 @@ class ProjectApprovalController extends Controller
     }
 
     /**
-     * Handle project approval submission
+     * Display listing of projects in approval workflow
+     */
+    public function index(Request $request)
+    {
+        $user = auth()->user();
+        $query = Project::query()
+            ->with(['createdBy', 'creatorEntity', 'currentApprovalStage', 'cost'])
+            ->whereNotIn('status', ['draft', 'cancelled']);
+
+        if (! $user->isAdmin()) {
+            $userEntityId = (int) $user->entity_id;
+            if ($userEntityId) {
+                $allowedEntityIds = InternalEntity::getAllChildrenIds($userEntityId);
+                $query->where(function ($q) use ($allowedEntityIds, $user) {
+                    $q->whereIn('creator_entity_id', $allowedEntityIds)
+                        ->orWhereHas('projectApprovals', function ($sq) use ($allowedEntityIds) {
+                            $sq->whereIn('entity_id', $allowedEntityIds);
+                        })
+                        ->orWhere('created_by_user_id', $user->id);
+                });
+            }
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('project_name', 'like', "%{$search}%")
+                    ->orWhere('form_number', 'like', "%{$search}%");
+            });
+        }
+
+        $projects = $query->orderBy('updated_at', 'desc')->paginate(15);
+
+        return view('projects.approval.index', compact('projects'));
+    }
+
+    /**
+     * Display approval show page
+     */
+    public function show(Project $project)
+    {
+        $project->load([
+            'createdBy.entity',
+            'creatorEntity',
+            'cost',
+            'activityHistory.user',
+            'projectApprovals.entity',
+            'projectApprovals.reviewedByUser',
+            'financings.fundingSource',
+        ]);
+
+        $activeStep = $this->approvalService->getActiveStep($project);
+
+        return view('projects.approval.show', compact('project', 'activeStep'));
+    }
+
+    /**
+     * Close Draft and submit project for approval
+     */
+    public function submitForApproval(CloseDraftRequest $request, Project $project)
+    {
+        try {
+            $user = auth()->user();
+            $chain = $this->approvalService->closeDraftAndGenerateApprovalChain($project, $user);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم إغلاق المسودة وتقديم المشروع للاعتماد بنجاح.',
+                    'project' => $project->fresh(['creatorEntity']),
+                    'current_stage' => $project->fresh()->current_stage,
+                    'chain_count' => $chain->count(),
+                ], 200);
+            }
+
+            return redirect()->route('projects.show', $project)->with('success', 'تم إغلاق المسودة وتقديم المشروع للاعتماد بنجاح.');
+        } catch (\Exception $e) {
+            Log::error('Close draft error', [
+                'project_id' => $project->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء إغلاق المسودة: '.$e->getMessage(),
+                ], 422);
+            }
+
+            return back()->with('error', 'حدث خطأ أثناء إغلاق المسودة: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Approve active step
+     */
+    public function approve(ApproveStepRequest $request, Project $project)
+    {
+        try {
+            $user = auth()->user();
+            $notes = $request->input('notes');
+            $attachmentPath = null;
+            if ($request->hasFile('attachment')) {
+                $attachmentPath = $this->storeAttachment($request->file('attachment'), $project);
+            }
+
+            $result = $this->approvalService->approveActiveStep($project, $user, $notes, $attachmentPath);
+            $project->refresh();
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $result['message'],
+                    'approval' => $result['approved_step'] ? $result['approved_step']->fresh(['entity', 'reviewedByUser']) : null,
+                    'next_drop' => $result['next_step'] ? $result['next_step']->drop : null,
+                    'project_status' => $result['project_status'],
+                    'is_final' => $result['is_final'],
+                ], 200);
+            }
+
+            return redirect()->route('projects.show', $project)->with('success', $result['message']);
+        } catch (\Exception $e) {
+            Log::error('Approve step error', [
+                'project_id' => $project->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء الاعتماد: '.$e->getMessage(),
+                ], 422);
+            }
+
+            return back()->with('error', 'حدث خطأ أثناء الاعتماد: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Reject active step
+     */
+    public function reject(RejectStepRequest $request, Project $project)
+    {
+        try {
+            $user = auth()->user();
+            $reason = $request->input('reason');
+            $attachmentPath = null;
+            if ($request->hasFile('attachment')) {
+                $attachmentPath = $this->storeAttachment($request->file('attachment'), $project);
+            }
+
+            $rejectedStep = $this->approvalService->rejectActiveStep($project, $user, $reason, $attachmentPath);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم رفض المشروع وإيقاف مسار الاعتمادات.',
+                    'approval' => $rejectedStep->fresh(['entity', 'reviewedByUser']),
+                    'returned_to_previous' => true,
+                    'project_status' => 'rejected',
+                ], 200);
+            }
+
+            return redirect()->route('projects.show', $project)->with('success', 'تم رفض المشروع.');
+        } catch (\Exception $e) {
+            Log::error('Reject step error', [
+                'project_id' => $project->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء الرفض: '.$e->getMessage(),
+                ], 422);
+            }
+
+            return back()->with('error', 'حدث خطأ أثناء الرفض: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Request completion (Roll back to creator entity or previous step)
+     */
+    public function requestAction(RequestCompletionRequest $request, Project $project)
+    {
+        try {
+            $user = auth()->user();
+            $reason = $request->input('reason');
+            $target = ReturnTarget::tryFrom($request->input('return_target')) ?? ReturnTarget::CreatorEntity;
+            $attachmentPath = null;
+            if ($request->hasFile('attachment')) {
+                $attachmentPath = $this->storeAttachment($request->file('attachment'), $project);
+            }
+
+            $result = $this->approvalService->requestCompletion($project, $user, $reason, $target, $attachmentPath);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $result['message'],
+                    'approval' => $result['returned_step'] ? $result['returned_step']->fresh(['entity', 'reviewedByUser']) : null,
+                    'target' => $result['target'],
+                    'returned_to_previous' => true,
+                    'project_status' => $result['project_status'],
+                ], 200);
+            }
+
+            return redirect()->route('projects.show', $project)->with('success', $result['message']);
+        } catch (\Exception $e) {
+            Log::error('Request action error', [
+                'project_id' => $project->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء طلب الاستكمال: '.$e->getMessage(),
+                ], 422);
+            }
+
+            return back()->with('error', 'حدث خطأ أثناء طلب الاستكمال: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Resubmit project from rolled_back_for_review
+     */
+    public function resubmit(ResubmitProjectRequest $request, Project $project)
+    {
+        try {
+            $user = auth()->user();
+            $notes = $request->input('notes');
+            $attachmentPath = null;
+            if ($request->hasFile('attachment')) {
+                $attachmentPath = $this->storeAttachment($request->file('attachment'), $project);
+            }
+
+            $resubmittedStep = $this->approvalService->resubmitProject($project, $user, $notes, $attachmentPath);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تمت إعادة تقديم المشروع بنجاح بعد استكمال المطلوب.',
+                    'approval' => $resubmittedStep->fresh(['entity', 'reviewedByUser']),
+                    'project_status' => 'pending_approval',
+                ], 200);
+            }
+
+            return redirect()->route('projects.show', $project)->with('success', 'تمت إعادة تقديم المشروع بنجاح.');
+        } catch (\Exception $e) {
+            Log::error('Resubmit project error', [
+                'project_id' => $project->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء إعادة التقديم: '.$e->getMessage(),
+                ], 422);
+            }
+
+            return back()->with('error', 'حدث خطأ أثناء إعادة التقديم: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Record Consultation / Referral
+     */
+    public function submitReferral(RecordConsultationRequest $request, Project $project)
+    {
+        try {
+            $user = auth()->user();
+            $referredEntityId = (int) $request->input('referred_entity_id');
+            $referralText = $request->input('referral_text');
+            $attachments = [];
+
+            if ($request->hasFile('attachments')) {
+                foreach ($request->file('attachments') as $file) {
+                    if ($file->isValid()) {
+                        $attachments[] = $this->storeAttachment($file, $project);
+                    }
+                }
+            }
+
+            // Ensure there isn't already a pending referral to this entity
+            $existing = ProjectReferral::where('project_id', $project->id)
+                ->where('referred_entity_id', $referredEntityId)
+                ->where('status', 'pending')
+                ->exists();
+
+            if ($existing) {
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json(['success' => false, 'message' => 'توجد استشارة قيد الانتظار لهذه الجهة.'], 422);
+                }
+
+                return back()->with('error', 'توجد استشارة قيد الانتظار لهذه الجهة.');
+            }
+
+            $referral = $this->approvalService->recordConsultation(
+                $project,
+                $user,
+                $referredEntityId,
+                $referralText,
+                count($attachments) > 0 ? $attachments : null
+            );
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'تم تسجيل الاستشارة/الإحالة بنجاح دون تغيير المرحلة النشطة.',
+                    'referral' => $referral->fresh(['referringEntity', 'referredEntity', 'referringUser']),
+                ], 201);
+            }
+
+            return redirect()->route('approvals.show', $project)->with('success', 'تم إرسال طلب الاستشارة بنجاح.');
+        } catch (\Exception $e) {
+            Log::error('Submit referral error', [
+                'project_id' => $project->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'حدث خطأ أثناء تسجيل الاستشارة: '.$e->getMessage(),
+                ], 422);
+            }
+
+            return back()->with('error', 'حدث خطأ أثناء تسجيل الاستشارة: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Update restricted/administrative fields during approval
+     */
+    public function updateRestrictedFields(Request $request, Project $project): JsonResponse
+    {
+        try {
+            $project->update($request->only([
+                'notes',
+                'supervising_authority_id',
+                'executing_entity_id',
+            ]));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تحديث البيانات بنجاح.',
+                'project' => $project->fresh(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء تحديث البيانات: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Handle project approval submission (Legacy Compatibility Wrapper)
      */
     public function approveProject(Request $request, Project $project): JsonResponse
     {
-        // Validation rules - notes are mandatory for requires_action and rejected
         $rules = [
-            'drop' => 'required|string',
-            'entity_id' => 'required|integer|exists:internal_entities,id',
-            'status' => 'required|in:approved,need_action,rejected,resubmitted,financial_technical_review',
+            'drop' => 'nullable|string',
+            'entity_id' => 'nullable|integer|exists:internal_entities,id',
+            'status' => 'required|in:approved,need_action,rejected,resubmitted',
             'notes' => 'nullable|string',
+            'reason' => 'nullable|string',
             'attachment' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,ppt,pptx,xls,xlsx,txt,csv|max:20480',
         ];
 
-        // Make notes required for need_action and rejected
         if (in_array($request->status, ['need_action', 'rejected'])) {
-            $rules['notes'] = 'required|string|min:10';
+            $rules['notes'] = 'required_without:reason|nullable|string|min:10';
+            $rules['reason'] = 'required_without:notes|nullable|string|min:10';
         }
 
         $validator = Validator::make($request->all(), $rules, [
-            'notes.required' => 'السبب إلزامي عند اختيار حالة "يتطلب إجراء" أو "مرفوض"',
+            'notes.required_without' => 'السبب إلزامي عند اختيار حالة "يتطلب إجراء" أو "مرفوض"',
+            'reason.required_without' => 'السبب إلزامي عند اختيار حالة "يتطلب إجراء" أو "مرفوض"',
             'notes.min' => 'يجب أن يكون السبب 10 أحرف على الأقل',
+            'reason.min' => 'يجب أن يكون السبب 10 أحرف على الأقل',
         ]);
 
         if ($validator->fails()) {
@@ -88,149 +469,64 @@ class ProjectApprovalController extends Controller
         }
 
         try {
-            DB::beginTransaction();
-
-            $drop = $request->drop;
-            $entityId = $request->entity_id;
             $status = $request->status;
-            $notes = $request->notes;
-            $currentUserId = auth()->id();
+            $notes = $request->input('notes') ?? $request->input('reason');
+            $user = auth()->user();
 
-            // Retrieve the entity and its approval chain
-            $entity = InternalEntity::find($entityId);
-            $approvalChain = $entity ? $entity->getApprovalChainToRoot()->pluck('id')->toArray() : [];
-            // You may store $approvalChain for further processing if needed
-
-            // Find or create the project approval
-            $projectApproval = ProjectApproval::where('project_id', $project->id)
-                ->where('drop', $drop)
-                ->first();
-
-            // Fallback for older records where 'drop' was stored as entity name
-            if (! $projectApproval && str_starts_with($drop, 'entity_')) {
-                $entityIdFromDrop = str_replace('entity_', '', $drop);
-                $entity = InternalEntity::find($entityIdFromDrop);
-                if ($entity) {
-                    $projectApproval = ProjectApproval::where('project_id', $project->id)
-                        ->where('drop', $entity->name)
-                        ->first();
-
-                    if ($projectApproval) {
-                        $projectApproval->update(['drop' => $drop]);
-                        Log::info('Migrated project approval drop from name to ID-based format', [
-                            'approval_id' => $projectApproval->id,
-                            'old_drop' => $entity->name,
-                            'new_drop' => $drop,
-                        ]);
-                    }
-                }
-            }
-
-            // If approval record doesn't exist, create it
-            if (! $projectApproval) {
-                Log::info('Creating new approval record for stage', [
-                    'project_id' => $project->id,
-                    'drop' => $drop,
-                    'entity_id' => $entityId,
-                ]);
-
-                // Get the step order for this stage
-                $stepOrder = $this->getStepOrder($drop, $project);
-
-                $projectApproval = ProjectApproval::create([
-                    'project_id' => $project->id,
-                    'drop' => $drop,
-                    'entity_id' => $entityId,
-                    'status' => 'pending',
-                    'step_order' => $stepOrder,
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
-
-                Log::info('Created new approval record', [
-                    'approval_id' => $projectApproval->id,
-                    'project_id' => $project->id,
-                    'drop' => $drop,
-                ]);
-            }
-
-            // Handle attachment
             $attachmentPath = null;
             if ($request->hasFile('attachment')) {
                 $attachmentPath = $this->storeAttachment($request->file('attachment'), $project);
             }
 
-            // Handle each status using the new enhanced workflow methods
             if ($status === 'approved') {
-                // Approved: Progress to next stage without requiring comments
-                $this->handleApprovedStatus($projectApproval, $currentUserId, $notes, $attachmentPath);
-
-                DB::commit();
-
-                // Refresh the project to get the updated status after progressToNextStage
+                $result = $this->approvalService->approveActiveStep($project, $user, $notes, $attachmentPath);
                 $project->refresh();
 
-                // Determine the next stage drop identifier for UI auto‑selection
-                $nextStageDrop = $this->getNextStage($projectApproval->drop, $project);
-
                 return response()->json([
                     'success' => true,
-                    'message' => 'تم الموافقة على المشروع بنجاح والانتقال للمرحلة التالية.',
-                    'approval' => $projectApproval->fresh(['entity', 'reviewedByUser']),
-                    'next_drop' => $nextStageDrop,
-                    'project_status' => $project->status, // 'in_execution' when all approvals done
+                    'message' => $result['message'] ?? 'تمت الموافقة على المشروع بنجاح والانتقال للمرحلة التالية.',
+                    'approval' => $result['approved_step'] ? $result['approved_step']->fresh(['entity', 'reviewedByUser']) : null,
+                    'next_drop' => $result['next_step'] ? $result['next_step']->drop : null,
+                    'project_status' => $result['project_status'] ?? $project->status,
                 ], 200);
 
-            } elseif ($status === 'financial_technical_review') {
-                // Financial & Technical Review: Send to both reviewers simultaneously
-                $this->handleFinancialTechnicalReview($projectApproval, $currentUserId, $notes, $attachmentPath);
-
-                DB::commit();
+            } elseif ($status === 'rejected') {
+                $rejectedStep = $this->approvalService->rejectActiveStep($project, $user, $notes, $attachmentPath);
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'تم إرسال المشروع للمراجعة المالية والفنية بنجاح.',
-                    'approval' => $projectApproval->fresh(['entity', 'reviewedByUser']),
+                    'message' => 'تم رفض المشروع وإرجاعه إلى المرحلة السابقة.',
+                    'approval' => $rejectedStep->fresh(['entity', 'reviewedByUser']),
+                    'returned_to_previous' => true,
                 ], 200);
 
-            } elseif (in_array($status, ['need_action', 'rejected'])) {
-                // Requires Action / Rejected: Return to previous stage with mandatory reason
-                $this->handleRequiresActionOrRejected($projectApproval, $currentUserId, $status, $notes, $attachmentPath);
-
-                DB::commit();
-
-                $message = $status === 'need_action'
-                    ? 'تم طلب إجراء على المشروع وإرجاعه إلى المرحلة السابقة.'
-                    : 'تم رفض المشروع وإرجاعه إلى المرحلة السابقة.';
+            } elseif ($status === 'need_action') {
+                $result = $this->approvalService->requestCompletion($project, $user, $notes, ReturnTarget::CreatorEntity, $attachmentPath);
 
                 return response()->json([
                     'success' => true,
-                    'message' => $message,
-                    'approval' => $projectApproval->fresh(['entity', 'reviewedByUser']),
+                    'message' => 'تم طلب إجراء على المشروع وإرجاعه إلى المرحلة السابقة.',
+                    'approval' => $result['returned_step'] ? $result['returned_step']->fresh(['entity', 'reviewedByUser']) : null,
                     'returned_to_previous' => true,
                 ], 200);
 
             } elseif ($status === 'resubmitted') {
-                // Resubmit: Return to stage that requested action
-                $this->handleResubmit($projectApproval, $currentUserId, $notes, $attachmentPath);
-
-                DB::commit();
+                $resubmittedStep = $this->approvalService->resubmitProject($project, $user, $notes, $attachmentPath);
 
                 return response()->json([
                     'success' => true,
                     'message' => 'تم إعادة تقديم المشروع بنجاح.',
-                    'approval' => $projectApproval->fresh(['entity', 'reviewedByUser']),
+                    'approval' => $resubmittedStep->fresh(['entity', 'reviewedByUser']),
                 ], 200);
             }
 
-        } catch (\Exception $e) {
-            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'حالة غير مدعومة.'], 422);
 
-            Log::error('Project approval error', [
+        } catch (\Exception $e) {
+            Log::error('Legacy approveProject error', [
                 'project_id' => $project->id,
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -238,228 +534,6 @@ class ProjectApprovalController extends Controller
                 'message' => 'حدث خطأ أثناء معالجة الموافقة: '.$e->getMessage(),
             ], 500);
         }
-    }
-
-    /**
-     * Handle Approved Status
-     * - Progress to next stage without requiring notes
-     * - Automatically log with username and timestamp
-     * - Update project_activity_history
-     */
-    private function handleApprovedStatus(ProjectApproval $approval, int $userId, ?string $notes = null, ?string $attachmentPath = null): void
-    {
-        $user = User::find($userId);
-        $userName = $user ? $user->name : 'مستخدم غير معروف';
-        $timestamp = Carbon::now();
-
-        // Update approval record
-        $approval->update([
-            'status' => 'approved',
-            'notes' => $notes ?: "تمت الموافقة تلقائياً بواسطة {$userName}",
-            'attachment' => $attachmentPath,
-            'reviewed_at' => $timestamp,
-            'reviewed_by' => $userId,
-        ]);
-
-        // Log activity in project_activity_history with automatic message
-        $this->logActivity(
-            $approval->project_id,
-            $userId,
-            'approval',
-            'approved',
-            $notes ?: 'تمت الموافقة والانتقال للمرحلة التالية تلقائياً',
-            [
-                'entity_id' => $approval->entity_id,
-                'drop' => $approval->drop,
-                'drop_arabic' => $this->getDropArabic($approval->drop),
-                'stage' => $this->getStageFromDrop($approval->drop),
-                'attachment' => $attachmentPath,
-                'user_name' => $userName,
-                'timestamp' => $timestamp->format('Y-m-d H:i:s'),
-                'automatic_progression' => true,
-            ]
-        );
-
-        // Progress to next stage automatically
-        $this->progressToNextStage($approval);
-    }
-
-    /**
-     * Handle Financial & Technical Review
-     * - Send to both financial and technical reviewers simultaneously
-     * - No notes or attachments required during transfer
-     * - Project stays in same stage until both reviews completed
-     */
-    private function handleFinancialTechnicalReview(ProjectApproval $approval, int $userId, ?string $notes = null, ?string $attachmentPath = null): void
-    {
-        $user = User::find($userId);
-        $userName = $user ? $user->name : 'مستخدم غير معروف';
-        $timestamp = Carbon::now();
-
-        // Update approval record - assign both reviewers simultaneously
-        $approval->update([
-            'status' => 'financial_technical_review',
-            'notes' => $notes ?: "تم إرسال المشروع للمراجعة المالية والفنية المتزامنة بواسطة {$userName}",
-            'attachment' => $attachmentPath,
-            'reviewed_at' => $timestamp,
-            'reviewed_by' => $userId,
-            'financial_review_status' => 'pending',
-            'technical_review_status' => 'pending',
-            'financial_reviewer_id' => null,
-            'technical_reviewer_id' => null,
-            'is_completed' => false,
-        ]);
-
-        // Also update project status to financial_technical_review
-        if ($approval->project) {
-            $approval->project->update([
-                'status' => 'financial_technical_review',
-            ]);
-        }
-
-        // Log activity in project_activity_history
-        $this->logActivity(
-            $approval->project_id,
-            $userId,
-            'approval',
-            'financial_technical_review',
-            $notes ?: 'تم إرسال المشروع للمراجعة المالية والفنية بشكل متزامن. المشروع سيبقى في نفس المرحلة حتى يكمل كلا المراجعين مهامهم.',
-            [
-                'entity_id' => $approval->entity_id,
-                'drop' => $approval->drop,
-                'drop_arabic' => $this->getDropArabic($approval->drop),
-                'stage' => $this->getStageFromDrop($approval->drop),
-                'attachment' => $attachmentPath,
-                'user_name' => $userName,
-                'timestamp' => $timestamp->format('Y-m-d H:i:s'),
-                'simultaneous_review' => true,
-                'financial_status' => 'pending',
-                'technical_status' => 'pending',
-            ]
-        );
-
-        // Project remains in same stage - no progression until both reviews complete
-        Log::info('Financial and Technical Review initiated', [
-            'project_id' => $approval->project_id,
-            'approval_id' => $approval->id,
-            'initiated_by' => $userName,
-            'stage' => $this->getStageFromDrop($approval->drop),
-        ]);
-    }
-
-    /**
-     * Handle Requires Action / Rejected Status
-     * - Notes are mandatory (enforced in validation)
-     * - Return to previous stage automatically
-     * - Block progression until action is taken
-     */
-    private function handleRequiresActionOrRejected(ProjectApproval $approval, int $userId, string $status, string $notes, ?string $attachmentPath = null): void
-    {
-        $user = User::find($userId);
-        $userName = $user ? $user->name : 'مستخدم غير معروف';
-        $timestamp = Carbon::now();
-
-        $statusArabic = $status === 'need_action' ? 'يحتاج إلى إجراء' : 'مرفوض';
-
-        // Update approval record
-        $approval->update([
-            'status' => $status,
-            'notes' => $notes,
-            'attachment' => $attachmentPath,
-            'reviewed_at' => $timestamp,
-            'reviewed_by' => $userId,
-        ]);
-
-        // Log activity in project_activity_history with detailed information
-        $this->logActivity(
-            $approval->project_id,
-            $userId,
-            'approval',
-            $status,
-            $notes,
-            [
-                'entity_id' => $approval->entity_id,
-                'drop' => $approval->drop,
-                'drop_arabic' => $this->getDropArabic($approval->drop),
-                'stage' => $this->getStageFromDrop($approval->drop),
-                'attachment' => $attachmentPath,
-                'action_required' => $status === 'need_action',
-                'user_name' => $userName,
-                'timestamp' => $timestamp->format('Y-m-d H:i:s'),
-                'status_arabic' => $statusArabic,
-                'automatic_return' => true,
-            ]
-        );
-
-        // Return to previous stage automatically
-        $this->returnToPreviousStage($approval);
-
-        Log::info('Project returned to previous stage', [
-            'project_id' => $approval->project_id,
-            'status' => $status,
-            'returned_by' => $userName,
-            'reason' => $notes,
-        ]);
-    }
-
-    /**
-     * Handle Resubmit Status
-     * - Return to the stage that requested action
-     * - Optional notes and attachments
-     */
-    private function handleResubmit(ProjectApproval $approval, int $userId, ?string $notes = null, ?string $attachmentPath = null): void
-    {
-        // Find the stage that requested action
-        $actionRequiredStage = $this->findActionRequiredStage($approval->project_id);
-
-        if ($actionRequiredStage) {
-            // Update the stage that requested action
-            $actionRequiredStage->update([
-                'status' => 'pending',
-                'notes' => $notes,
-                'attachment' => $attachmentPath,
-                'reviewed_at' => null,
-                'reviewed_by' => null,
-            ]);
-        }
-
-        // Update current approval
-        $approval->update([
-            'status' => 'resubmitted',
-            'notes' => $notes,
-            'attachment' => $attachmentPath,
-            'reviewed_at' => Carbon::now(),
-            'reviewed_by' => $userId,
-        ]);
-
-        // Sync to Empowerment Department if needed
-        try {
-            $this->projectService->syncProjectToEmpowermentDepartment($approval->project);
-        } catch (\Exception $e) {
-            Log::error('Failed to sync to empowerment on resubmit', ['error' => $e->getMessage()]);
-        }
-
-        // Log activity
-        $this->logActivity(
-            $approval->project_id,
-            $userId,
-            'approval',
-            'resubmitted',
-            $notes,
-            [
-                'entity_id' => $approval->entity_id,
-                'drop' => $approval->drop,
-                'drop_arabic' => $this->getDropArabic($approval->drop),
-                'stage' => $this->getStageFromDrop($approval->drop),
-                'resubmitted_to_stage' => $actionRequiredStage ? $actionRequiredStage->drop : null,
-                'attachment' => $attachmentPath,
-            ]
-        );
-    }
-
-    private function createReviewTasks(ProjectApproval $approval): void
-    {
-        // Simultaneous reviews are managed by project_approval columns
     }
 
     /**
@@ -576,35 +650,53 @@ class ProjectApprovalController extends Controller
                 $attachmentPath = $this->storeAttachment($request->file('attachment'), $project);
             }
 
-            // Update preliminary costs if submitted
+            // Update preliminary costs if submitted (Financial reviewer can ONLY modify costs)
             if ($request->has('preliminary_costs') && is_array($request->preliminary_costs)) {
                 foreach ($request->preliminary_costs as $costId => $data) {
-                    $cost = PreliminaryCost::find($costId);
+                    $cost = PreliminaryCost::withoutGlobalScopes()->find($costId);
                     if ($cost) {
                         $qty = (float) ($data['quantity'] ?? $cost->quantity);
-                        $price = (float) ($data['unit_price'] ?? $cost->unit_price);
+                        $price = (float) ($data['unit_price'] ?? $data['amount'] ?? $cost->amount ?? $cost->unit_price ?? 0);
                         $cost->update([
                             'quantity' => $qty,
-                            'unit_price' => $price,
-                            'total_cost' => $qty * $price,
+                            'amount' => $price,
+                            'total' => $qty * $price,
                         ]);
                     }
                 }
             }
 
-            // Update executive costs if submitted
+            // Update executive costs if submitted (Financial reviewer can ONLY modify costs)
             if ($request->has('executive_costs') && is_array($request->executive_costs)) {
                 foreach ($request->executive_costs as $costId => $data) {
-                    $cost = ExecutiveActionCost::find($costId);
+                    $cost = ExecutiveActionCost::withoutGlobalScopes()->find($costId);
                     if ($cost) {
                         $qty = (float) ($data['quantity'] ?? $cost->quantity);
-                        $price = (float) ($data['unit_price'] ?? $cost->unit_price);
+                        $price = (float) ($data['unit_price'] ?? $data['amount'] ?? $cost->amount ?? $cost->unit_price ?? 0);
                         $cost->update([
                             'quantity' => $qty,
-                            'unit_price' => $price,
-                            'total_cost' => $qty * $price,
+                            'amount' => $price,
+                            'total' => $qty * $price,
                         ]);
                     }
+                }
+            }
+
+            // Recalculate project total cost after financial review modifications
+            $preliminaryTotal = (float) PreliminaryCost::withoutGlobalScopes()->where('project_id', $project->id)->sum('total');
+            $executiveTotal = (float) ExecutiveActionCost::withoutGlobalScopes()->where('project_id', $project->id)->sum('total');
+            $newTotalCost = $preliminaryTotal + $executiveTotal;
+            if ($newTotalCost > 0) {
+                if ($project->cost) {
+                    $project->cost->update(['total_cost' => $newTotalCost]);
+                } else {
+                    ProjectCost::create([
+                        'project_id' => $project->id,
+                        'total_cost' => $newTotalCost,
+                        'year_type' => 'gregorian',
+                        'approval_date_hijri' => '1447-01-01',
+                        'approval_year_gregorian' => 2026,
+                    ]);
                 }
             }
 
@@ -640,7 +732,7 @@ class ProjectApprovalController extends Controller
                 $userId,
                 'financial_review',
                 $status,
-                $notes ?? 'تمت المراجعة المالية بنجاح',
+                $notes ?? 'طھظ…طھ ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظ…ط§ظ„ظٹط© ط¨ظ†ط¬ط§ط­',
                 [
                     'approval_id' => $approval?->id,
                     'attachment' => $attachmentPath,
@@ -652,13 +744,13 @@ class ProjectApprovalController extends Controller
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'تم تقديم المراجعة المالية بنجاح.',
+                    'message' => 'طھظ… طھظ‚ط¯ظٹظ… ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظ…ط§ظ„ظٹط© ط¨ظ†ط¬ط§ط­.',
                     'both_completed' => $bothCompleted,
                     'overall_status' => ($approval && $bothCompleted) ? $this->determineOverallReviewStatus($approval) : null,
                 ]);
             }
 
-            return redirect()->route('projects.index')->with('success', 'تم تقديم المراجعة المالية بنجاح.');
+            return redirect()->route('projects.index')->with('success', 'طھظ… طھظ‚ط¯ظٹظ… ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظ…ط§ظ„ظٹط© ط¨ظ†ط¬ط§ط­.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -671,11 +763,11 @@ class ProjectApprovalController extends Controller
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'حدث خطأ أثناء تقديم المراجعة المالية: '.$e->getMessage(),
+                    'message' => 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، طھظ‚ط¯ظٹظ… ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظ…ط§ظ„ظٹط©: '.$e->getMessage(),
                 ], 500);
             }
 
-            return back()->with('error', 'حدث خطأ أثناء تقديم المراجعة المالية: '.$e->getMessage());
+            return back()->with('error', 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، طھظ‚ط¯ظٹظ… ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظ…ط§ظ„ظٹط©: '.$e->getMessage());
         }
     }
 
@@ -719,29 +811,33 @@ class ProjectApprovalController extends Controller
                 $attachmentPath = $this->storeAttachment($request->file('attachment'), $project);
             }
 
-            // Update preliminary activities
+            // Update preliminary activities (Technical reviewer can modify activities/procedures)
             if ($request->has('preliminary_activities') && is_array($request->preliminary_activities)) {
                 foreach ($request->preliminary_activities as $actId => $data) {
-                    $activity = PreliminaryActivity::find($actId);
-                    if ($activity && isset($data['activity'])) {
-                        $activity->update(['activity' => $data['activity']]);
+                    $activity = PreliminaryActivity::withoutGlobalScopes()->find($actId);
+                    if ($activity) {
+                        $name = $data['name'] ?? $data['activity'] ?? null;
+                        if (! empty($name)) {
+                            $activity->update(['name' => $name]);
+                        }
                     }
                 }
             }
 
-            // Update preliminary procedures
+            // Update preliminary procedures (Technical reviewer can modify procedures and timelines)
             if ($request->has('preliminary_procedures') && is_array($request->preliminary_procedures)) {
                 foreach ($request->preliminary_procedures as $procId => $data) {
-                    $procedure = PreliminaryProcedure::find($procId);
+                    $procedure = PreliminaryProcedure::withoutGlobalScopes()->find($procId);
                     if ($procedure) {
                         $updateData = [];
-                        if (isset($data['procedure'])) {
-                            $updateData['procedure'] = $data['procedure'];
+                        $procName = $data['procedure_name'] ?? $data['procedure'] ?? null;
+                        if (! empty($procName)) {
+                            $updateData['procedure_name'] = $procName;
                         }
-                        if (isset($data['start_date'])) {
+                        if (! empty($data['start_date'])) {
                             $updateData['start_date'] = $data['start_date'];
                         }
-                        if (isset($data['end_date'])) {
+                        if (! empty($data['end_date'])) {
                             $updateData['end_date'] = $data['end_date'];
                         }
 
@@ -750,37 +846,45 @@ class ProjectApprovalController extends Controller
                             $end = Carbon::parse($updateData['end_date']);
                             $updateData['duration_days'] = max(0, $end->diffInDays($start));
                         }
-                        $procedure->update($updateData);
+                        if (! empty($updateData)) {
+                            $procedure->update($updateData);
+                        }
                     }
                 }
             }
 
-            // Update executive activities
+            // Update executive activities (Technical reviewer can modify activities)
             if ($request->has('executive_activities') && is_array($request->executive_activities)) {
                 foreach ($request->executive_activities as $actId => $data) {
-                    $activity = ExecutiveActivity::find($actId);
-                    if ($activity && isset($data['activity_name'])) {
-                        $activity->update(['activity_name' => $data['activity_name']]);
+                    $activity = ExecutiveActivity::withoutGlobalScopes()->find($actId);
+                    if ($activity) {
+                        $actName = $data['name'] ?? $data['activity_name'] ?? null;
+                        if (! empty($actName)) {
+                            $activity->update(['name' => $actName]);
+                        }
                     }
                 }
             }
 
-            // Update executive actions
+            // Update executive actions (Technical reviewer can modify actions and timelines)
             if ($request->has('executive_actions') && is_array($request->executive_actions)) {
                 foreach ($request->executive_actions as $actId => $data) {
-                    $action = ExecutiveActivityAction::find($actId);
+                    $action = ExecutiveActivityAction::withoutGlobalScopes()->find($actId);
                     if ($action) {
                         $updateData = [];
-                        if (isset($data['action_name'])) {
-                            $updateData['action_name'] = $data['action_name'];
+                        $actionName = $data['action'] ?? $data['action_name'] ?? null;
+                        if (! empty($actionName)) {
+                            $updateData['action'] = $actionName;
                         }
-                        if (isset($data['start_date'])) {
+                        if (! empty($data['start_date'])) {
                             $updateData['start_date'] = $data['start_date'];
                         }
-                        if (isset($data['end_date'])) {
+                        if (! empty($data['end_date'])) {
                             $updateData['end_date'] = $data['end_date'];
                         }
-                        $action->update($updateData);
+                        if (! empty($updateData)) {
+                            $action->update($updateData);
+                        }
 
                         if (isset($data['responsible_entity'])) {
                             $assigned = $action->assignedEntities()->first();
@@ -791,6 +895,7 @@ class ProjectApprovalController extends Controller
                     }
                 }
             }
+            // Note: Costs (preliminary_costs, executive_costs) are strictly NOT updated during technical review.
 
             if ($approval) {
                 // Update technical review status
@@ -824,7 +929,7 @@ class ProjectApprovalController extends Controller
                 $userId,
                 'technical_review',
                 $status,
-                $notes ?? 'تمت المراجعة الفنية بنجاح',
+                $notes ?? 'طھظ…طھ ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظپظ†ظٹط© ط¨ظ†ط¬ط§ط­',
                 [
                     'approval_id' => $approval?->id,
                     'attachment' => $attachmentPath,
@@ -836,13 +941,13 @@ class ProjectApprovalController extends Controller
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'تم تقديم المراجعة الفنية بنجاح.',
+                    'message' => 'طھظ… طھظ‚ط¯ظٹظ… ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظپظ†ظٹط© ط¨ظ†ط¬ط§ط­.',
                     'both_completed' => $bothCompleted,
                     'overall_status' => ($approval && $bothCompleted) ? $this->determineOverallReviewStatus($approval) : null,
                 ]);
             }
 
-            return redirect()->route('projects.index')->with('success', 'تم تقديم المراجعة الفنية بنجاح.');
+            return redirect()->route('projects.index')->with('success', 'طھظ… طھظ‚ط¯ظٹظ… ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظپظ†ظٹط© ط¨ظ†ط¬ط§ط­.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -855,11 +960,11 @@ class ProjectApprovalController extends Controller
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'حدث خطأ أثناء تقديم المراجعة الفنية: '.$e->getMessage(),
+                    'message' => 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، طھظ‚ط¯ظٹظ… ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظپظ†ظٹط©: '.$e->getMessage(),
                 ], 500);
             }
 
-            return back()->with('error', 'حدث خطأ أثناء تقديم المراجعة الفنية: '.$e->getMessage());
+            return back()->with('error', 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، طھظ‚ط¯ظٹظ… ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظپظ†ظٹط©: '.$e->getMessage());
         }
     }
 
@@ -920,7 +1025,7 @@ class ProjectApprovalController extends Controller
             auth()->id(),
             'review_completion',
             $status,
-            'تم الانتهاء من المراجعة المالية والفنية',
+            'طھظ… ط§ظ„ط§ظ†طھظ‡ط§ط، ظ…ظ† ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظ…ط§ظ„ظٹط© ظˆط§ظ„ظپظ†ظٹط©',
             [
                 'approval_id' => $approval->id,
                 'financial_status' => $approval->financial_review_status,
@@ -963,8 +1068,8 @@ class ProjectApprovalController extends Controller
             $nextStepOrder = $nextStageData['order'] ?? 1;
 
             // If still null, try fallback extraction for legacy compatibility
-            if ($nextEntityId === null && str_starts_with($nextStage, 'entity_')) {
-                $nextEntityId = (int) str_replace('entity_', '', $nextStage);
+            if ($nextEntityId === null && preg_match('/^entity_(\d+)/', $nextStage, $matches) === 1) {
+                $nextEntityId = (int) $matches[1];
             }
 
             Log::info('Creating/updating next approval stage', [
@@ -1019,7 +1124,7 @@ class ProjectApprovalController extends Controller
                 auth()->id(),
                 'stage_progression',
                 'progressed',
-                'تم الانتقال إلى المرحلة التالية',
+                'طھظ… ط§ظ„ط§ظ†طھظ‚ط§ظ„ ط¥ظ„ظ‰ ط§ظ„ظ…ط±ط­ظ„ط© ط§ظ„طھط§ظ„ظٹط©',
                 [
                     'from_stage' => $currentApproval->drop,
                     'to_stage' => $nextStage,
@@ -1042,13 +1147,13 @@ class ProjectApprovalController extends Controller
                 ]);
 
                 // =====================================================
-                // 🔹 مزامنة جميع الجهات المرتبطة بالمشروع مع ERPNext
-                // قبل إرسال المشروع نفسه
+                // ًں”¹ ظ…ط²ط§ظ…ظ†ط© ط¬ظ…ظٹط¹ ط§ظ„ط¬ظ‡ط§طھ ط§ظ„ظ…ط±طھط¨ط·ط© ط¨ط§ظ„ظ…ط´ط±ظˆط¹ ظ…ط¹ ERPNext
+                // ظ‚ط¨ظ„ ط¥ط±ط³ط§ظ„ ط§ظ„ظ…ط´ط±ظˆط¹ ظ†ظپط³ظ‡
                 // =====================================================
                 $this->syncProjectEntities($targetProject);
 
                 // =====================================================
-                // 🔹 إرسال البيانات إلى ERPNext عند دخول مرحلة التنفيذ
+                // ًں”¹ ط¥ط±ط³ط§ظ„ ط§ظ„ط¨ظٹط§ظ†ط§طھ ط¥ظ„ظ‰ ERPNext ط¹ظ†ط¯ ط¯ط®ظˆظ„ ظ…ط±ط­ظ„ط© ط§ظ„طھظ†ظپظٹط°
                 // =====================================================
                 $this->createProjectInErpNext($targetProject);
             }
@@ -1059,13 +1164,13 @@ class ProjectApprovalController extends Controller
                 auth()->id(),
                 'project_completion',
                 'in_execution',
-                'اكتملت جميع مراحل الاعتماد — تم تحويل المشروع لمرحلة التنفيذ',
+                'ط§ظƒطھظ…ظ„طھ ط¬ظ…ظٹط¹ ظ…ط±ط§ط­ظ„ ط§ظ„ط§ط¹طھظ…ط§ط¯ â€” طھظ… طھط­ظˆظٹظ„ ط§ظ„ظ…ط´ط±ظˆط¹ ظ„ظ…ط±ط­ظ„ط© ط§ظ„طھظ†ظپظٹط°',
                 [
                     'final_stage' => $currentApproval->drop,
                 ]
             );
 
-            // Sync empowerment/ERPNext on transition to execution (إن وجد)
+            // Sync empowerment/ERPNext on transition to execution (ط¥ظ† ظˆط¬ط¯)
             try {
                 $this->projectService->syncProjectToEmpowermentDepartment($project);
             } catch (\Exception $e) {
@@ -1077,12 +1182,12 @@ class ProjectApprovalController extends Controller
     }
 
     /**
-     * مزامنة جميع الجهات المرتبطة بالمشروع مع ERPNext
-     * (البرنامج، المجال، المجال الفرعي، التدخل، السلطات، الكيانات المشاركة، المستفيدة، مصادر التمويل، ...)
+     * ظ…ط²ط§ظ…ظ†ط© ط¬ظ…ظٹط¹ ط§ظ„ط¬ظ‡ط§طھ ط§ظ„ظ…ط±طھط¨ط·ط© ط¨ط§ظ„ظ…ط´ط±ظˆط¹ ظ…ط¹ ERPNext
+     * (ط§ظ„ط¨ط±ظ†ط§ظ…ط¬طŒ ط§ظ„ظ…ط¬ط§ظ„طŒ ط§ظ„ظ…ط¬ط§ظ„ ط§ظ„ظپط±ط¹ظٹطŒ ط§ظ„طھط¯ط®ظ„طŒ ط§ظ„ط³ظ„ط·ط§طھطŒ ط§ظ„ظƒظٹط§ظ†ط§طھ ط§ظ„ظ…ط´ط§ط±ظƒط©طŒ ط§ظ„ظ…ط³طھظپظٹط¯ط©طŒ ظ…طµط§ط¯ط± ط§ظ„طھظ…ظˆظٹظ„طŒ ...)
      */
     protected function syncProjectEntities(Project $project): void
     {
-        // 1. البرنامج (Program)
+        // 1. ط§ظ„ط¨ط±ظ†ط§ظ…ط¬ (Program)
         if ($project->program_id) {
             $program = Program::find($project->program_id);
             if ($program) {
@@ -1090,7 +1195,7 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        // 2. المجال (Domain)
+        // 2. ط§ظ„ظ…ط¬ط§ظ„ (Domain)
         if ($project->domain_id) {
             $domain = Domain::find($project->domain_id);
             if ($domain) {
@@ -1098,7 +1203,7 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        // 3. المجال الفرعي (Subdomain)
+        // 3. ط§ظ„ظ…ط¬ط§ظ„ ط§ظ„ظپط±ط¹ظٹ (Subdomain)
         if ($project->subdomain_id) {
             $subdomain = Subdomain::find($project->subdomain_id);
             if ($subdomain) {
@@ -1106,7 +1211,7 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        // 4. التدخل (Intervention)
+        // 4. ط§ظ„طھط¯ط®ظ„ (Intervention)
         if ($project->intervention_id) {
             $intervention = Intervention::find($project->intervention_id);
             if ($intervention) {
@@ -1114,7 +1219,7 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        // 5. السلطات المشرفة (Supervising Authorities) - علاقة many-to-many
+        // 5. ط§ظ„ط³ظ„ط·ط§طھ ط§ظ„ظ…ط´ط±ظپط© (Supervising Authorities) - ط¹ظ„ط§ظ‚ط© many-to-many
         if (method_exists($project, 'supervisingAuthorities')) {
             foreach ($project->supervisingAuthorities as $authority) {
                 try {
@@ -1128,7 +1233,7 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        // 6. الكيانات المنفذة (Implementing Entities)
+        // 6. ط§ظ„ظƒظٹط§ظ†ط§طھ ط§ظ„ظ…ظ†ظپط°ط© (Implementing Entities)
         if (method_exists($project, 'implementingEntities')) {
             foreach ($project->implementingEntities as $entity) {
                 try {
@@ -1142,7 +1247,7 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        // 7. الكيانات المشاركة (Participating Entities)
+        // 7. ط§ظ„ظƒظٹط§ظ†ط§طھ ط§ظ„ظ…ط´ط§ط±ظƒط© (Participating Entities)
         if (method_exists($project, 'participatingEntities')) {
             foreach ($project->participatingEntities as $entity) {
                 try {
@@ -1156,7 +1261,7 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        // 8. الكيانات المستفيدة (Beneficiary Entities)
+        // 8. ط§ظ„ظƒظٹط§ظ†ط§طھ ط§ظ„ظ…ط³طھظپظٹط¯ط© (Beneficiary Entities)
         if (method_exists($project, 'beneficiaryEntities')) {
             foreach ($project->beneficiaryEntities as $entity) {
                 try {
@@ -1170,7 +1275,7 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        // 9. مصادر التمويل (Funding Sources) عبر علاقة التمويلات
+        // 9. ظ…طµط§ط¯ط± ط§ظ„طھظ…ظˆظٹظ„ (Funding Sources) ط¹ط¨ط± ط¹ظ„ط§ظ‚ط© ط§ظ„طھظ…ظˆظٹظ„ط§طھ
         if (method_exists($project, 'financings')) {
             foreach ($project->financings as $financing) {
                 if ($financing->fundingSource) {
@@ -1186,13 +1291,13 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        // 10. أي جهات داخلية أخرى مرتبطة مباشرة (إذا وجدت)
-        // مثال: إذا كان هناك علاقة project->internalEntity
-        // يمكنك إضافتها هنا
+        // 10. ط£ظٹ ط¬ظ‡ط§طھ ط¯ط§ط®ظ„ظٹط© ط£ط®ط±ظ‰ ظ…ط±طھط¨ط·ط© ظ…ط¨ط§ط´ط±ط© (ط¥ط°ط§ ظˆط¬ط¯طھ)
+        // ظ…ط«ط§ظ„: ط¥ط°ط§ ظƒط§ظ† ظ‡ظ†ط§ظƒ ط¹ظ„ط§ظ‚ط© project->internalEntity
+        // ظٹظ…ظƒظ†ظƒ ط¥ط¶ط§ظپطھظ‡ط§ ظ‡ظ†ط§
     }
 
     /**
-     * دالة عامة لمزامنة أي نموذج مع ERPNext ككيان
+     * ط¯ط§ظ„ط© ط¹ط§ظ…ط© ظ„ظ…ط²ط§ظ…ظ†ط© ط£ظٹ ظ†ظ…ظˆط°ط¬ ظ…ط¹ ERPNext ظƒظƒظٹط§ظ†
      *
      * @param  mixed  $model
      */
@@ -1216,7 +1321,7 @@ class ProjectApprovalController extends Controller
             'is_active' => 1,
         ];
 
-        // يمكن إضافة حقول إضافية حسب الحاجة
+        // ظٹظ…ظƒظ† ط¥ط¶ط§ظپط© ط­ظ‚ظˆظ„ ط¥ط¶ط§ظپظٹط© ط­ط³ط¨ ط§ظ„ط­ط§ط¬ط©
         if (property_exists($model, 'description') && $model->description) {
             $data['description'] = $model->description;
         }
@@ -1238,24 +1343,24 @@ class ProjectApprovalController extends Controller
     }
 
     /**
-     * إنشاء/إرسال بيانات المشروع إلى ERPNext عند دخوله مرحلة التنفيذ (تلقائياً)
+     * ط¥ظ†ط´ط§ط،/ط¥ط±ط³ط§ظ„ ط¨ظٹط§ظ†ط§طھ ط§ظ„ظ…ط´ط±ظˆط¹ ط¥ظ„ظ‰ ERPNext ط¹ظ†ط¯ ط¯ط®ظˆظ„ظ‡ ظ…ط±ط­ظ„ط© ط§ظ„طھظ†ظپظٹط° (طھظ„ظ‚ط§ط¦ظٹط§ظ‹)
      */
     private function createProjectInErpNext(Project $project): void
     {
-        // في مرحلة التنفيذ نريد إرسال التحديث إلى ERPNext (PUT) حتى وإن تم إرساله مسبقاً كمسودة
+        // ظپظٹ ظ…ط±ط­ظ„ط© ط§ظ„طھظ†ظپظٹط° ظ†ط±ظٹط¯ ط¥ط±ط³ط§ظ„ ط§ظ„طھط­ط¯ظٹط« ط¥ظ„ظ‰ ERPNext (PUT) ط­طھظ‰ ظˆط¥ظ† طھظ… ط¥ط±ط³ط§ظ„ظ‡ ظ…ط³ط¨ظ‚ط§ظ‹ ظƒظ…ط³ظˆط¯ط©
         if (! empty($project->erpnext_project_id)) {
-            Log::info('المشروع يمتلك معرف في ERPNext مسبقاً، سيتم تحديث بياناته لمرحلة التنفيذ.', [
+            Log::info('ط§ظ„ظ…ط´ط±ظˆط¹ ظٹظ…طھظ„ظƒ ظ…ط¹ط±ظپ ظپظٹ ERPNext ظ…ط³ط¨ظ‚ط§ظ‹طŒ ط³ظٹطھظ… طھط­ط¯ظٹط« ط¨ظٹط§ظ†ط§طھظ‡ ظ„ظ…ط±ط­ظ„ط© ط§ظ„طھظ†ظپظٹط°.', [
                 'project_id' => $project->id,
                 'erpnext_project_id' => $project->erpnext_project_id,
             ]);
         }
 
-        // 3. التحقق من البيانات المطلوبة قبل تنفيذ POST
+        // 3. ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„ط¨ظٹط§ظ†ط§طھ ط§ظ„ظ…ط·ظ„ظˆط¨ط© ظ‚ط¨ظ„ طھظ†ظپظٹط° POST
         if (empty($project->project_name)) {
-            $errorMsg = 'بيانات المشروع غير مكتملة (الاسم مفقود). لم يتم الإرسال إلى ERPNext.';
+            $errorMsg = 'ط¨ظٹط§ظ†ط§طھ ط§ظ„ظ…ط´ط±ظˆط¹ ط؛ظٹط± ظ…ظƒطھظ…ظ„ط© (ط§ظ„ط§ط³ظ… ظ…ظپظ‚ظˆط¯). ظ„ظ… ظٹطھظ… ط§ظ„ط¥ط±ط³ط§ظ„ ط¥ظ„ظ‰ ERPNext.';
             Log::warning($errorMsg, ['project_id' => $project->id]);
 
-            // 6. الاحتفاظ بسجل الخطأ
+            // 6. ط§ظ„ط§ط­طھظپط§ط¸ ط¨ط³ط¬ظ„ ط§ظ„ط®ط·ط£
             $project->update([
                 'sync_status' => 'failed',
                 'frappe_sync_status' => 'failed',
@@ -1266,12 +1371,12 @@ class ProjectApprovalController extends Controller
         }
 
         try {
-            // 1. استدعاء دالة الإرسال (POST)
+            // 1. ط§ط³طھط¯ط¹ط§ط، ط¯ط§ظ„ط© ط§ظ„ط¥ط±ط³ط§ظ„ (POST)
             $frappeResult = $this->frappeService->sendProjectOnExecution($project, true);
 
             $frappeProjectId = $frappeResult['data']['name'] ?? $frappeResult['name'] ?? null;
 
-            // 5. حفظ حالة المزامنة للنجاح
+            // 5. ط­ظپط¸ ط­ط§ظ„ط© ط§ظ„ظ…ط²ط§ظ…ظ†ط© ظ„ظ„ظ†ط¬ط§ط­
             $project->update([
                 'frappe_synced_at' => now(),
                 'frappe_project_id' => $frappeProjectId,
@@ -1281,25 +1386,25 @@ class ProjectApprovalController extends Controller
                 'sync_status' => 'synced',
                 'synced_to_erpnext_at' => now(),
                 'execution_started_at' => now(),
-                'sync_error' => null, // مسح الأخطاء السابقة إن وجدت
+                'sync_error' => null, // ظ…ط³ط­ ط§ظ„ط£ط®ط·ط§ط، ط§ظ„ط³ط§ط¨ظ‚ط© ط¥ظ† ظˆط¬ط¯طھ
             ]);
 
-            // 4. تسجيل رسالة نجاح تحتوي على معرف المشروع وحالة الإرسال
-            Log::info('تم إرسال المشروع إلى ERPNext بنجاح', [
+            // 4. طھط³ط¬ظٹظ„ ط±ط³ط§ظ„ط© ظ†ط¬ط§ط­ طھط­طھظˆظٹ ط¹ظ„ظ‰ ظ…ط¹ط±ظپ ط§ظ„ظ…ط´ط±ظˆط¹ ظˆط­ط§ظ„ط© ط§ظ„ط¥ط±ط³ط§ظ„
+            Log::info('طھظ… ط¥ط±ط³ط§ظ„ ط§ظ„ظ…ط´ط±ظˆط¹ ط¥ظ„ظ‰ ERPNext ط¨ظ†ط¬ط§ط­', [
                 'project_id' => $project->id,
                 'frappe_project_id' => $frappeProjectId,
                 'status' => 'success',
             ]);
         } catch (\Exception $e) {
-            // 6. الاحتفاظ بسجل الخطأ للسماح بالتشخيص وإعادة المحاولة لاحقاً
+            // 6. ط§ظ„ط§ط­طھظپط§ط¸ ط¨ط³ط¬ظ„ ط§ظ„ط®ط·ط£ ظ„ظ„ط³ظ…ط§ط­ ط¨ط§ظ„طھط´ط®ظٹطµ ظˆط¥ط¹ط§ط¯ط© ط§ظ„ظ…ط­ط§ظˆظ„ط© ظ„ط§ط­ظ‚ط§ظ‹
             $project->update([
                 'frappe_sync_status' => 'failed',
                 'sync_status' => 'failed',
                 'sync_error' => substr($e->getMessage(), 0, 1000),
             ]);
 
-            // 4. تسجيل رسالة خطأ تحتوي على سبب الفشل وتفاصيل الخطأ
-            Log::error('فشل إرسال المشروع إلى ERPNext', [
+            // 4. طھط³ط¬ظٹظ„ ط±ط³ط§ظ„ط© ط®ط·ط£ طھط­طھظˆظٹ ط¹ظ„ظ‰ ط³ط¨ط¨ ط§ظ„ظپط´ظ„ ظˆطھظپط§طµظٹظ„ ط§ظ„ط®ط·ط£
+            Log::error('ظپط´ظ„ ط¥ط±ط³ط§ظ„ ط§ظ„ظ…ط´ط±ظˆط¹ ط¥ظ„ظ‰ ERPNext', [
                 'project_id' => $project->id,
                 'error' => $e->getMessage(),
                 'status' => 'failed',
@@ -1352,7 +1457,7 @@ class ProjectApprovalController extends Controller
                 auth()->id(),
                 'stage_regression',
                 'returned',
-                'تم إرجاع المشروع إلى المرحلة السابقة',
+                'طھظ… ط¥ط±ط¬ط§ط¹ ط§ظ„ظ…ط´ط±ظˆط¹ ط¥ظ„ظ‰ ط§ظ„ظ…ط±ط­ظ„ط© ط§ظ„ط³ط§ط¨ظ‚ط©',
                 [
                     'from_stage' => $currentApproval->drop,
                     'to_stage' => $previousStage,
@@ -1455,7 +1560,7 @@ class ProjectApprovalController extends Controller
             // If the next stage is implementation, it means all entity approvals are done.
             // Returning null will trigger the transition to 'in_execution'.
             if ($nextStage === 'implementation') {
-                Log::info('Next stage is implementation — project ready for in_execution', [
+                Log::info('Next stage is implementation â€” project ready for in_execution', [
                     'currentDrop' => $currentDrop,
                 ]);
 
@@ -1471,9 +1576,9 @@ class ProjectApprovalController extends Controller
             return $nextStage;
         }
 
-        // No next stage found — the project has completed all entity approvals.
+        // No next stage found â€” the project has completed all entity approvals.
         // Returning null triggers the in_execution transition in progressToNextStage.
-        Log::info('No next stage in approval chain — project ready for in_execution', [
+        Log::info('No next stage in approval chain â€” project ready for in_execution', [
             'currentDrop' => $currentDrop,
             'currentIndex' => $currentIndex,
         ]);
@@ -1500,7 +1605,7 @@ class ProjectApprovalController extends Controller
             return $stages[$currentIndex - 1]['code'];
         }
 
-        // No previous stage found — this is already the first entity stage.
+        // No previous stage found â€” this is already the first entity stage.
         return null;
     }
 
@@ -1516,14 +1621,7 @@ class ProjectApprovalController extends Controller
             }
         }
 
-        $order = [
-            'assembly' => 1,
-            'union' => 2,
-            'committee' => 3,
-            'implementation' => 4,
-        ];
-
-        return $order[$stageCode] ?? 99;
+        return 99;
     }
 
     /**
@@ -1532,17 +1630,30 @@ class ProjectApprovalController extends Controller
     private function getStageFromDrop(string $drop): string
     {
         if (str_starts_with($drop, 'entity_')) {
-            $id = str_replace('entity_', '', $drop);
-            $entity = InternalEntity::find($id);
+            $entityId = preg_match('/^entity_(\d+)(?:_(technical_review|financial_review|stage_approval))?$/', $drop, $matches) === 1
+                ? (int) $matches[1]
+                : null;
+            $phase = $matches[2] ?? null;
+            $entity = $entityId ? InternalEntity::find($entityId) : null;
+
+            $phaseNames = [
+                'technical_review' => 'مراجعة فنية',
+                'financial_review' => 'مراجعة مالية',
+                'stage_approval' => 'اعتماد للمرحلة',
+            ];
+
+            if ($entity && $phase && isset($phaseNames[$phase])) {
+                return $entity->name.' - '.$phaseNames[$phase];
+            }
 
             return $entity->name ?? $drop;
         }
 
         $stages = [
-            'assembly' => 'موافقة الجمعية',
-            'union' => 'موافقة الاتحاد',
-            'committee' => 'موافقة اللجنة',
-            'implementation' => 'مرحلة التنفيذ',
+            'assembly' => 'ظ…ظˆط§ظپظ‚ط© ط§ظ„ط¬ظ…ط¹ظٹط©',
+            'union' => 'ظ…ظˆط§ظپظ‚ط© ط§ظ„ط§طھط­ط§ط¯',
+            'committee' => 'ظ…ظˆط§ظپظ‚ط© ط§ظ„ظ„ط¬ظ†ط©',
+            'implementation' => 'ظ…ط±ط­ظ„ط© ط§ظ„طھظ†ظپظٹط°',
         ];
 
         return $stages[$drop] ?? $drop;
@@ -1591,8 +1702,8 @@ class ProjectApprovalController extends Controller
                     'id' => $approval->id,
                     'timestamp' => ($approval->reviewed_at ?? $approval->updated_at ?? $approval->created_at)->format('Y-m-d H:i:s'),
                     'stage' => $this->getStageFromDrop($approval->drop),
-                    'authority' => $approval->entity->name ?? 'غير معروف',
-                    'reviewer' => $approval->reviewedByUser->name ?? 'غير معروف',
+                    'authority' => $approval->entity->name ?? 'ط؛ظٹط± ظ…ط¹ط±ظˆظپ',
+                    'reviewer' => $approval->reviewedByUser->name ?? 'ط؛ظٹط± ظ…ط¹ط±ظˆظپ',
                     'status' => $approval->status,
                     'status_arabic' => $this->getStatusArabic($approval->status),
                     'notes' => $approval->notes,
@@ -1600,7 +1711,7 @@ class ProjectApprovalController extends Controller
                         'name' => basename($approval->attachment),
                         'url' => Storage::url($approval->attachment),
                         'size' => Storage::exists($approval->attachment) ?
-                            round(Storage::size($approval->attachment) / 1024 / 1024, 2).' MB' : 'غير متوفر',
+                            round(Storage::size($approval->attachment) / 1024 / 1024, 2).' MB' : 'ط؛ظٹط± ظ…طھظˆظپط±',
                     ] : null,
                     'step_order' => $approval->step_order,
                     'is_return' => in_array($approval->status, ['need_action', 'needs_revision', 'rejected']),
@@ -1642,7 +1753,7 @@ class ProjectApprovalController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء جلب سجل حركة المشروع: '.$e->getMessage(),
+                'message' => 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط¬ظ„ط¨ ط³ط¬ظ„ ط­ط±ظƒط© ط§ظ„ظ…ط´ط±ظˆط¹: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1665,7 +1776,7 @@ class ProjectApprovalController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء جلب حالة الموافقة: '.$e->getMessage(),
+                'message' => 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط¬ظ„ط¨ ط­ط§ظ„ط© ط§ظ„ظ…ظˆط§ظپظ‚ط©: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1693,7 +1804,7 @@ class ProjectApprovalController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء جلب البيانات المالية: '.$e->getMessage(),
+                'message' => 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط¬ظ„ط¨ ط§ظ„ط¨ظٹط§ظ†ط§طھ ط§ظ„ظ…ط§ظ„ظٹط©: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1706,7 +1817,7 @@ class ProjectApprovalController extends Controller
         try {
             $attachments = ProjectApproval::where('project_id', $project->id)
                 ->whereNotNull('attachment')
-                ->with(['authority:id,agency_name', 'createdBy:id,name'])
+                ->with(['entity', 'createdBy', 'reviewedByUser'])
                 ->get()
                 ->map(function ($approval) {
                     return [
@@ -1719,7 +1830,7 @@ class ProjectApprovalController extends Controller
                         'authority' => $approval->entity->name ?? 'غير معروف',
                         'status' => $approval->status,
                         'status_arabic' => $this->getStatusArabic($approval->status),
-                        'reviewer_name' => $approval->createdBy->name ?? 'غير معروف',
+                        'reviewer_name' => $approval->reviewedByUser->name ?? $approval->createdBy->name ?? 'غير معروف',
                     ];
                 });
 
@@ -1737,7 +1848,7 @@ class ProjectApprovalController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء جلب المرفقات.',
+                'message' => 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط¬ظ„ط¨ ط§ظ„ظ…ط±ظپظ‚ط§طھ.',
             ], 500);
         }
     }
@@ -1752,7 +1863,7 @@ class ProjectApprovalController extends Controller
             $approval = ProjectApproval::where('project_id', $project->id)->findOrFail($approvalId);
 
             if (! $approval->attachment || ! Storage::exists($approval->attachment)) {
-                abort(404, 'الملف غير موجود.');
+                abort(404, 'ط§ظ„ظ…ظ„ظپ ط؛ظٹط± ظ…ظˆط¬ظˆط¯.');
             }
 
             return Storage::download($approval->attachment);
@@ -1764,7 +1875,7 @@ class ProjectApprovalController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            abort(404, 'حدث خطأ أثناء تحميل الملف.');
+            abort(404, 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، طھط­ظ…ظٹظ„ ط§ظ„ظ…ظ„ظپ.');
         }
     }
 
@@ -1778,7 +1889,7 @@ class ProjectApprovalController extends Controller
             $approval = ProjectApproval::where('project_id', $project->id)->findOrFail($approvalId);
 
             if (! $approval->attachment || ! Storage::exists($approval->attachment)) {
-                abort(404, 'الملف غير موجود.');
+                abort(404, 'ط§ظ„ظ…ظ„ظپ ط؛ظٹط± ظ…ظˆط¬ظˆط¯.');
             }
 
             return response()->file(Storage::path($approval->attachment));
@@ -1790,7 +1901,7 @@ class ProjectApprovalController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            abort(404, 'الملف غير موجود.');
+            abort(404, 'ط§ظ„ظ…ظ„ظپ ط؛ظٹط± ظ…ظˆط¬ظˆط¯.');
         }
     }
 
@@ -1804,7 +1915,7 @@ class ProjectApprovalController extends Controller
             $approval = ProjectApproval::where('project_id', $project->id)->findOrFail($approvalId);
 
             if (! $approval->attachment || ! Storage::exists($approval->attachment)) {
-                return response()->json(['success' => false, 'message' => 'الملف غير موجود.'], 404);
+                return response()->json(['success' => false, 'message' => 'ط§ظ„ظ…ظ„ظپ ط؛ظٹط± ظ…ظˆط¬ظˆط¯.'], 404);
             }
 
             $content = Storage::get($approval->attachment);
@@ -1823,7 +1934,7 @@ class ProjectApprovalController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json(['success' => false, 'message' => 'خطأ في قراءة ملف: '.$e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'ط®ط·ط£ ظپظٹ ظ‚ط±ط§ط،ط© ظ…ظ„ظپ: '.$e->getMessage()], 500);
         }
     }
 
@@ -1835,15 +1946,15 @@ class ProjectApprovalController extends Controller
         try {
             $approvals = ProjectApproval::withTrashed()
                 ->where('project_id', $project->id)
-                ->with(['authority', 'createdBy', 'stage'])
+                ->with(['entity', 'createdBy', 'reviewedByUser'])
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($approval) {
                     return [
                         'timestamp' => ($approval->reviewed_at ?? $approval->updated_at ?? $approval->created_at)->format('Y-m-d H:i:s'),
-                        'stage' => $approval->stage->name_ar ?? $this->getDropArabic($approval->drop),
+                        'stage' => $this->getDropArabic($approval->drop),
                         'authority' => $approval->entity->name ?? 'غير معروف',
-                        'reviewer' => $approval->createdBy->name ?? 'غير معروف',
+                        'reviewer' => $approval->reviewedByUser->name ?? $approval->createdBy->name ?? 'غير معروف',
                         'status' => $this->getStatusArabic($approval->status),
                         'notes' => $approval->notes,
                     ];
@@ -1857,7 +1968,7 @@ class ProjectApprovalController extends Controller
         } catch (\Exception $e) {
             Log::error('Audit log error', ['project_id' => $project->id, 'error' => $e->getMessage()]);
 
-            return response()->json(['success' => false, 'message' => 'حدث خطأ في جلب سجل التدقيق.'], 500);
+            return response()->json(['success' => false, 'message' => 'ط­ط¯ط« ط®ط·ط£ ظپظٹ ط¬ظ„ط¨ ط³ط¬ظ„ ط§ظ„طھط¯ظ‚ظٹظ‚.'], 500);
         }
     }
 
@@ -1885,7 +1996,7 @@ class ProjectApprovalController extends Controller
         } catch (\Exception $e) {
             Log::error('Get pending approvals error', ['error' => $e->getMessage()]);
 
-            return response()->json(['success' => false, 'message' => 'خطأ في جلب الموافقات المعلقة.'], 500);
+            return response()->json(['success' => false, 'message' => 'ط®ط·ط£ ظپظٹ ط¬ظ„ط¨ ط§ظ„ظ…ظˆط§ظپظ‚ط§طھ ط§ظ„ظ…ط¹ظ„ظ‚ط©.'], 500);
         }
     }
 
@@ -1899,14 +2010,14 @@ class ProjectApprovalController extends Controller
             $approval->update([
                 'status' => 'pending',
                 'reviewed_at' => null,
-                'notes' => 'تمت إعادة الضبط بواسطة المسؤول',
+                'notes' => 'طھظ…طھ ط¥ط¹ط§ط¯ط© ط§ظ„ط¶ط¨ط· ط¨ظˆط§ط³ط·ط© ط§ظ„ظ…ط³ط¤ظˆظ„',
             ]);
 
-            return response()->json(['success' => true, 'message' => 'تم إعادة تعيين المرحلة بنجاح.']);
+            return response()->json(['success' => true, 'message' => 'طھظ… ط¥ط¹ط§ط¯ط© طھط¹ظٹظٹظ† ط§ظ„ظ…ط±ط­ظ„ط© ط¨ظ†ط¬ط§ط­.']);
         } catch (\Exception $e) {
             Log::error('Reset approval error', ['error' => $e->getMessage()]);
 
-            return response()->json(['success' => false, 'message' => 'فشلت عملية إعادة التعيين.'], 500);
+            return response()->json(['success' => false, 'message' => 'ظپط´ظ„طھ ط¹ظ…ظ„ظٹط© ط¥ط¹ط§ط¯ط© ط§ظ„طھط¹ظٹظٹظ†.'], 500);
         }
     }
 
@@ -1930,7 +2041,7 @@ class ProjectApprovalController extends Controller
 
             return response()->json(['success' => true, 'timeline' => $approvals]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'خطأ في جلب المخطط الزمني.'], 500);
+            return response()->json(['success' => false, 'message' => 'ط®ط·ط£ ظپظٹ ط¬ظ„ط¨ ط§ظ„ظ…ط®ط·ط· ط§ظ„ط²ظ…ظ†ظٹ.'], 500);
         }
     }
 
@@ -1955,7 +2066,7 @@ class ProjectApprovalController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'خطأ في جلب الإحصائيات.'], 500);
+            return response()->json(['success' => false, 'message' => 'ط®ط·ط£ ظپظٹ ط¬ظ„ط¨ ط§ظ„ط¥ط­طµط§ط¦ظٹط§طھ.'], 500);
         }
     }
 
@@ -1967,7 +2078,7 @@ class ProjectApprovalController extends Controller
         try {
             $pending = ProjectApproval::where('project_id', $project->id)
                 ->where('status', 'pending')
-                ->with(['authority', 'stage'])
+                ->with(['entity', 'createdBy', 'reviewedByUser'])
                 ->get();
 
             return response()->json([
@@ -1988,7 +2099,7 @@ class ProjectApprovalController extends Controller
         try {
             $requiring = ProjectApproval::where('project_id', $project->id)
                 ->whereIn('status', ['need_action', 'rejected'])
-                ->with(['authority', 'stage'])
+                ->with(['entity', 'createdBy', 'reviewedByUser'])
                 ->get();
 
             return response()->json([
@@ -2025,6 +2136,7 @@ class ProjectApprovalController extends Controller
         $totalStages = count($allStages);
 
         $approvals = ProjectApproval::where('project_id', $project->id)
+            ->with(['entity', 'createdBy', 'reviewedByUser'])
             ->orderBy('step_order')
             ->get();
 
@@ -2037,7 +2149,7 @@ class ProjectApprovalController extends Controller
                 'status' => $approval->status,
                 'status_arabic' => $this->getStatusArabic($approval->status),
                 'reviewed_at' => $approval->reviewed_at?->format('Y-m-d H:i:s'),
-                'reviewer' => $approval->createdBy->name ?? 'غير معروف',
+                'reviewer' => $approval->reviewedByUser->name ?? $approval->createdBy->name ?? 'غير معروف',
                 'financial_review_status' => $approval->financial_review_status,
                 'technical_review_status' => $approval->technical_review_status,
             ];
@@ -2055,13 +2167,13 @@ class ProjectApprovalController extends Controller
             'overall_status' => $overallStatus,
             'overall_status_arabic' => $this->getOverallStatusArabic($overallStatus),
             'current_stage' => $currentStage,
-            'current_stage_arabic' => $currentStage ? $this->getDropArabic($currentStage) : 'لم يبدأ',
+            'current_stage_arabic' => $currentStage ? $this->getDropArabic($currentStage) : 'ظ„ظ… ظٹط¨ط¯ط£',
             'completed_stages' => $completedStages,
             'total_stages' => $totalStages,
             'progress_percentage' => $totalStages > 0 ? round(($completedStages / $totalStages) * 100, 2) : 0,
             'stage_details' => $stageDetails,
             'next_stage' => $nextStage,
-            'next_stage_arabic' => $nextStage ? $this->getDropArabic($nextStage) : 'اكتمال الموافقة',
+            'next_stage_arabic' => $nextStage ? $this->getDropArabic($nextStage) : 'ط§ظƒطھظ…ط§ظ„ ط§ظ„ظ…ظˆط§ظپظ‚ط©',
         ];
     }
 
@@ -2070,20 +2182,22 @@ class ProjectApprovalController extends Controller
      */
     private function getDropArabic(string $drop): string
     {
-        $drops = [
-            'assembly' => 'موافقة الجمعية',
-            'union' => 'موافقة الاتحاد',
-            'committee' => 'موافقة اللجنة',
-            'implementation' => 'مرحلة التنفيذ',
-        ];
-
-        if (isset($drops[$drop])) {
-            return $drops[$drop];
-        }
-
         if (str_starts_with($drop, 'entity_')) {
-            $id = str_replace('entity_', '', $drop);
-            $entity = InternalEntity::find($id);
+            $entityId = preg_match('/^entity_(\d+)(?:_(technical_review|financial_review|stage_approval))?$/', $drop, $matches) === 1
+                ? (int) $matches[1]
+                : null;
+            $phase = $matches[2] ?? null;
+            $entity = $entityId ? InternalEntity::find($entityId) : null;
+
+            $phaseNames = [
+                'technical_review' => 'مراجعة فنية',
+                'financial_review' => 'مراجعة مالية',
+                'stage_approval' => 'اعتماد للمرحلة',
+            ];
+
+            if ($entity && $phase && isset($phaseNames[$phase])) {
+                return $entity->name.' - '.$phaseNames[$phase];
+            }
 
             return $entity ? $entity->name : $drop;
         }
@@ -2097,12 +2211,12 @@ class ProjectApprovalController extends Controller
     private function getStatusArabic(string $status): string
     {
         $statuses = [
-            'approved' => 'موافق',
-            'rejected' => 'مرفوض',
-            'pending' => 'قيد الانتظار',
-            'need_action' => 'بحاجة إلى إجراء',
-            'resubmitted' => 'تم إعادة تقديمه',
-            'financial_technical_review' => 'مراجعة مالية وفنية',
+            'approved' => 'ظ…ظˆط§ظپظ‚',
+            'rejected' => 'ظ…ط±ظپظˆط¶',
+            'pending' => 'ظ‚ظٹط¯ ط§ظ„ط§ظ†طھط¸ط§ط±',
+            'need_action' => 'ط¨ط­ط§ط¬ط© ط¥ظ„ظ‰ ط¥ط¬ط±ط§ط،',
+            'resubmitted' => 'طھظ… ط¥ط¹ط§ط¯ط© طھظ‚ط¯ظٹظ…ظ‡',
+            'financial_technical_review' => 'ظ…ط±ط§ط¬ط¹ط© ظ…ط§ظ„ظٹط© ظˆظپظ†ظٹط©',
         ];
 
         return $statuses[$status] ?? $status;
@@ -2114,14 +2228,14 @@ class ProjectApprovalController extends Controller
     private function getOverallStatusArabic(string $status): string
     {
         $statuses = [
-            'completed' => 'مكتمل',
-            'rejected' => 'مرفوض',
-            'need_action' => 'بحاجة إلى إجراء',
-            'rolled_back_for_review' => 'تم إرجاعه للمراجعة',
-            'resubmitted' => 'تم إعادة تقديمه',
-            'pending' => 'قيد الانتظار',
-            'in_progress' => 'قيد التنفيذ',
-            'financial_technical_review' => 'قيد المراجعة المالية والفنية',
+            'completed' => 'ظ…ظƒطھظ…ظ„',
+            'rejected' => 'ظ…ط±ظپظˆط¶',
+            'need_action' => 'ط¨ط­ط§ط¬ط© ط¥ظ„ظ‰ ط¥ط¬ط±ط§ط،',
+            'rolled_back_for_review' => 'طھظ… ط¥ط±ط¬ط§ط¹ظ‡ ظ„ظ„ظ…ط±ط§ط¬ط¹ط©',
+            'resubmitted' => 'طھظ… ط¥ط¹ط§ط¯ط© طھظ‚ط¯ظٹظ…ظ‡',
+            'pending' => 'ظ‚ظٹط¯ ط§ظ„ط§ظ†طھط¸ط§ط±',
+            'in_progress' => 'ظ‚ظٹط¯ ط§ظ„طھظ†ظپظٹط°',
+            'financial_technical_review' => 'ظ‚ظٹط¯ ط§ظ„ظ…ط±ط§ط¬ط¹ط© ط§ظ„ظ…ط§ظ„ظٹط© ظˆط§ظ„ظپظ†ظٹط©',
         ];
 
         return $statuses[$status] ?? $status;
@@ -2151,7 +2265,7 @@ class ProjectApprovalController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء جلب مراحل الموافقة: '.$e->getMessage(),
+                'message' => 'ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط¬ظ„ط¨ ظ…ط±ط§ط­ظ„ ط§ظ„ظ…ظˆط§ظپظ‚ط©: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -2175,15 +2289,15 @@ class ProjectApprovalController extends Controller
         $callback = function () use ($activities) {
             $file = fopen('php://output', 'w');
             fwrite($file, "\xEF\xBB\xBF");
-            fputcsv($file, ['التاريخ والوقت', 'المستخدم', 'نوع الإجراء', 'المرحلة السابقة', 'المرحلة الحالية', 'الملاحظات']);
+            fputcsv($file, ['ط§ظ„طھط§ط±ظٹط® ظˆط§ظ„ظˆظ‚طھ', 'ط§ظ„ظ…ط³طھط®ط¯ظ…', 'ظ†ظˆط¹ ط§ظ„ط¥ط¬ط±ط§ط،', 'ط§ظ„ظ…ط±ط­ظ„ط© ط§ظ„ط³ط§ط¨ظ‚ط©', 'ط§ظ„ظ…ط±ط­ظ„ط© ط§ظ„ط­ط§ظ„ظٹط©', 'ط§ظ„ظ…ظ„ط§ط­ط¸ط§طھ']);
 
             foreach ($activities as $act) {
                 fputcsv($file, [
                     $act->created_at ? $act->created_at->format('Y-m-d H:i:s') : '',
-                    $act->user->name ?? 'النظام',
+                    $act->user->name ?? 'ط§ظ„ظ†ط¸ط§ظ…',
                     $act->getActionDescription(),
-                    $act->from_stage_name ?? 'ـ',
-                    $act->to_stage_name ?? 'ـ',
+                    $act->from_stage_name ?? 'ظ€',
+                    $act->to_stage_name ?? 'ظ€',
                     $act->notes ?? '',
                 ]);
             }

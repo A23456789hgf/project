@@ -44,6 +44,14 @@
                                     </td>
                                 </tr>
                                 <tr>
+                                    <th class="text-end">جهة ممولة:</th>
+                                    <td>
+                                        <span class="badge badge-{{ $authority->is_funded ? 'success' : 'secondary' }}">
+                                            {{ $authority->is_funded ? 'ممولة' : 'غير ممولة' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
                                     <th class="text-end">تاريخ الإنشاء:</th>
                                     <td>{{ $authority->created_at->format('Y-m-d H:i:s') }}</td>
                                 </tr>

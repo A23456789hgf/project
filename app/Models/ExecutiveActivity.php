@@ -59,4 +59,14 @@ class ExecutiveActivity extends Model
     {
         return $this->morphMany(ActivityAssignment::class, 'assignable');
     }
+
+    public function getActivityNameAttribute(): ?string
+    {
+        return $this->attributes['name'] ?? null;
+    }
+
+    public function setActivityNameAttribute(?string $value): void
+    {
+        $this->attributes['name'] = $value;
+    }
 }

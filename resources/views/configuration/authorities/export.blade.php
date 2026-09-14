@@ -151,6 +151,12 @@
                                         </label>
                                     </div>
                                     <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="fields[]" id="field_is_funded" value="is_funded" checked>
+                                        <label class="form-check-label" for="field_is_funded">
+                                            جهة ممولة
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
                                         <input class="form-check-input" type="checkbox" name="fields[]" id="field_created_at" value="created_at" checked>
                                         <label class="form-check-label" for="field_created_at">
                                             تاريخ الإنشاء

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Domain;
 use App\Models\Intervention;
 use App\Models\Subdomain;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -128,6 +129,12 @@ class InterventionController extends Controller
             'is_active' => true,
         ]);
 
+        try {
+            app(NotificationService::class)->notifyLookupApproval('التدخل', $intervention->name, 'approved', $intervention->created_by, auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in InterventionController approve: '.$e->getMessage());
+        }
+
         return redirect()->route('interventions.index')
             ->with('success', "تم اعتماد التدخل '{$intervention->name}' وإضافته بشكل دائم لقائمة التدخلات.");
     }
@@ -141,6 +148,12 @@ class InterventionController extends Controller
             'status' => 'rejected',
             'is_active' => false,
         ]);
+
+        try {
+            app(NotificationService::class)->notifyLookupApproval('التدخل', $intervention->name, 'rejected', $intervention->created_by, auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in InterventionController reject: '.$e->getMessage());
+        }
 
         return redirect()->route('interventions.index')
             ->with('success', "تم رفض التدخل '{$intervention->name}' وإيقاف تفعيله.");

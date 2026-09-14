@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ApprovalPhase;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,7 @@ class ProjectApproval extends Model
     protected $fillable = [
         'project_id',
         'entity_id',
+        'assigned_user_id',
         'approval_flow_id',
         'stage_id',
         'stage_status_id',
@@ -53,6 +55,11 @@ class ProjectApproval extends Model
         'returned_from_stage',
         'returned_at',
         'is_completed',
+        // Dynamic workflow fields
+        'phase',
+        'is_active',
+        'return_target',
+        'returned_to_step_order',
     ];
 
     protected $casts = [
@@ -67,6 +74,8 @@ class ProjectApproval extends Model
         'technical_reviewed_at' => 'datetime',
         'returned_at' => 'datetime',
         'is_completed' => 'boolean',
+        'is_active' => 'boolean',
+        'returned_to_step_order' => 'integer',
         'attachments' => 'array',
         'notes' => 'string',
         'financial_review_notes' => 'string',
@@ -78,6 +87,11 @@ class ProjectApproval extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id');
     }
 
     public function entity(): BelongsTo
@@ -140,6 +154,16 @@ class ProjectApproval extends Model
         return $query->orderBy('step_order');
     }
 
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeLocked($query)
+    {
+        return $query->where('status', 'locked');
+    }
+
     public function scopeApproved($query)
     {
         return $query->where('status', 'approved');
@@ -153,6 +177,21 @@ class ProjectApproval extends Model
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
+    }
+
+    public function scopeForEntity($query, $entityId)
+    {
+        return $query->where('entity_id', $entityId);
+    }
+
+    public function isActive(): bool
+    {
+        return (bool) $this->is_active;
+    }
+
+    public function isLocked(): bool
+    {
+        return $this->status === 'locked';
     }
 
     public function isApproved(): bool
@@ -170,19 +209,63 @@ class ProjectApproval extends Model
         return $this->status === 'pending';
     }
 
+    public function isNeedAction(): bool
+    {
+        return in_array($this->status, ['need_action', 'requires_action'], true);
+    }
+
+    public function getPhaseEnum(): ?ApprovalPhase
+    {
+        if ($this->phase) {
+            return ApprovalPhase::tryFrom($this->phase);
+        }
+
+        if ($this->drop && str_starts_with($this->drop, 'entity_')) {
+            if (str_ends_with($this->drop, '_technical_review')) {
+                return ApprovalPhase::TechnicalReview;
+            }
+            if (str_ends_with($this->drop, '_financial_review')) {
+                return ApprovalPhase::FinancialReview;
+            }
+            if (str_ends_with($this->drop, '_stage_approval')) {
+                return ApprovalPhase::StageApproval;
+            }
+        }
+
+        return null;
+    }
+
+    public function getPhaseLabel(): string
+    {
+        return $this->getPhaseEnum()?->label() ?? 'اعتماد';
+    }
+
+    public function getPhaseArabicName(): string
+    {
+        return $this->getPhaseLabel();
+    }
+
+    public function getResolvedStageName(): string
+    {
+        $entityName = $this->entity?->name ?? 'الجهة';
+        $phaseLabel = $this->getPhaseLabel();
+
+        return "{$entityName} - {$phaseLabel}";
+    }
+
     public function isFinancialReview(): bool
     {
-        return $this->status === 'financial_review';
+        return $this->status === 'financial_review' || $this->phase === 'financial_review';
     }
 
     public function isFinancialReviewer(): bool
     {
-        return $this->reviewer_type === 'financial';
+        return $this->reviewer_type === 'financial' || $this->phase === 'financial_review';
     }
 
     public function isTechnicalReviewer(): bool
     {
-        return $this->reviewer_type === 'technical';
+        return $this->reviewer_type === 'technical' || $this->phase === 'technical_review';
     }
 
     public function isGeneralReviewer(): bool

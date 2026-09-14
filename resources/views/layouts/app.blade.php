@@ -776,40 +776,27 @@
         @auth
 
             @php 
-                $roleId = auth()->user()->role_id;
-                $isAdmin = auth()->user()->isAdmin() || (auth()->user()->role && auth()->user()->role->full_access);
+                $user = auth()->user();
+                $isAdmin = $user->isAdmin() || ($user->role && $user->role->full_access);
+                $cssString = '';
                 
-                if ($isAdmin) {
-                    $disabledPermissions = [];
-                } else {
+                if (!$isAdmin && $user->role_id) {
+                    $roleId = $user->role_id;
                     $version = \App\Models\User::getRolePermissionsVersion($roleId);
-                    $matrixPath = base_path('resources/views/roles/partials/_permissions_matrix.blade.php');
-                    $matrixMtime = file_exists($matrixPath) ? filemtime($matrixPath) : 0;
 
-                    $disabledPermissions = \Illuminate\Support\Facades\Cache::remember('disabled_perms_css_' . $roleId . '_v' . $version . '_m' . $matrixMtime, now()->addHours(1), function () use ($roleId) {
-                        $role = \App\Models\Role::find($roleId);
-                        if (!$role) return [];
-
-                        $allDbPerms = \App\Models\Permission::pluck('slug')->toArray();
-                        $matrixPerms = \App\Services\PermissionResolver::getPermissions();
-                        $matrixSlugs = array_column($matrixPerms, 'slug');
-                        $allSlugs = array_unique(array_merge($allDbPerms, $matrixSlugs));
-                        
-                        // Role-based permissions only (SSOT intersection)
-                        $rolePerms = \App\Models\Permission::whereHas('rolePermissions', function ($q) use ($roleId) {
+                    $cssString = \Illuminate\Support\Facades\Cache::remember('disabled_perms_css_v6_' . $roleId . '_v' . $version, now()->addHours(12), function () use ($roleId) {
+                        $allSlugs = \App\Models\Permission::pluck('slug')->toArray();
+                        $roleSlugs = \App\Models\Permission::whereHas('rolePermissions', function ($q) use ($roleId) {
                             $q->where('role_id', $roleId);
                         })->pluck('slug')->toArray();
 
-                        $roleSlugs = array_intersect($rolePerms, $matrixSlugs);
-                        return array_diff($allSlugs, $roleSlugs);
-                    });
+                        $disabled = array_diff($allSlugs, $roleSlugs);
+                        if (empty($disabled)) return '';
 
-                    $cssString = \Illuminate\Support\Facades\Cache::remember('disabled_perms_css_str_' . $roleId . '_v' . $version . '_m' . $matrixMtime, now()->addHours(1), function () use ($disabledPermissions) {
-                        if (empty($disabledPermissions)) return '';
                         $selectors = [];
-                        foreach ($disabledPermissions as $perm) {
-                            $selectors[] = '.auth-perm-' . str_replace('.', '-', $perm);
-                            $selectors[] = '[data-perm="' . $perm . '"]';
+                        foreach ($disabled as $perm) {
+                            $permSlug = str_replace('.', '-', $perm);
+                            $selectors[] = ".auth-perm-{$permSlug},[data-perm=\"{$perm}\"]";
                         }
                         return implode(",\n            ", $selectors) . " {\n                display: none !important;\n            }";
                     });
@@ -822,24 +809,30 @@
         @endauth
     </style>
 <script>
-window.onerror = function(msg, url, line, col, error) { 
-    var token = document.querySelector('meta[name="csrf-token"]');
-    if (!token) return;
-    fetch('/log-js-error', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token.getAttribute('content') }, 
-        body: JSON.stringify({ message: msg, url: url, line: line, col: col }) 
-    }); 
-}; 
-window.addEventListener('unhandledrejection', function(event) { 
-    var token = document.querySelector('meta[name="csrf-token"]');
-    if (!token) return;
-    fetch('/log-js-error', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token.getAttribute('content') }, 
-        body: JSON.stringify({ message: event.reason ? event.reason.toString() : 'Unhandled Rejection', url: window.location.href, line: 0, col: 0 }) 
-    }); 
-});
+(function() {
+    var lastErrorTime = 0;
+    function logError(payload) {
+        var now = Date.now();
+        if (now - lastErrorTime < 10000) return; // Rate limit 10s
+        lastErrorTime = now;
+        var token = document.querySelector('meta[name="csrf-token"]');
+        if (!token) return;
+        fetch('/log-js-error', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token.getAttribute('content') }, 
+            body: JSON.stringify(payload) 
+        }).catch(function(){}); 
+    }
+    window.onerror = function(msg, url, line, col) { 
+        if (msg && (msg.indexOf('ResizeObserver') !== -1 || msg.indexOf('extension') !== -1)) return;
+        logError({ message: msg, url: url, line: line, col: col });
+    }; 
+    window.addEventListener('unhandledrejection', function(event) { 
+        var reason = event.reason ? event.reason.toString() : 'Unhandled Rejection';
+        if (reason.indexOf('ResizeObserver') !== -1) return;
+        logError({ message: reason, url: window.location.href, line: 0, col: 0 });
+    });
+})();
 </script>
 </head>
 

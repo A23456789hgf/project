@@ -44,4 +44,14 @@ class PreliminaryActivity extends Model
     {
         return $this->morphMany(ActivityAssignment::class, 'assignable');
     }
+
+    public function getActivityAttribute(): ?string
+    {
+        return $this->attributes['name'] ?? null;
+    }
+
+    public function setActivityAttribute(?string $value): void
+    {
+        $this->attributes['name'] = $value;
+    }
 }

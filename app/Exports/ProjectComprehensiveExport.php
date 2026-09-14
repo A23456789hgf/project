@@ -3,7 +3,6 @@
 namespace App\Exports;
 
 use App\Models\Project;
-use Illuminate\Database\Eloquent\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -38,22 +37,20 @@ class ProjectComprehensiveExport
             $this->projects = collect([$this->projects]);
         }
 
-        // Load all required relationships if it's an Eloquent Collection
-        if ($this->projects instanceof Collection) {
-            $this->projects->loadMissing([
-                'program', 'domain', 'subdomain', 'intervention', 'priority', 'targetCategory', 'detail',
-                'locations.governorate', 'locations.directorate', 'locations.subArea', 'locations.village',
-                'mainObjectives', 'specialObjectives.results.outputs', 'risks', 'cost',
-                'financings.fundingSource', 'financings.authority', 'financings.financingType', 'financings.financingForm', 'financings.subFinancingForm',
-                'supervisingAuthorities.authority', 'implementingEntities.authority', 'participatingEntities.authority', 'beneficiaryEntities.authority',
-                'beneficiaryGroups',
-                'preliminaryActivities.procedures.costs.financialItem',
-                'preliminaryFinancialSummaries.financialItem',
-                'executiveActivities.actions.assignedEntities',
-                'executiveActivities.actions.costs.financialItem',
-                'executiveFinancialSummaries.financialItem',
-            ]);
-        }
+        // Load all required relationships
+        $this->projects->load([
+            'program', 'domain', 'subdomain', 'intervention', 'priority', 'mainRouter', 'subRouter', 'targetCategory', 'detail',
+            'locations.governorate', 'locations.directorate', 'locations.subArea', 'locations.village',
+            'mainObjectives', 'specialObjectives.results.outputs', 'risks', 'cost',
+            'financings.fundingSource', 'financings.authority', 'financings.financingType', 'financings.financingForm', 'financings.subFinancingForm',
+            'supervisingAuthorities.authority', 'implementingEntities.authority', 'participatingEntities.authority', 'beneficiaryEntities.authority',
+            'beneficiaryGroups',
+            'preliminaryActivities.procedures.costs.financialItem',
+            'preliminaryFinancialSummaries.financialItem',
+            'executiveActivities.actions.assignedEntities',
+            'executiveActivities.actions.costs.financialItem',
+            'executiveFinancialSummaries.financialItem',
+        ]);
 
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
@@ -77,7 +74,7 @@ class ProjectComprehensiveExport
         return [
             // المعلومات الأساسية
             'المعرف', 'رقم المشروع', 'اسم المشروع', 'الحالة', 'البرنامج', 'المجال الرئيسي', 'المجال الفرعي', 'التدخل', 'الأولوية',
-            'تاريخ البدء', 'تاريخ الانتهاء', 'المدة (أيام)', 'عدد المستفيدين', 'الفئة المستهدفة',
+            'تاريخ البدء', 'تاريخ الانتهاء', 'المدة (أيام)', 'عدد المستفيدين', 'المسار الرئيسي', 'الفئة المستهدفة',
             // تفاصيل المشروع
             'الملخص', 'المقدمة', 'المشكلة والمبررات', 'المكونات', 'الأثر المتوقع', 'خطة؟',
             // قسم البيانات
@@ -294,6 +291,7 @@ class ProjectComprehensiveExport
             $project->end_date_gregorian ?? '-',
             $project->project_duration ?? '-',
             $project->number_of_beneficiaries ?? '-',
+            $project->mainRouter->main_router ?? '-',
             $project->targetCategory->name ?? '-',
             $project->detail->project_summary ?? '-',
             $project->detail->project_introduction ?? '-',

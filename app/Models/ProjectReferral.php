@@ -17,6 +17,7 @@ class ProjectReferral extends Model
         'referring_entity_id',
         'referring_user_id',
         'referred_entity_id',
+        'referred_user_id',
         'referral_text',
         'referral_attachment',
         'referral_attachments',
@@ -31,6 +32,8 @@ class ProjectReferral extends Model
     protected $appends = ['resolved_stage_name'];
 
     protected $casts = [
+        'referral_attachments' => 'array',
+        'response_attachments' => 'array',
         'responded_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -41,7 +44,7 @@ class ProjectReferral extends Model
      */
     public function project(): BelongsTo
     {
-        return $this->belongsTo(Project::class);
+        return $this->belongsTo(Project::class)->withoutGlobalScopes();
     }
 
     public function stage(): BelongsTo
@@ -51,22 +54,27 @@ class ProjectReferral extends Model
 
     public function referringEntity(): BelongsTo
     {
-        return $this->belongsTo(InternalEntity::class, 'referring_entity_id');
+        return $this->belongsTo(InternalEntity::class, 'referring_entity_id')->withoutGlobalScopes();
     }
 
     public function referredEntity(): BelongsTo
     {
-        return $this->belongsTo(InternalEntity::class, 'referred_entity_id');
+        return $this->belongsTo(InternalEntity::class, 'referred_entity_id')->withoutGlobalScopes();
+    }
+
+    public function referredUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'referred_user_id')->withoutGlobalScopes();
     }
 
     public function referringUser(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'referring_user_id');
+        return $this->belongsTo(User::class, 'referring_user_id')->withoutGlobalScopes();
     }
 
     public function respondingUser(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'responding_user_id');
+        return $this->belongsTo(User::class, 'responding_user_id')->withoutGlobalScopes();
     }
 
     /**
@@ -131,8 +139,10 @@ class ProjectReferral extends Model
 
         // 2. If it's an entity-based stage (drop starting with entity_)
         if ($this->drop && str_starts_with($this->drop, 'entity_')) {
-            $entityId = str_replace('entity_', '', $this->drop);
-            $entity = InternalEntity::find($entityId);
+            $entityId = preg_match('/^entity_(\d+)/', $this->drop, $matches) === 1
+                ? (int) $matches[1]
+                : null;
+            $entity = $entityId ? InternalEntity::find($entityId) : null;
 
             return $entity ? $entity->name : 'جهة غير معروفة';
         }
@@ -150,10 +160,56 @@ class ProjectReferral extends Model
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {
-            'pending' => 'معلقة',
+            'pending' => 'بانتظار الرد',
             'responded' => 'تم الرد',
             'returned' => 'تم الإرجاع',
             default => $this->status
         };
+    }
+
+    /**
+     * Retrieve all referral attachments as an array
+     */
+    public function getAllReferralAttachments(): array
+    {
+        if (is_array($this->referral_attachments)) {
+            return array_filter($this->referral_attachments);
+        }
+
+        if (is_string($this->referral_attachments)) {
+            $decoded = json_decode($this->referral_attachments, true);
+            if (is_array($decoded)) {
+                return array_filter($decoded);
+            }
+        }
+
+        if ($this->referral_attachment) {
+            return [$this->referral_attachment];
+        }
+
+        return [];
+    }
+
+    /**
+     * Retrieve all response attachments as an array
+     */
+    public function getAllResponseAttachments(): array
+    {
+        if (is_array($this->response_attachments)) {
+            return array_filter($this->response_attachments);
+        }
+
+        if (is_string($this->response_attachments)) {
+            $decoded = json_decode($this->response_attachments, true);
+            if (is_array($decoded)) {
+                return array_filter($decoded);
+            }
+        }
+
+        if ($this->response_attachment) {
+            return [$this->response_attachment];
+        }
+
+        return [];
     }
 }

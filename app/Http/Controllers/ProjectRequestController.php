@@ -8,6 +8,7 @@ use App\Models\Program;
 use App\Models\Project;
 use App\Models\ProjectRequest;
 use App\Models\Subdomain;
+use App\Services\NotificationService;
 use App\Services\ProjectNumberGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -258,6 +259,9 @@ class ProjectRequestController extends Controller
             $projectRequest->markAsSubmitted();
             DB::commit();
 
+            // إرسال إشعار تقديم طلب المشروع
+            app(NotificationService::class)->notifyProjectRequest($projectRequest, 'submitted');
+
             return redirect()->route('project-requests.show', $projectRequest)
                 ->with('success', 'تم إرسال طلب المشروع للموافقة بنجاح');
         } catch (\Exception $e) {
@@ -287,6 +291,9 @@ class ProjectRequestController extends Controller
             $projectRequest->approve(Auth::id(), $validated['approval_notes'] ?? null);
             DB::commit();
 
+            // إرسال إشعار الموافقة على طلب المشروع
+            app(NotificationService::class)->notifyProjectRequest($projectRequest, 'approved');
+
             return redirect()->route('project-requests.show', $projectRequest)
                 ->with('success', 'تم الموافقة على طلب المشروع بنجاح');
         } catch (\Exception $e) {
@@ -315,6 +322,9 @@ class ProjectRequestController extends Controller
         try {
             $projectRequest->reject(Auth::id(), $validated['rejection_notes']);
             DB::commit();
+
+            // إرسال إشعار رفض طلب المشروع
+            app(NotificationService::class)->notifyProjectRequest($projectRequest, 'rejected');
 
             return redirect()->route('project-requests.show', $projectRequest)
                 ->with('success', 'تم رفض طلب المشروع');
@@ -373,6 +383,9 @@ class ProjectRequestController extends Controller
             ]);
 
             DB::commit();
+
+            // إرسال إشعار تحويل الطلب إلى مشروع
+            app(NotificationService::class)->notifyProjectRequest($projectRequest, 'transferred');
 
             return redirect()->route('projects.show', $project)
                 ->with('success', "تم تحويل الطلب بنجاح إلى مشروع برقم: {$projectNumber}");

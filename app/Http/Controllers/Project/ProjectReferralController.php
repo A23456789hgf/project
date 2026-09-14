@@ -9,7 +9,7 @@ use App\Models\Project;
 use App\Models\ProjectReferral;
 use App\Models\User;
 use App\Notifications\ProjectReferralNotification;
-use Carbon\Carbon;
+use App\Services\ApprovalService;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Http\JsonResponse;
@@ -37,19 +37,17 @@ class ProjectReferralController extends Controller
             'drop' => 'required|string',
             'stage_id' => 'nullable|integer|exists:stages,id',
             'entity_id' => 'required|integer|exists:internal_entities,id',
-            'referred_entity_ids' => 'required|array|min:1',
-            'referred_entity_ids.*' => 'required|integer|exists:internal_entities,id',
+            'referred_entity_id' => 'required|integer|exists:internal_entities,id',
+            'referred_user_id' => 'required|integer|exists:users,id',
             'referral_text' => 'required|string|min:10',
             'attachments' => 'nullable|array',
             'attachments.*' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,ppt,pptx,xls,xlsx,txt,csv|max:20480',
             'entity_specific_attachments' => 'nullable|array',
-            'entity_specific_attachments.*.entity_id' => 'nullable|integer|exists:internal_entities,id',
-            'entity_specific_attachments.*.attachments' => 'nullable|array',
-            'entity_specific_attachments.*.attachments.*' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,ppt,pptx,xls,xlsx,txt,csv|max:20480',
         ], [
             'referral_text.required' => 'نص الإحالة إلزامي',
             'referral_text.min' => 'يجب أن يكون نص الإحالة 10 أحرف على الأقل',
-            'referred_entity_ids.required' => 'يجب اختيار جهة واحدة على الأقل للإحالة',
+            'referred_entity_id.required' => 'يجب اختيار جهة للإحالة',
+            'referred_user_id.required' => 'يجب اختيار مستخدم للاستلام',
         ]);
 
         if ($validator->fails()) {
@@ -60,9 +58,8 @@ class ProjectReferralController extends Controller
             ], 422);
         }
 
-        // Check for existing pending referrals to the same entities
         $existingReferrals = ProjectReferral::where('project_id', $project->id)
-            ->whereIn('referred_entity_id', $request->referred_entity_ids)
+            ->where('referred_entity_id', $request->referred_entity_id)
             ->where('status', 'pending')
             ->with('referredEntity')
             ->get();
@@ -82,81 +79,56 @@ class ProjectReferralController extends Controller
             DB::beginTransaction();
 
             $referringEntityId = $request->entity_id;
-            $referredEntityIds = $request->referred_entity_ids;
+            $referredEntityId = $request->referred_entity_id;
+            $referredUserId = $request->referred_user_id;
             $referralText = $request->referral_text;
             $drop = $request->drop;
             $stageId = $request->stage_id;
             $userId = auth()->id();
-            $generalAttachments = $request->file('attachments', []);
-            $entitySpecificAttachments = $request->input('entity_specific_attachments', []);
 
-            $createdReferrals = [];
-
-            foreach ($referredEntityIds as $referredEntityId) {
-                // Handle attachments for this specific entity
-                $attachmentPaths = [];
-
-                // First, check if there are specific attachments for this entity
-                $specificEntityAttachments = collect($entitySpecificAttachments)
-                    ->firstWhere('entity_id', $referredEntityId);
-
-                if ($specificEntityAttachments && isset($specificEntityAttachments['attachments'])) {
-                    // Store specific attachments for this entity
-                    foreach ($specificEntityAttachments['attachments'] as $attachment) {
-                        if ($attachment->isValid()) {
-                            $path = $this->storeAttachment($attachment, $project);
-                            $attachmentPaths[] = $path;
-                        }
-                    }
-                } elseif (count($generalAttachments) > 0) {
-                    // Use general attachments if no specific ones provided
-                    foreach ($generalAttachments as $attachment) {
-                        if ($attachment->isValid()) {
-                            $path = $this->storeAttachment($attachment, $project);
-                            $attachmentPaths[] = $path;
-                        }
-                    }
+            $attachmentPaths = [];
+            if ($request->hasFile('attachments')) {
+                foreach ($request->file('attachments') as $file) {
+                    $path = $this->storeAttachment($file, $project);
+                    $attachmentPaths[] = $path;
                 }
-
-                // Create referral with serialized attachment paths
-                $referral = ProjectReferral::create([
-                    'project_id' => $project->id,
-                    'drop' => $drop,
-                    'stage_id' => $stageId,
-                    'referring_entity_id' => $referringEntityId,
-                    'referring_user_id' => $userId,
-                    'referred_entity_id' => $referredEntityId,
-                    'referral_text' => $referralText,
-                    'referral_attachments' => count($attachmentPaths) > 0 ? json_encode($attachmentPaths) : null,
-                    'status' => 'pending',
-                ]);
-
-                // Load relationships for response
-                $referral->load(['referringEntity', 'referredEntity', 'referringUser']);
-
-                $createdReferrals[] = $referral;
-
-                // Notify users of referred entity
-                $this->notifyReferredEntity($referral);
-
-                Log::info('Referral created', [
-                    'referral_id' => $referral->id,
-                    'project_id' => $project->id,
-                    'referring_entity' => $referringEntityId,
-                    'referred_entity' => $referredEntityId,
-                    'attachments_count' => count($attachmentPaths),
-                ]);
             }
+
+            $referral = ProjectReferral::create([
+                'project_id' => $project->id,
+                'drop' => $drop,
+                'stage_id' => $stageId,
+                'referring_entity_id' => $referringEntityId,
+                'referring_user_id' => $userId,
+                'referred_entity_id' => $referredEntityId,
+                'referred_user_id' => $referredUserId,
+                'referral_text' => $referralText,
+                'referral_attachments' => count($attachmentPaths) > 0 ? json_encode($attachmentPaths) : null,
+                'status' => 'pending',
+            ]);
+
+            $referral->load(['referringEntity', 'referredEntity', 'referringUser', 'referredUser']);
+            
+            $createdReferrals[] = $referral;
+
+            // Notify users of referred entity
+            $this->notifyReferredEntity($referral);
+
+            Log::info('Referral created', [
+                'referral_id' => $referral->id,
+                'project_id' => $project->id,
+                'referring_entity' => $referringEntityId,
+                'referred_entity' => $referredEntityId,
+                'attachments_count' => count($attachmentPaths),
+            ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => count($referredEntityIds) > 1
-                    ? 'تم إنشاء الإحالات بنجاح وإرسال إشعارات للجهات المعنية'
-                    : 'تم إنشاء الإحالة بنجاح وإرسال إشعار للجهة المعنية',
+                'message' => 'تم إنشاء الإحالة بنجاح',
                 'referrals' => $createdReferrals,
-                'total_referrals' => count($createdReferrals),
+                'total_referrals' => 1,
             ], 201);
 
         } catch (\Exception $e) {
@@ -199,6 +171,21 @@ class ProjectReferralController extends Controller
             ], 422);
         }
 
+        $user = auth()->user();
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'غير مصرح',
+            ], 401);
+        }
+
+        if (! $user->can('respond', $referral)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ليس لديك صلاحية للرد على هذه الإحالة/الاستشارة',
+            ], 403);
+        }
+
         try {
             DB::beginTransaction();
 
@@ -221,14 +208,15 @@ class ProjectReferralController extends Controller
                 }
             }
 
-            // Update referral with response
-            $referral->update([
-                'response_text' => $request->response_text,
-                'response_attachments' => count($responseAttachmentPaths) > 0 ? json_encode($responseAttachmentPaths) : null,
-                'responding_user_id' => auth()->id(),
-                'responded_at' => Carbon::now(),
-                'status' => $request->status,
-            ]);
+            // Update referral via ApprovalService for consistent activity logging
+            $approvalService = app(ApprovalService::class);
+            $referral = $approvalService->respondToConsultation(
+                $referral,
+                $request->response_text,
+                $user,
+                $request->status,
+                count($responseAttachmentPaths) > 0 ? $responseAttachmentPaths : null
+            );
 
             // Load relationships
             $referral->load([

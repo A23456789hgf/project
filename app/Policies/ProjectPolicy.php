@@ -193,17 +193,67 @@ class ProjectPolicy
     }
 
     /**
+     * Determine whether the user can close the project draft and submit for approval.
+     */
+    public function closeDraft(User $user, Project $project): bool
+    {
+        if (! in_array($project->status, ['draft', 'completed_draft'], true) && ! $project->isDraft()) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        $originEntityId = $project->getOriginEntityId() ?? $project->creator_entity_id ?? $project->internal_entity_id;
+        $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+
+        $isCreator = ($project->created_by_user_id === $user->id);
+        $belongsToOrigin = ($originEntityId && (in_array((int) $originEntityId, $allowedEntityIds, true) || in_array('all', $allowedEntityIds, true)));
+
+        if (! $isCreator && ! $belongsToOrigin) {
+            return false;
+        }
+
+        return $user->hasPermission('projects.submit', $project) ||
+               $user->hasPermission('projects.create', $project) ||
+               $user->hasPermission('projects.edit', $project);
+    }
+
+    /**
      * Determine whether the user can approve a project stage.
      */
     public function approve(User $user, Project $project): bool
     {
-        // The creator of the project cannot approve their own project
-        if ($project->created_by_user_id === $user->id) {
+        // Projects in terminal state or drafts cannot be approved
+        if (in_array($project->status, ['draft', 'completed_draft', 'in_execution', 'rejected', 'cancelled'], true)) {
             return false;
         }
 
-        if ($project->status === 'pending_approval' && ! $user->isAdmin()) {
-            if (str_starts_with($project->current_stage, 'entity_')) {
+        // The creator of the project cannot approve their own project (unless admin)
+        if ($project->created_by_user_id === $user->id && ! $user->isAdmin()) {
+            return false;
+        }
+
+        // Check active step if available
+        $activeStep = $project->projectApprovals()->where('is_active', true)->first()
+            ?? ($project->current_stage ? $project->projectApprovals()->where('drop', $project->current_stage)->first() : null);
+
+        if ($activeStep) {
+            if (! $activeStep->is_active || $activeStep->status === 'locked' || $activeStep->status !== 'pending') {
+                return false;
+            }
+
+            if (! $user->isAdmin()) {
+                $userEntityId = (int) $user->entity_id;
+                $stepEntityId = (int) $activeStep->entity_id;
+
+                if ($stepEntityId && $userEntityId !== $stepEntityId) {
+                    return false;
+                }
+            }
+        } elseif ($project->status === 'pending_approval' && ! $user->isAdmin()) {
+            if (str_starts_with($project->current_stage ?? '', 'entity_')) {
                 $stageEntityId = (int) str_replace('entity_', '', $project->current_stage);
                 $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
 
@@ -214,7 +264,138 @@ class ProjectPolicy
             }
         }
 
-        return $user->hasPermission('projects.approve', $project);
+        return $user->hasPermission('approvals.approve', $project) ||
+               $user->hasPermission('projects.approve', $project);
+    }
+
+    /**
+     * Determine whether the user can reject a project stage.
+     */
+    public function reject(User $user, Project $project): bool
+    {
+        if (in_array($project->status, ['draft', 'completed_draft', 'in_execution', 'rejected', 'cancelled'], true)) {
+            return false;
+        }
+
+        $activeStep = $project->projectApprovals()->where('is_active', true)->first()
+            ?? ($project->current_stage ? $project->projectApprovals()->where('drop', $project->current_stage)->first() : null);
+
+        if ($activeStep) {
+            if (! $activeStep->is_active || $activeStep->status === 'locked' || $activeStep->status !== 'pending') {
+                return false;
+            }
+
+            if (! $user->isAdmin()) {
+                $userEntityId = (int) $user->entity_id;
+                $stepEntityId = (int) $activeStep->entity_id;
+
+                if ($stepEntityId && $userEntityId !== $stepEntityId) {
+                    return false;
+                }
+            }
+        } elseif ($project->status === 'pending_approval' && ! $user->isAdmin()) {
+            if (str_starts_with($project->current_stage ?? '', 'entity_')) {
+                $stageEntityId = (int) str_replace('entity_', '', $project->current_stage);
+                $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+
+                if (! in_array($stageEntityId, $allowedEntityIds) && ! in_array('all', $allowedEntityIds)) {
+                    return false;
+                }
+            }
+        }
+
+        return $user->hasPermission('approvals.reject', $project) ||
+               $user->hasPermission('projects.reject', $project) ||
+               $user->hasPermission('approvals.approve', $project) ||
+               $user->hasPermission('projects.approve', $project);
+    }
+
+    /**
+     * Determine whether the user can request action / completion on a project stage.
+     */
+    public function requestAction(User $user, Project $project): bool
+    {
+        if (in_array($project->status, ['draft', 'completed_draft', 'in_execution', 'rejected', 'cancelled'], true)) {
+            return false;
+        }
+
+        $activeStep = $project->projectApprovals()->where('is_active', true)->first()
+            ?? ($project->current_stage ? $project->projectApprovals()->where('drop', $project->current_stage)->first() : null);
+
+        if ($activeStep) {
+            if (! $activeStep->is_active || $activeStep->status === 'locked' || $activeStep->status !== 'pending') {
+                return false;
+            }
+
+            if (! $user->isAdmin()) {
+                $userEntityId = (int) $user->entity_id;
+                $stepEntityId = (int) $activeStep->entity_id;
+
+                if ($stepEntityId && $userEntityId !== $stepEntityId) {
+                    return false;
+                }
+            }
+        } elseif ($project->status === 'pending_approval' && ! $user->isAdmin()) {
+            if (str_starts_with($project->current_stage ?? '', 'entity_')) {
+                $stageEntityId = (int) str_replace('entity_', '', $project->current_stage);
+                $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+
+                if (! in_array($stageEntityId, $allowedEntityIds) && ! in_array('all', $allowedEntityIds)) {
+                    return false;
+                }
+            }
+        }
+
+        return $user->hasPermission('approvals.request-action', $project) ||
+               $user->hasPermission('approvals.reject', $project) ||
+               $user->hasPermission('approvals.approve', $project) ||
+               $user->hasPermission('projects.approve', $project);
+    }
+
+    /**
+     * Determine whether the user can refer a project for consultation.
+     */
+    public function refer(User $user, Project $project): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $user->hasPermission('projects.refer', $project) ||
+               $user->hasPermission('referrals.create', $project) ||
+               $user->hasPermission('referrals.view', $project) ||
+               $user->hasPermission('projects.review', $project) ||
+               $user->hasPermission('approvals.approve', $project) ||
+               $user->hasPermission('projects.approve', $project) ||
+               $user->hasPermission('projects.view', $project);
+    }
+
+    /**
+     * Determine whether the user can resubmit a project returned for review.
+     */
+    public function resubmit(User $user, Project $project): bool
+    {
+        if (! in_array($project->status, ['rolled_back_for_review'], true)) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        $originEntityId = $project->getOriginEntityId() ?? $project->creator_entity_id ?? $project->internal_entity_id;
+        $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+
+        $isCreator = ($project->created_by_user_id === $user->id);
+        $belongsToOrigin = ($originEntityId && (in_array((int) $originEntityId, $allowedEntityIds, true) || in_array('all', $allowedEntityIds, true)));
+
+        if (! $isCreator && ! $belongsToOrigin) {
+            return false;
+        }
+
+        return $user->hasPermission('projects.create', $project) ||
+               $user->hasPermission('projects.edit', $project) ||
+               $user->hasPermission('projects.submit', $project);
     }
 
     /**
@@ -389,14 +570,6 @@ class ProjectPolicy
 
         return $user->hasPermission('projects.create', $project) ||
                $user->hasPermission('projects.edit', $project);
-    }
-
-    /**
-     * Determine whether the user can refer the project.
-     */
-    public function refer(User $user, Project $project): bool
-    {
-        return $user->hasPermission('projects.refer', $project);
     }
 
     /**

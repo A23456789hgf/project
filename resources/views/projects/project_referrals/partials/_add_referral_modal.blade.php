@@ -15,12 +15,17 @@
                 <input type="hidden" id="modal_entity_id" name="entity_id" value="{{ auth()->user()->entity_id }}">
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-12">
-                            <label for="modal_referred_entity_ids" class="form-label fw-bold">الجهة المحال إليها </label>
-                            <select id="modal_referred_entity_ids" name="referred_entity_ids[]" class="form-select" multiple style="min-height: 150px;">
-                                <option value="">جاري تحميل الجهات...</option>
+                        <div class="col-md-6">
+                            <label for="modal_referred_entity_id" class="form-label fw-bold">الجهة المحال إليها </label>
+                            <select id="modal_referred_entity_id" name="referred_entity_id" class="form-select" required>
+                                <option value="">اختر الجهة...</option>
                             </select>
-                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>يمكنك اختيار أكثر من جهة (استخدم Ctrl للاختيار المتعدد)</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modal_referred_user_id" class="form-label fw-bold">المستخدم المستلم </label>
+                            <select id="modal_referred_user_id" name="referred_user_id" class="form-select" required>
+                                <option value="">اختر المستخدم...</option>
+                            </select>
                         </div>
                         
                         <div class="col-md-12">
@@ -42,7 +47,38 @@
                     <button type="submit" id="submitAddReferral" class="btn btn-primary px-4">
                         <i class="fas fa-paper-plane me-1"></i>إرسال الإحالة
                     </button>
-                </div>
+                    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const entitySelect = document.getElementById('modal_referred_entity_id');
+        const userSelect = document.getElementById('modal_referred_user_id');
+
+        if (entitySelect) {
+            entitySelect.addEventListener('change', function() {
+                const entityId = this.value;
+                userSelect.innerHTML = '<option value="">اختر المستخدم...</option>';
+                
+                if (entityId) {
+                    fetch(`/api/entities/${entityId}/users`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.users) {
+                                data.users.forEach(user => {
+                                    const option = document.createElement('option');
+                                    option.value = user.id;
+                                    option.textContent = user.name;
+                                    userSelect.appendChild(option);
+                                });
+                            }
+                        })
+                        .catch(error => console.error('Error fetching users:', error));
+                }
+            });
+        }
+    });
+</script>
             </form>
         </div>
     </div>

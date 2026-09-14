@@ -18,10 +18,22 @@ class ReferralController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $topics = ReferralTopic::with(['creator', 'entity', 'latestActivity'])
-            ->where('entity_id', $user->entity_id)
-            ->latest()
-            ->paginate(15);
+        $isAdmin = $user && method_exists($user, 'isAdmin') ? $user->isAdmin() : false;
+
+        $topicsQuery = ReferralTopic::with(['creator', 'entity', 'latestActivity']);
+
+        if (! $isAdmin) {
+            // A normal user only sees topics they created or where they have an assigned activity
+            $topicsQuery->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                  ->orWhereHas('activities', function ($aq) use ($user) {
+                      $aq->where('to_user_id', $user->id)
+                         ->orWhere('from_user_id', $user->id);
+                  });
+            });
+        }
+
+        $topics = $topicsQuery->latest()->paginate(15);
 
         $departments = InternalEntity::where('parent_id', $user->entity_id)
             ->orWhere('id', $user->entity_id)

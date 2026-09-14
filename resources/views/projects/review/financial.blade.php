@@ -131,17 +131,34 @@
             <form method="POST" action="{{ route('projects.review.financial.submit', $project) }}" enctype="multipart/form-data">
                 @csrf
 
+                {{-- Policy Notice Banner --}}
+                <div class="alert border-0 p-3 rounded-3 mb-4 shadow-sm" style="background-color: #e3f7fa; border-right: 4px solid #17a2b8 !important;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle fs-4 me-3 text-info"></i>
+                        <div>
+                            <strong class="d-block text-dark">ضوابط المراجعة المالية:</strong>
+                            <span class="text-muted small">
+                                يُسمح لك بتعديل التكاليف المالية المرتبطة بالأنشطة والإجراءات التمهيدية والتنفيذية (الكميات وأسعار الوحدات). 
+                                <span class="fw-bold text-danger"><i class="fas fa-lock me-1"></i>البيانات الفنية ومحتوى الأنشطة والإجراءات مخصصة للعرض فقط ولا يُسمح بتعديلها في المراجعة المالية.</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Preliminary Activities & Costs Section --}}
                 @if($project->preliminaryActivities->count() > 0)
                 <div class="card mb-4 border-0 shadow-sm">
                     <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
-                        <h5 class="mb-0 fw-bold"><i class="fas fa-list me-2"></i>الأنشطة والإجراءات التمهيدية والتكاليف المالـية</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold"><i class="fas fa-list me-2"></i>الأنشطة والإجراءات التمهيدية والتكاليف المالـية</h5>
+                            <span class="badge bg-white text-dark small"><i class="fas fa-lock me-1 text-secondary"></i>البيانات الفنية للعرض فقط</span>
+                        </div>
                     </div>
                     <div class="card-body">
                         @foreach($project->preliminaryActivities as $activity)
                             <div class="mb-4 p-3 bg-light rounded border">
                                 <h6 class="fw-bold text-info mb-2">
-                                    <i class="fas fa-tasks me-1"></i> النشاط التمهيدي: {{ $activity->activity }}
+                                    <i class="fas fa-tasks me-1"></i> النشاط التمهيدي: {{ $activity->name ?? $activity->activity }}
                                 </h6>
                                 @if($activity->procedures->count() > 0)
                                     @foreach($activity->procedures as $procedure)
@@ -210,13 +227,16 @@
                 @if($project->executiveActivities->count() > 0)
                 <div class="card mb-4 border-0 shadow-sm">
                     <div class="card-header" style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white;">
-                        <h5 class="mb-0 fw-bold"><i class="fas fa-running me-2"></i>الأنشطة والإجراءات التنفيذية والتكاليف المالـية</h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold"><i class="fas fa-running me-2"></i>الأنشطة والإجراءات التنفيذية والتكاليف المالـية</h5>
+                            <span class="badge bg-white text-dark small"><i class="fas fa-lock me-1 text-secondary"></i>البيانات الفنية للعرض فقط</span>
+                        </div>
                     </div>
                     <div class="card-body">
                         @foreach($project->executiveActivities as $activity)
                             <div class="mb-4 p-3 bg-light rounded border">
                                 <h6 class="fw-bold style-purple mb-2" style="color: #6f42c1;">
-                                    <i class="fas fa-running me-1"></i> النشاط التنفيذي: {{ $activity->activity_name }}
+                                    <i class="fas fa-running me-1"></i> النشاط التنفيذي: {{ $activity->activity_name ?? $activity->name }}
                                 </h6>
                                 @if($activity->actions->count() > 0)
                                     @foreach($activity->actions as $action)
@@ -315,7 +335,7 @@
                             <textarea name="review_notes" 
                                       class="form-control" 
                                       rows="4" 
-                                      placeholder="أدخل ملاحظاتك وتفاصيل الاعتماد أو التعديلات المالية المطلوب إجراؤها..."></textarea>
+                                      placeholder="أدخل ملاحظاتك وتفاصيل الاعتماد أو التعديلات المالية المطلوب إجراؤها...">{{ $approval->financial_notes ?? '' }}</textarea>
                         </div>
                     </div>
                 </div>

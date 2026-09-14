@@ -1,4 +1,4 @@
-                <div class="content-card-elegant suggestions-card-elegant">
+                 <div class="content-card-elegant suggestions-card-elegant">
                     <div class="card-header-elegant">
                         <div class="header-title-elegant">
                             <div class="title-dot-gold"></div>

@@ -235,6 +235,7 @@
                     if(request('governorate_id')) $activeFiltersCount++;
                     if(request('directorate_id')) $activeFiltersCount++;
                     if(request('status')) $activeFiltersCount++;
+                    if(request()->filled('is_funded')) $activeFiltersCount++;
                     if(request('search')) $activeFiltersCount++;
                 @endphp
 
@@ -270,6 +271,15 @@
                             <option value="">📊 جميع الحالات</option>
                             <option value="1" {{ request('status') === '1' ? 'selected' : '' }}>✅ نشط</option>
                             <option value="0" {{ request('status') === '0' ? 'selected' : '' }}>⏸️ غير نشط</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="filter-label">جهة ممولة</label>
+                        <select name="is_funded" class="form-select form-select-sm filter-select auto-filter">
+                            <option value="">💰 جميع الجهات (التمويل)</option>
+                            <option value="1" {{ request('is_funded') === '1' ? 'selected' : '' }}>💎 جهة ممولة</option>
+                            <option value="0" {{ request('is_funded') === '0' ? 'selected' : '' }}>⚪ غير ممولة</option>
                         </select>
                     </div>
 
@@ -419,6 +429,13 @@
                                 </th>
 
                                 <th class="text-start sortable-th">
+                                    <a href="{{ $getSortUrl('is_funded') }}" class="text-decoration-none text-dark d-inline-flex align-items-center gap-1">
+                                        <span>جهة ممولة</span>
+                                        {!! $getSortIcon('is_funded') !!}
+                                    </a>
+                                </th>
+
+                                <th class="text-start sortable-th">
                                     <a href="{{ $getSortUrl('agency_name') }}" class="text-decoration-none text-dark d-inline-flex align-items-center gap-1">
                                         <span>اسم الجهة</span>
                                         {!! $getSortIcon('agency_name') !!}
@@ -480,6 +497,20 @@
                                             </span>
                                         @else
                                             <span class="text-muted small">-</span>
+                                        @endif
+                                    </td>
+
+                                    <td>
+                                        @if($authority->is_funded)
+                                            <span class="badge badge-compact" style="background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;">
+                                                <x-icon name="check-circle" size="10" class="me-1" />
+                                                ممولة
+                                            </span>
+                                        @else
+                                            <span class="badge badge-compact" style="background-color: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6;">
+                                                <x-icon name="minus-circle" size="10" class="me-1" />
+                                                غير ممولة
+                                            </span>
                                         @endif
                                     </td>
 
@@ -579,7 +610,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ auth()->user()->can('authorities.bulk-edit') ? 10 : 9 }}"
+                                    <td colspan="{{ auth()->user()->can('authorities.bulk-edit') ? 11 : 10 }}"
                                         class="text-center py-4 text-muted">
                                         <div class="d-flex flex-column align-items-center justify-content-center">
                                             <x-icon name="info-circle" size="32" class="mb-2 opacity-50" />

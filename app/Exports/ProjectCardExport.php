@@ -140,7 +140,7 @@ class ProjectCardExport
 
                 // Implementing entities data
                 foreach ($this->project->implementingEntities as $entity) {
-                    $entityType = ($entity->authority_type ?? $entity->entity_type) === 'internal' ? 'داخلية' : 'خارجية';
+                    $entityType = $entity->entity_type === 'internal' ? 'داخلية' : 'خارجية';
                     $sheet->setCellValue('A'.$row, $entityType);
                     $sheet->setCellValue('B'.$row, $entity->authority?->agency_name ?? 'غير محدد');
                     $sheet->mergeCells('C'.$row.':D'.$row);
@@ -165,7 +165,7 @@ class ProjectCardExport
 
                 // Participating entities data
                 foreach ($this->project->participatingEntities as $entity) {
-                    $entityType = ($entity->authority_type ?? $entity->entity_type) === 'internal' ? 'داخلية' : 'خارجية';
+                    $entityType = $entity->entity_type === 'internal' ? 'داخلية' : 'خارجية';
                     $sheet->setCellValue('A'.$row, $entityType);
                     $sheet->setCellValue('B'.$row, $entity->authority?->agency_name ?? 'غير محدد');
                     $sheet->mergeCells('C'.$row.':D'.$row);

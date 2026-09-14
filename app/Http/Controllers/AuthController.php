@@ -671,17 +671,30 @@ class AuthController extends Controller
      */
     public function sendOtp(Request $request, SmppSmsService $smsService)
     {
+        $loginField = $request->has('phone') ? 'phone' : 'username';
+        $username = trim($request->input($loginField));
+
         $request->validate([
-            'phone' => 'required|string|exists:users,phone',
+            $loginField => 'required|string',
         ], [
-            'phone.required' => 'رقم الهاتف مطلوب',
-            'phone.exists' => 'رقم الهاتف غير مسجل في النظام',
+            $loginField.'.required' => 'اسم المستخدم أو رقم الهاتف مطلوب',
         ]);
 
-        $user = User::withoutGlobalScopes()->where('phone', $request->phone)->first();
+        $user = User::withoutGlobalScopes()
+            ->where(function ($query) use ($username) {
+                $query->where('username', $username)
+                    ->orWhere('email', $username)
+                    ->orWhere('user_id', $username)
+                    ->orWhere('phone', $username);
+            })
+            ->first();
 
         if (! $user) {
             return response()->json(['success' => false, 'message' => 'المستخدم غير موجود'], 404);
+        }
+
+        if (! $user->phone) {
+            return response()->json(['success' => false, 'message' => 'لا يوجد رقم هاتف مسجل لهذا المستخدم لإرسال رمز التحقق'], 400);
         }
 
         // Generate 6-digit OTP
@@ -707,19 +720,29 @@ class AuthController extends Controller
      */
     public function verifyOtp(Request $request)
     {
+        $loginField = $request->has('phone') ? 'phone' : 'username';
+        $username = trim($request->input($loginField));
+
         $request->validate([
-            'phone' => 'required|string',
+            $loginField => 'required|string',
             'otp' => 'required|string|size:6',
         ], [
-            'phone.required' => 'رقم الهاتف مطلوب',
+            $loginField.'.required' => 'اسم المستخدم أو رقم الهاتف مطلوب',
             'otp.required' => 'رمز التحقق مطلوب',
             'otp.size' => 'رمز التحقق يجب أن يتكون من 6 أرقام',
         ]);
 
-        $user = User::withoutGlobalScopes()->where('phone', $request->phone)->first();
+        $user = User::withoutGlobalScopes()
+            ->where(function ($query) use ($username) {
+                $query->where('username', $username)
+                    ->orWhere('email', $username)
+                    ->orWhere('user_id', $username)
+                    ->orWhere('phone', $username);
+            })
+            ->first();
 
         if (! $user) {
-            return response()->json(['success' => false, 'message' => 'رقم الهاتف غير مسجل'], 404);
+            return response()->json(['success' => false, 'message' => 'المستخدم غير مسجل'], 404);
         }
 
         $passwordReset = PasswordReset::where('user_id', $user->id)->first();
@@ -744,19 +767,29 @@ class AuthController extends Controller
      */
     public function resetPasswordWithOtp(Request $request)
     {
+        $loginField = $request->has('phone') ? 'phone' : 'username';
+        $username = trim($request->input($loginField));
+
         $request->validate([
-            'phone' => 'required|string',
+            $loginField => 'required|string',
             'otp' => 'required|string|size:6',
             'password' => 'required|string|min:6|confirmed',
         ], [
-            'phone.required' => 'رقم الهاتف مطلوب',
+            $loginField.'.required' => 'اسم المستخدم أو رقم الهاتف مطلوب',
             'otp.required' => 'رمز التحقق مطلوب',
             'password.required' => 'كلمة المرور مطلوبة',
             'password.min' => 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
             'password.confirmed' => 'تأكيد كلمة المرور غير متطابق',
         ]);
 
-        $user = User::withoutGlobalScopes()->where('phone', $request->phone)->first();
+        $user = User::withoutGlobalScopes()
+            ->where(function ($query) use ($username) {
+                $query->where('username', $username)
+                    ->orWhere('email', $username)
+                    ->orWhere('user_id', $username)
+                    ->orWhere('phone', $username);
+            })
+            ->first();
 
         if (! $user) {
             return response()->json(['success' => false, 'message' => 'المستخدم غير موجود'], 404);

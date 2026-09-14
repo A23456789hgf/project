@@ -406,7 +406,7 @@
             submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
             
             $.ajax({
-                url: "{{ route('assignments.store', $project->id) }}",
+                url: "{{ route('projects.assignments.store', $project->id) }}",
                 type: 'POST',
                 data: $(this).serialize(),
                 success: function(response) {
@@ -908,7 +908,7 @@
                     <div class="mb-3">
                         <label for="modalAssignedTo" class="form-label fw-bold">اختر المستخدمين:</label>
                         <select name="assigned_to[]" id="modalAssignedTo" class="form-select select2-modal" multiple="multiple" style="width: 100%;">
-                            @foreach($users as $user)
+                            @foreach($users ?? [] as $user)
                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
                             @endforeach
                         </select>

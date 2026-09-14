@@ -335,7 +335,7 @@
             }
 
             function updateAssignmentCounts() {
-                const counts = { all: 0, overdue: 0, nearing: 0, current: 0 };
+                const counts = { all: 0, overdue: 0, nearing: 0, current: 0, completed: 0 };
                 allAssignments.forEach(item => {
                     counts.all++;
                     if (item.category && counts[item.category] !== undefined) counts[item.category]++;
@@ -344,56 +344,106 @@
                 $('#count-overdue').text(counts.overdue);
                 $('#count-nearing').text(counts.nearing);
                 $('#count-current').text(counts.current);
+                $('#count-completed').text(counts.completed);
             }
 
             function renderFilteredAssignments() {
                 const container = $('#assignmentsList');
-                const filtered = allAssignments.filter(item => currentFilter === 'all' || item.category === currentFilter);
+                const filtered = allAssignments.filter(item => {
+                    if (currentFilter === 'all') return true;
+                    return item.category === currentFilter;
+                });
+
                 if (!filtered.length) {
-                    container.html('<div class="empty-state-elegant py-4"><div class="empty-icon-elegant small"><i class="fas fa-clipboard-check"></i></div><p class="text-muted-elegant mb-0 small">لا توجد تكليفات</p></div>');
+                    let emptyMsg = 'لا توجد تكليفات أو مهام';
+                    if (currentFilter === 'overdue') emptyMsg = 'لا توجد مهام متأخرة';
+                    else if (currentFilter === 'nearing') emptyMsg = 'لا توجد مهام وشيكة';
+                    else if (currentFilter === 'current') emptyMsg = 'لا توجد مهام جارية';
+                    else if (currentFilter === 'completed') emptyMsg = 'لا توجد مهام مكتملة';
+
+                    container.html(`<div class="empty-state-elegant py-4"><div class="empty-icon-elegant small"><i class="fas fa-clipboard-check"></i></div><p class="text-muted-elegant mb-0 small">${emptyMsg}</p></div>`);
                     return;
                 }
+
                 let html = '';
                 filtered.forEach(function (item) {
                     let badgeCls = 'bg-navy-soft text-navy';
                     let borderCls = 'border-navy-elegant';
-                    let timeText = 'بدون تاريخ';
-                    let iconCls = 'fa-tag';
+                    let timeText = 'بدون تاريخ استحقاق';
+                    let iconCls = 'fa-calendar';
 
-                    if (item.days_remaining !== null) {
+                    if (item.category === 'completed') {
+                        badgeCls = 'bg-success-soft text-success';
+                        borderCls = 'border-success';
+                        iconCls = 'fa-check-circle';
+                        timeText = 'مكتملة';
+                    } else if (item.days_remaining !== null) {
                         if (item.days_remaining < 0) {
-                            badgeCls = 'bg-danger-soft text-danger'; borderCls = 'border-danger'; iconCls = 'fa-exclamation-circle'; timeText = `متأخر ${Math.abs(item.days_remaining)} يوم`;
+                            badgeCls = 'bg-danger-soft text-danger';
+                            borderCls = 'border-danger';
+                            iconCls = 'fa-exclamation-circle';
+                            timeText = `متأخر ${Math.abs(item.days_remaining)} يوم`;
                         } else if (item.days_remaining === 0) {
-                            badgeCls = 'bg-gold-soft text-gold-dark'; borderCls = 'border-gold-elegant'; iconCls = 'fa-clock'; timeText = 'يستحق اليوم';
+                            badgeCls = 'bg-gold-soft text-gold-dark';
+                            borderCls = 'border-gold-elegant';
+                            iconCls = 'fa-clock';
+                            timeText = 'يستحق اليوم';
                         } else if (item.days_remaining <= 3) {
-                            badgeCls = 'bg-gold-soft text-gold-dark'; borderCls = 'border-gold-elegant'; iconCls = 'fa-clock'; timeText = `متبقي ${item.days_remaining} يوم`;
+                            badgeCls = 'bg-gold-soft text-gold-dark';
+                            borderCls = 'border-gold-elegant';
+                            iconCls = 'fa-clock';
+                            timeText = `متبقي ${item.days_remaining} يوم`;
                         } else {
-                            badgeCls = 'bg-success-soft text-success'; borderCls = 'border-success'; iconCls = 'fa-hourglass-half'; timeText = `متبقي ${item.days_remaining} يوم`;
+                            badgeCls = 'bg-primary-soft text-primary';
+                            borderCls = 'border-primary';
+                            iconCls = 'fa-hourglass-half';
+                            timeText = `متبقي ${item.days_remaining} يوم`;
                         }
                     }
+
+                    // Priority badge
+                    let priorityBadge = '';
+                    if (item.priority) {
+                        const priorityLabels = {
+                            'urgent': { label: 'عاجلة', cls: 'bg-danger text-white' },
+                            'high': { label: 'عالية', cls: 'bg-warning text-dark' },
+                            'medium': { label: 'متوسطة', cls: 'bg-info text-dark' },
+                            'low': { label: 'منخفضة', cls: 'bg-secondary text-white' }
+                        };
+                        const pInfo = priorityLabels[item.priority] || { label: item.priority, cls: 'bg-light text-dark' };
+                        priorityBadge = `<span class="badge ${pInfo.cls} me-1" style="font-size: 0.68rem;">${pInfo.label}</span>`;
+                    }
+
+                    const actionUrl = item.view_url || (item.is_standalone_task ? `/tasks/${item.task_id}` : `/projects/${item.project_id}/execution`);
+                    const actionText = item.is_standalone_task ? 'عرض تفاصيل المهمة' : 'انتقال للتنفيذ';
+
                     html += `
                         <div class="assignment-item-elegant p-3 mb-3 bg-white rounded-3 border-start border-3 ${borderCls} shadow-sm">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <span class="badge-custom-elegant ${badgeCls}">
                                     <i class="fas ${iconCls} me-1"></i>${timeText}
                                 </span>
-                                <small class="text-muted-elegant fw-semibold">
-                                    <i class="fas fa-tag me-1"></i>${item.type_label}
-                                </small>
+                                <div class="d-flex align-items-center gap-1">
+                                    ${priorityBadge}
+                                    <small class="text-muted-elegant fw-semibold">
+                                        <i class="fas fa-tag me-1"></i>${item.type_label}
+                                    </small>
+                                </div>
                             </div>
-                            <h6 class="fw-semibold mb-1 small">${item.task_name}</h6>
-                            <p class="text-muted-elegant mb-2 small">
-                                <i class="fas fa-project-diagram me-1"></i>${item.project_name}
+                            <h6 class="fw-semibold mb-1 small text-dark">${item.task_name}</h6>
+                            <p class="text-muted-elegant mb-2 small d-flex align-items-center gap-1">
+                                <i class="fas fa-layer-group fa-xs"></i>
+                                <span>${item.project_name}</span>
                             </p>
-                            ${item.notes ? `<div class="note-box-elegant"><strong>ملاحظة:</strong> ${item.notes}</div>` : ''}
-                            ${item.is_standalone_task ? 
-                                `<a href="/tasks/${item.task_id}" class="btn-link-elegant">
-                                    <i class="fas fa-external-link-alt me-1"></i>عرض المهمة
-                                </a>` : 
-                                `<a href="/projects/${item.project_id}/execution" class="btn-link-elegant">
-                                    <i class="fas fa-external-link-alt me-1"></i>انتقال للتنفيذ
-                                </a>`
-                            }
+                            ${item.notes ? `<div class="note-box-elegant mb-2"><strong>ملاحظة:</strong> ${item.notes}</div>` : ''}
+                            <div class="d-flex justify-content-between align-items-center pt-2 border-top border-light-subtle">
+                                <small class="text-muted-elegant">
+                                    ${item.due_date ? `<i class="far fa-calendar-alt me-1"></i>${item.due_date}` : ''}
+                                </small>
+                                <a href="${actionUrl}" class="btn-link-elegant fw-semibold small">
+                                    <i class="fas fa-arrow-left me-1"></i>${actionText}
+                                </a>
+                            </div>
                         </div>
                     `;
                 });

@@ -48,6 +48,12 @@
                         </select>
                         <input type="hidden" name="company" value="{{ $userEntityErpId ?? $userEntityName }}">
                     @endif
+                    <div class="form-check mt-1">
+                        <input class="form-check-input" type="checkbox" name="include_children" id="filter_include_children" value="1">
+                        <label class="form-check-label text-muted" for="filter_include_children" style="font-size: 0.75rem; cursor: pointer;">
+                            تضمين الجهات الأبناء
+                        </label>
+                    </div>
                 </div>
 
                 {{-- المشروع --}}
@@ -107,6 +113,9 @@
                 <div class="col-auto d-flex gap-2 ms-auto">
                     <button type="submit" class="btn btn-primary btn-sm px-3">
                         <i class="fa-solid fa-magnifying-glass me-1"></i> عرض التقرير
+                    </button>
+                    <button type="button" id="btnPrintReport" class="btn btn-outline-primary btn-sm px-3">
+                        <i class="fa-solid fa-print me-1"></i> طباعة رسمية
                     </button>
                     <button type="button" id="btnResetFilters" class="btn btn-outline-secondary btn-sm px-3">
                         <i class="fa-solid fa-rotate-right me-1"></i> إعادة تعيين
@@ -518,6 +527,13 @@
         document.getElementById('financialFiltersForm').reset();
         document.getElementById('filter_based_on').dispatchEvent(new Event('change'));
         fetchFinancialReport();
+    });
+
+    document.getElementById('btnPrintReport')?.addEventListener('click', function () {
+        const filters = collectFilters();
+        filters.print = 1;
+        const params = new URLSearchParams(filters);
+        window.open(`${window.location.pathname}?${params.toString()}`, '_blank');
     });
 
     // تحميل التقرير عند فتح الصفحة

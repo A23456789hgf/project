@@ -127,113 +127,184 @@
             </div>
             @endif
 
-            {{-- Preliminary Activities & Procedures Display --}}
-            @if($project->preliminaryActivities->count() > 0)
-            <div class="card mb-4 border-0 shadow-sm">
-                <div class="card-header style-purple text-white" style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);">
-                    <h5 class="mb-0 fw-bold"><i class="fas fa-list me-2"></i>الأنشطة والإجراءات التمهيدية</h5>
-                </div>
-                <div class="card-body">
-                    @foreach($project->preliminaryActivities as $activity)
-                        <div class="mb-4 p-3 bg-light rounded border">
-                            <h6 class="fw-bold text-primary mb-2">
-                                <i class="fas fa-tasks me-1"></i> {{ $activity->activity }}
-                            </h6>
-                            @if($activity->procedures->count() > 0)
-                                <div class="list-group">
-                                    @foreach($activity->procedures as $procedure)
-                                        <div class="list-group-item bg-white mb-2 rounded border">
-                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                <div>
-                                                    <strong class="text-dark"><i class="fas fa-angle-left me-1 text-purple" style="color: #6f42c1;"></i> {{ $procedure->procedure }}</strong>
-                                                </div>
-                                                <div>
-                                                    <span class="badge bg-secondary-subtle text-secondary border">
-                                                        {{ $procedure->start_date }} إلى {{ $procedure->end_date }} ({{ $procedure->duration_days }} يوم)
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            @if($procedure->costs->count() > 0)
-                                                <div class="mt-2 text-muted small">
-                                                    <strong>التكاليف المالـية المرتبطة:</strong>
-                                                    @foreach($procedure->costs as $cost)
-                                                        <span class="badge bg-light text-dark border me-1">
-                                                            {{ $cost->financialItem->name ?? 'بند' }}: {{ number_format($cost->total_cost, 2) }} ريال
-                                                        </span>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @else
-                                <p class="text-muted small ms-3 mb-0">لا توجد إجراءات مسجلة لهذا النشاط التمهيدي.</p>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-            @endif
-
-            {{-- Executive Activities & Actions Display --}}
-            @if($project->executiveActivities->count() > 0)
-            <div class="card mb-4 border-0 shadow-sm">
-                <div class="card-header style-purple text-white" style="background: linear-gradient(135deg, #5a32a3 0%, #3c1e75 100%);">
-                    <h5 class="mb-0 fw-bold"><i class="fas fa-running me-2"></i>الأنشطة والإجراءات التنفيذية والجهات المكلفة</h5>
-                </div>
-                <div class="card-body">
-                    @foreach($project->executiveActivities as $activity)
-                        <div class="mb-4 p-3 bg-light rounded border">
-                            <h6 class="fw-bold mb-2" style="color: #6f42c1;">
-                                <i class="fas fa-running me-1"></i> {{ $activity->activity_name }}
-                            </h6>
-                            @if($activity->actions->count() > 0)
-                                <div class="list-group">
-                                    @foreach($activity->actions as $action)
-                                        <div class="list-group-item bg-white mb-2 rounded border">
-                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                <div>
-                                                    <strong class="text-dark"><i class="fas fa-angle-left me-1" style="color: #6f42c1;"></i> {{ $action->action_name }}</strong>
-                                                </div>
-                                                <div>
-                                                    <span class="badge bg-secondary-subtle text-secondary border">
-                                                        {{ $action->start_date }} إلى {{ $action->end_date }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            @if($action->assignedEntities->count() > 0)
-                                                <div class="mt-2">
-                                                    <span class="text-muted small me-1">الجهات المكلفة بالعملية:</span>
-                                                    @foreach($action->assignedEntities as $assigned)
-                                                        <span class="badge bg-info-subtle text-info border px-2 py-1 me-1">{{ $assigned->name_ar }}</span>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                            @if($action->costs->count() > 0)
-                                                <div class="mt-2 text-muted small">
-                                                    <strong>التكاليف المالية المرتبطة:</strong>
-                                                    @foreach($action->costs as $cost)
-                                                        <span class="badge bg-light text-dark border me-1">
-                                                            {{ $cost->financialItem->name ?? 'بند' }}: {{ number_format($cost->total_cost, 2) }} ريال
-                                                        </span>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @else
-                                <p class="text-muted small ms-3 mb-0">لا توجد إجراءات مسجلة لهذا النشاط التنفيذي.</p>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-            @endif
-
             {{-- Main Technical Review Form --}}
             <form method="POST" action="{{ route('projects.review.technical.submit', $project) }}" enctype="multipart/form-data">
                 @csrf
+
+                {{-- Policy Notice Banner --}}
+                <div class="alert border-0 p-3 rounded-3 mb-4 shadow-sm" style="background-color: #f3ebff; border-right: 4px solid #6f42c1 !important;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle fs-4 me-3 text-purple" style="color: #6f42c1;"></i>
+                        <div>
+                            <strong class="d-block text-dark">ضوابط المراجعة الفنية:</strong>
+                            <span class="text-muted small">
+                                يُسمح لك بتعديل مسميات ومواعيد الأنشطة والإجراءات التمهيدية والتنفيذية. 
+                                <span class="fw-bold text-danger"><i class="fas fa-lock me-1"></i>الجانب المالي والتكاليف مخصص للعرض فقط ولا يُسمح بتعديله في المراجعة الفنية.</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Preliminary Activities & Procedures (Editable Technical Details) --}}
+                @if($project->preliminaryActivities->count() > 0)
+                <div class="card mb-4 border-0 shadow-sm">
+                    <div class="card-header style-purple text-white" style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold"><i class="fas fa-list me-2"></i>الأنشطة والإجراءات التمهيدية (قابلة للتعديل الفني)</h5>
+                            <span class="badge bg-white text-dark small"><i class="fas fa-edit me-1 text-primary"></i>تعديل فني</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @foreach($project->preliminaryActivities as $activity)
+                            <div class="mb-4 p-3 bg-light rounded border">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-primary small">
+                                        <i class="fas fa-tasks me-1"></i> بيان / اسم النشاط التمهيدي:
+                                    </label>
+                                    <input type="text" 
+                                           name="preliminary_activities[{{ $activity->id }}][name]" 
+                                           class="form-control fw-semibold" 
+                                           value="{{ $activity->name ?? $activity->activity }}" 
+                                           required>
+                                </div>
+
+                                @if($activity->procedures->count() > 0)
+                                    <div class="ms-md-3">
+                                        <label class="form-label fw-bold text-dark small mb-2">إجراءات النشاط التمهيدي والمواعيد:</label>
+                                        @foreach($activity->procedures as $procedure)
+                                            <div class="p-3 bg-white mb-3 rounded border shadow-xs">
+                                                <div class="row g-2 align-items-center">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small text-muted mb-1">اسم الإجراء:</label>
+                                                        <input type="text" 
+                                                               name="preliminary_procedures[{{ $procedure->id }}][procedure_name]" 
+                                                               class="form-control form-control-sm" 
+                                                               value="{{ $procedure->procedure_name ?? $procedure->procedure }}" 
+                                                               required>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small text-muted mb-1">تاريخ البداية:</label>
+                                                        <input type="date" 
+                                                               name="preliminary_procedures[{{ $procedure->id }}][start_date]" 
+                                                               class="form-control form-control-sm" 
+                                                               value="{{ $procedure->start_date ? \Carbon\Carbon::parse($procedure->start_date)->format('Y-m-d') : '' }}">
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small text-muted mb-1">تاريخ النهاية:</label>
+                                                        <input type="date" 
+                                                               name="preliminary_procedures[{{ $procedure->id }}][end_date]" 
+                                                               class="form-control form-control-sm" 
+                                                               value="{{ $procedure->end_date ? \Carbon\Carbon::parse($procedure->end_date)->format('Y-m-d') : '' }}">
+                                                    </div>
+                                                </div>
+
+                                                {{-- Read-Only Costs Display --}}
+                                                @if($procedure->costs->count() > 0)
+                                                    <div class="mt-2 pt-2 border-top">
+                                                        <span class="text-muted small me-2"><i class="fas fa-lock me-1 text-secondary"></i>التكاليف المالية (للعرض فقط):</span>
+                                                        @foreach($procedure->costs as $cost)
+                                                            <span class="badge bg-secondary-subtle text-secondary border me-1">
+                                                                {{ $cost->financialItem->name ?? 'بند' }}: {{ number_format($cost->total_cost ?? $cost->total, 2) }} ريال
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="text-muted small ms-3 mb-0">لا توجد إجراءات مسجلة لهذا النشاط التمهيدي.</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                {{-- Executive Activities & Actions (Editable Technical Details) --}}
+                @if($project->executiveActivities->count() > 0)
+                <div class="card mb-4 border-0 shadow-sm">
+                    <div class="card-header style-purple text-white" style="background: linear-gradient(135deg, #5a32a3 0%, #3c1e75 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold"><i class="fas fa-running me-2"></i>الأنشطة والإجراءات التنفيذية (قابلة للتعديل الفني)</h5>
+                            <span class="badge bg-white text-dark small"><i class="fas fa-edit me-1 text-primary"></i>تعديل فني</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @foreach($project->executiveActivities as $activity)
+                            <div class="mb-4 p-3 bg-light rounded border">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small" style="color: #6f42c1;">
+                                        <i class="fas fa-running me-1"></i> بيان / اسم النشاط التنفيذي:
+                                    </label>
+                                    <input type="text" 
+                                           name="executive_activities[{{ $activity->id }}][activity_name]" 
+                                           class="form-control fw-semibold" 
+                                           value="{{ $activity->activity_name ?? $activity->name }}" 
+                                           required>
+                                </div>
+
+                                @if($activity->actions->count() > 0)
+                                    <div class="ms-md-3">
+                                        <label class="form-label fw-bold text-dark small mb-2">إجراءات النشاط التنفيذي والمواعيد:</label>
+                                        @foreach($activity->actions as $action)
+                                            <div class="p-3 bg-white mb-3 rounded border shadow-xs">
+                                                <div class="row g-2 align-items-center">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small text-muted mb-1">اسم الإجراء التنفيذي:</label>
+                                                        <input type="text" 
+                                                               name="executive_actions[{{ $action->id }}][action_name]" 
+                                                               class="form-control form-control-sm" 
+                                                               value="{{ $action->action_name ?? $action->action }}" 
+                                                               required>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small text-muted mb-1">تاريخ البداية:</label>
+                                                        <input type="date" 
+                                                               name="executive_actions[{{ $action->id }}][start_date]" 
+                                                               class="form-control form-control-sm" 
+                                                               value="{{ $action->start_date ? \Carbon\Carbon::parse($action->start_date)->format('Y-m-d') : '' }}">
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small text-muted mb-1">تاريخ النهاية:</label>
+                                                        <input type="date" 
+                                                               name="executive_actions[{{ $action->id }}][end_date]" 
+                                                               class="form-control form-control-sm" 
+                                                               value="{{ $action->end_date ? \Carbon\Carbon::parse($action->end_date)->format('Y-m-d') : '' }}">
+                                                    </div>
+                                                </div>
+
+                                                @if($action->assignedEntities->count() > 0)
+                                                    <div class="mt-2">
+                                                        <span class="text-muted small me-1">الجهات المكلفة:</span>
+                                                        @foreach($action->assignedEntities as $assigned)
+                                                            <span class="badge bg-info-subtle text-info border px-2 py-1 me-1">{{ $assigned->name_ar }}</span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+
+                                                {{-- Read-Only Costs Display --}}
+                                                @if($action->costs->count() > 0)
+                                                    <div class="mt-2 pt-2 border-top">
+                                                        <span class="text-muted small me-2"><i class="fas fa-lock me-1 text-secondary"></i>التكاليف المالية (للعرض فقط):</span>
+                                                        @foreach($action->costs as $cost)
+                                                            <span class="badge bg-secondary-subtle text-secondary border me-1">
+                                                                {{ $cost->financialItem->name ?? 'بند' }}: {{ number_format($cost->total_cost ?? $cost->total, 2) }} ريال
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="text-muted small ms-3 mb-0">لا توجد إجراءات مسجلة لهذا النشاط التنفيذي.</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
 
                 {{-- Review Decision, Attachment & Notes Card --}}
                 <div class="card mb-4 border-0 shadow-sm">
@@ -269,7 +340,7 @@
                             <textarea name="review_notes" 
                                       class="form-control" 
                                       rows="4" 
-                                      placeholder="أدخل ملاحظاتك الفنية وتفاصيل التوصيات أو التعديلات الفنية المطلوبة..."></textarea>
+                                      placeholder="أدخل ملاحظاتك الفنية وتفاصيل التوصيات أو التعديلات الفنية المطلوبة...">{{ $approval->technical_notes ?? '' }}</textarea>
                         </div>
                     </div>
                 </div>

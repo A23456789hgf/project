@@ -32,11 +32,6 @@ class EntitiesSheet implements FromArray, WithHeadings, WithStyles, WithTitle
             'الجهة',
             'المرجع',
         ];
-        // القيم المقبولة لعمود "دور الجهة":
-        //   مشرفة   = جهة إشرافية
-        //   منفذة   = جهة منفذة
-        //   مشاركة  = جهة مشاركة
-        //   مستفيدة = جهة مستفيدة (للمشاريع القديمة فقط)
     }
 
     public function array(): array
@@ -44,81 +39,61 @@ class EntitiesSheet implements FromArray, WithHeadings, WithStyles, WithTitle
         if ($this->projects && $this->projects->count() > 0) {
             $data = [];
             foreach ($this->projects as $project) {
-                // مشرفة
+                // Supervising
                 foreach ($project->supervisingAuthorities as $entity) {
                     $data[] = [
                         $project->project_name,
-                        'مشرفة',
+                        'supervising',
                         $entity->authority_type,
                         $entity->authority_id,
                         $entity->parent_id,
                     ];
                 }
-                // منفذة
+                // Implementing
                 foreach ($project->implementingEntities as $entity) {
                     $data[] = [
                         $project->project_name,
-                        'منفذة',
+                        'implementing',
                         $entity->authority_type,
                         $entity->authority_id,
                         $entity->parent_id,
                     ];
                 }
-                // مشاركة
+                // Participating
                 foreach ($project->participatingEntities as $entity) {
                     $data[] = [
                         $project->project_name,
-                        'مشاركة',
+                        'participating',
                         $entity->authority_type,
                         $entity->authority_id,
                         $entity->parent_id,
                     ];
-                }
-                // مستفيدة (للمشاريع القديمة فقط)
-                if ($project->project_type === 'old') {
-                    foreach ($project->beneficiaryEntities as $entity) {
-                        $data[] = [
-                            $project->project_name,
-                            'مستفيدة',
-                            $entity->authority_type,
-                            $entity->authority_id,
-                            $entity->parent_id,
-                        ];
-                    }
                 }
             }
 
             return $data;
         }
 
-        // بيانات نموذجية
         return [
             [
-                'مشروع تجريبي',   // اسم المشروع (للربط)
-                'مشرفة',           // دور الجهة: مشرفة / منفذة / مشاركة / مستفيدة
-                'internal',        // نوع الجهة: internal أو external
-                '1',               // معرّف الجهة
-                '',                // المرجع (اختياري)
+                'مشروع تجريبي',       // project_name (للربط)
+                'supervising',         // entity_role: supervising / implementing / participating
+                '',                    // authority_type
+                '1',                   // authority_id
+                '',                    // parent_id
             ],
             [
                 'مشروع تجريبي',
-                'منفذة',
-                'external',
+                'implementing',
+                '',
                 '2',
                 '',
             ],
             [
                 'مشروع تجريبي',
-                'مشاركة',
-                'internal',
-                '3',
+                'participating',
                 '',
-            ],
-            [
-                'مشروع قديم تجريبي',
-                'مستفيدة',
-                'external',
-                '4',
+                '3',
                 '',
             ],
         ];

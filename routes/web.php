@@ -3,6 +3,8 @@
 use App\Http\Controllers\ActivityAssignmentController;
 use App\Http\Controllers\Admin\UIShowcaseController;
 use App\Http\Controllers\Api\ErpUomController;
+use App\Http\Controllers\Approval\ApprovalCenterController;
+use App\Http\Controllers\Approval\ConsultationCenterController;
 use App\Http\Controllers\AssociationController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -52,7 +54,6 @@ use App\Http\Controllers\Project\ProjectAchievementController;
 use App\Http\Controllers\Project\ProjectApprovalController;
 use App\Http\Controllers\Project\ProjectDocumentController;
 use App\Http\Controllers\Project\ProjectImportController;
-use App\Http\Controllers\Project\ProjectReferralController;
 use App\Http\Controllers\Project\ProjectSupervisingAuthoritiesController;
 use App\Http\Controllers\Project\QualityController;
 use App\Http\Controllers\Project\ReportsController;
@@ -253,6 +254,7 @@ Route::middleware('auth')->group(function () {
     // الإشعارات
     // ========================================
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    Route::post('/notifications/{id}/mark-read', [NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
     Route::get('/notifications/unread-count', [NotificationController::class, 'getUnreadCount'])->name('notifications.unread-count');
     Route::get('/notifications/latest', [NotificationController::class, 'getLatest'])->name('notifications.latest');
 
@@ -275,11 +277,9 @@ Route::middleware('auth')->group(function () {
     // ========================================
     // الاقتراحات
     // ========================================
-    Route::middleware('can:suggestions.view')->group(function () {
-        Route::get('/api/suggestions', [SuggestionController::class, 'index'])->name('suggestions.index');
-        Route::post('/api/suggestions', [SuggestionController::class, 'store'])->name('suggestions.store')->middleware('can:suggestions.create');
-        Route::post('/api/suggestions/{id}/toggle-complete', [SuggestionController::class, 'toggleComplete'])->name('suggestions.toggle-complete')->middleware('can:suggestions.complete');
-    });
+    Route::get('/api/suggestions', [SuggestionController::class, 'index'])->name('suggestions.index');
+    Route::post('/api/suggestions', [SuggestionController::class, 'store'])->name('suggestions.store')->middleware('can:suggestions.create');
+    Route::post('/api/suggestions/{id}/toggle-complete', [SuggestionController::class, 'toggleComplete'])->name('suggestions.toggle-complete')->middleware('can:suggestions.complete');
 
     // ========================================
     // Routes التطوير والاختبار
@@ -468,6 +468,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/financial-erpnext/data', [ERPNextFinancialReportController::class, 'getFinancialData'])->name('financial_erpnext_data');
             Route::get('/profit-and-loss', [ProfitAndLossController::class, 'index'])->name('profit_and_loss');
             Route::get('/pl-expense-summary', [PlExpenseSummaryController::class, 'index'])->name('pl_expense_summary');
+            Route::get('/pl-expense-summary/print-general', [PlExpenseSummaryController::class, 'printGeneral'])->name('pl_expense_summary.print_general');
+            Route::get('/pl-expense-summary/print-items', [PlExpenseSummaryController::class, 'printItems'])->name('pl_expense_summary.print_items');
+            Route::get('/pl-expense-summary/export-general-excel', [PlExpenseSummaryController::class, 'exportGeneralExcel'])->name('pl_expense_summary.export_general_excel');
+            Route::get('/pl-expense-summary/export-items-excel', [PlExpenseSummaryController::class, 'exportItemsExcel'])->name('pl_expense_summary.export_items_excel');
             Route::get('/progress', [ReportsController::class, 'progress'])->name('progress');
             Route::get('/status', [ReportsController::class, 'status'])->name('status');
             Route::get('/overview', [ReportsController::class, 'overview'])->name('overview');
@@ -524,6 +528,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/{project}/approval/reject', [ProjectApprovalController::class, 'reject'])->name('approval.reject')->middleware('can:approvals.reject');
             Route::post('/{project}/approval/request-action', [ProjectApprovalController::class, 'requestAction'])->name('approval.requestAction')->middleware('can:approvals.request-action');
             Route::post('/{project}/approval/resubmit', [ProjectApprovalController::class, 'resubmit'])->name('approval.resubmit');
+            Route::post('/{project}/approval/referral', [ProjectApprovalController::class, 'submitReferral'])->name('approval.referral');
             Route::post('/{project}/approval/update-restricted', [ProjectApprovalController::class, 'updateRestrictedFields'])->name('approval.updateRestrictedFields')->middleware('can:approvals.approve');
         });
 
@@ -557,6 +562,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/{task}', [TaskController::class, 'show'])->name('show');
             Route::put('/{task}', [TaskController::class, 'update'])->name('update');
             Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy');
+            Route::post('/{task}/stop', [TaskController::class, 'stopTask'])->name('stop');
 
             Route::post('/{task}/discussions', [TaskDiscussionController::class, 'store'])->name('discussions.store');
             Route::post('/{task}/memos', [TaskMemoController::class, 'store'])->name('memos.store');
@@ -577,6 +583,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{project}/export/excel', [ProjectController::class, 'exportProjectExcel'])->name('export-excel-single')->middleware('can:projects.export');
         Route::get('/{project}/export/excel/comprehensive', [ProjectController::class, 'exportProjectExcelComprehensive'])->name('export-excel-comprehensive')->middleware('can:projects.export');
         Route::get('/{project}/print', [ProjectController::class, 'print'])->name('print')->middleware('can:projects.print');
+        Route::get('/{project}/print-financial', [ProjectController::class, 'printFinancial'])->name('print-financial')->middleware('can:projects.print');
         Route::get('/{project}/export/word', function (Project $project) {
             return redirect()->route('projects.export-pdf', $project->id)->with('info', 'تصدير Word غير متاح حالياً، تم تحويلك إلى تصدير PDF.');
         })->name('export-word')->middleware('can:projects.export');
@@ -746,6 +753,21 @@ Route::middleware('auth')->group(function () {
     });
 
     // ========================================
+    // مركز المراجعة والاعتمادات (Approval Center)
+    // ========================================
+    Route::group(['prefix' => 'approvals', 'as' => 'approvals.', 'middleware' => ['can:approvals.view']], function () {
+        Route::get('/', [ApprovalCenterController::class, 'index'])->name('index');
+        Route::get('/referrals/{referral}', [ApprovalCenterController::class, 'showReferral'])->name('referral.show');
+        Route::post('/referrals/{referral}/respond', [ApprovalCenterController::class, 'respondReferral'])->name('referral.respond');
+        Route::get('/{project}', [ApprovalCenterController::class, 'show'])->name('show');
+        Route::post('/{project}/approve', [ProjectApprovalController::class, 'approve'])->name('approve')->middleware(['can:approvals.approve', 'require_signature']);
+        Route::post('/{project}/reject', [ProjectApprovalController::class, 'reject'])->name('reject')->middleware('can:approvals.reject');
+        Route::post('/{project}/request-action', [ProjectApprovalController::class, 'requestAction'])->name('requestAction')->middleware('can:approvals.request-action');
+        Route::post('/{project}/resubmit', [ProjectApprovalController::class, 'resubmit'])->name('resubmit');
+        Route::post('/{project}/referral', [ProjectApprovalController::class, 'submitReferral'])->name('referral');
+    });
+
+    // ========================================
     // طلبات المشاريع (Project Requests)
     // ========================================
     Route::group(['prefix' => 'project-requests', 'as' => 'project-requests.'], function () {
@@ -763,11 +785,25 @@ Route::middleware('auth')->group(function () {
     });
 
     // ========================================
-    // إحالات المشاريع (Project Referrals)
+    // الاستشارات والإحالات (Consultations Center)
+    // ========================================
+    Route::group(['prefix' => 'consultations', 'as' => 'consultations.', 'middleware' => ['can:referrals.view']], function () {
+        Route::get('/', [ConsultationCenterController::class, 'index'])->name('index');
+        Route::get('/{referral}', [ConsultationCenterController::class, 'show'])->name('show');
+        Route::post('/{referral}/respond', [ConsultationCenterController::class, 'respond'])->name('respond');
+        Route::post('/{referral}/close', [ConsultationCenterController::class, 'close'])->name('close');
+    });
+
+    // ========================================
+    // إحالات المشاريع (Legacy Project Referrals - Compatibility)
     // ========================================
     Route::group(['prefix' => 'project-referrals', 'as' => 'project-referrals.'], function () {
-        Route::get('/', [ProjectReferralController::class, 'index'])->name('index')->middleware('can:referrals.view');
-        Route::get('/{project}', [ProjectReferralController::class, 'show'])->name('show')->middleware('can:referrals.view');
+        Route::get('/', function () {
+            return redirect()->route('consultations.index');
+        })->name('index')->middleware('can:referrals.view');
+
+        Route::get('/{referral}', [ConsultationCenterController::class, 'show'])->name('show')->middleware('can:referrals.view');
+        Route::post('/{referral}/respond', [ConsultationCenterController::class, 'respond'])->name('respond')->middleware('can:referrals.view');
     });
 
     // ========================================
@@ -938,6 +974,7 @@ Route::middleware('auth')->group(function () {
     });
     Route::put('/tasks/{task}', [TaskController::class, 'updateGlobal'])->name('tasks.updateGlobal')->middleware('can:task.edit');
     Route::delete('/tasks/{task}', [TaskController::class, 'destroyGlobal'])->name('tasks.destroyGlobal')->middleware('can:task.delete');
+    Route::post('/tasks/{task}/stop', [TaskController::class, 'stopGlobalTask'])->name('tasks.stopGlobal')->middleware('can:task.edit');
 
     // ========================================
     // طباعة المهام

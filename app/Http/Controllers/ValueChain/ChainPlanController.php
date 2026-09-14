@@ -15,6 +15,7 @@ use App\Models\InternalEntity;
 use App\Models\ValueChain;
 use App\Models\ValueChainFinancingType;
 use App\Services\ImportTrackingService;
+use App\Services\NotificationService;
 use Flasher\Laravel\Facade\Flasher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -212,7 +213,13 @@ class ChainPlanController extends Controller
             'implementing_entity_id' => 'nullable|string|max:255',
         ]);
 
-        ChainPlan::create($validated);
+        $chainPlan = ChainPlan::create($validated);
+
+        try {
+            app(NotificationService::class)->notifyValueChain($chainPlan, 'created', auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in ChainPlanController store: '.$e->getMessage());
+        }
 
         Flasher::addSuccess('تمت إضافة خطة السلسلة بنجاح');
 
@@ -278,6 +285,12 @@ class ChainPlanController extends Controller
         ]);
 
         $chainPlan->update($validated);
+
+        try {
+            app(NotificationService::class)->notifyValueChain($chainPlan, 'updated', auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in ChainPlanController update: '.$e->getMessage());
+        }
 
         Flasher::addSuccess('تم تحديث خطة السلسلة بنجاح');
 

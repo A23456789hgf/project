@@ -2,222 +2,709 @@
 
 namespace App\Services;
 
-use App\Models\ApprovalFlow;
+use App\Enums\ApprovalStepStatus;
+use App\Enums\ProjectStatus;
+use App\Enums\ReturnTarget;
+use App\Exceptions\InvalidWorkflowTransitionException;
+use App\Exceptions\UnauthorizedWorkflowActionException;
+use App\Exceptions\WorkflowValidationException;
+use App\Http\Controllers\Project\Services\ProjectService;
 use App\Models\Authority;
 use App\Models\InternalEntity;
 use App\Models\Project;
 use App\Models\ProjectActivityHistory;
 use App\Models\ProjectApproval;
-use App\Models\ProjectMovementLog;
+use App\Models\ProjectReferral;
 use App\Models\Stage;
-use App\Models\StageFlow;
-use App\Models\StageStatus;
+use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class ApprovalService
 {
-    /**
-     * Initialize first approval stage for a new project based on user's entity
-     */
-    public function initializeRecursiveApprovals(Project $project): ?ProjectApproval
+    protected EntityHierarchyService $entityHierarchyService;
+
+    public function __construct(EntityHierarchyService $entityHierarchyService)
     {
-        try {
-            $user = auth()->user();
-            $entityId = $user->entity_id;
+        $this->entityHierarchyService = $entityHierarchyService;
+    }
 
-            if (! $entityId) {
-                Log::warning('User has no entity assigned', ['user_id' => $user->id]);
+    // =========================================================================
+    // 1. DRAFT & CHAIN GENERATION (إغلاق المسودة وتوليد السلسلة)
+    // =========================================================================
 
-                return null;
+    /**
+     * Close draft and generate dynamic approval chain from Creator Entity to Root.
+     * Step 1 is set to ACTIVE (pending), all subsequent steps are LOCKED.
+     *
+     * @throws InvalidWorkflowTransitionException
+     * @throws UnauthorizedWorkflowActionException
+     */
+    public function closeDraftAndGenerateApprovalChain(Project $project, User $user): Collection
+    {
+        // 1. Validate project is in draft state
+        if (! $project->isDraft() && $project->status !== 'draft' && $project->status !== 'completed_draft') {
+            throw new InvalidWorkflowTransitionException('المشروع ليس في حالة مسودة ليتم إغلاقها.');
+        }
+
+        // 2. Validate user belongs to creator entity or is creator or admin
+        $originEntityId = $project->getOriginEntityId() ?? $user->entity_id;
+        if (! $user->isAdmin()) {
+            $userEntityId = $user->entity_id;
+            $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+
+            $isCreatorUser = ($project->created_by_user_id === $user->id);
+            $belongsToOrigin = ($originEntityId && in_array((int) $originEntityId, $allowedEntityIds, true));
+
+            if (! $isCreatorUser && ! $belongsToOrigin) {
+                throw new UnauthorizedWorkflowActionException('فقط أعضاء الجهة المنشئة للمشروع يمكنهم إغلاق المسودة وتقديم المشروع للاعتماد.');
+            }
+        }
+
+        return DB::transaction(function () use ($project, $user, $originEntityId) {
+            // 3. Resolve dynamic stages hierarchy
+            $stages = $this->entityHierarchyService->generateApprovalStagesFromSelectedEntity((int) $originEntityId);
+
+            if (empty($stages)) {
+                throw new InvalidWorkflowTransitionException('تعذر توليد مسار الاعتمادات للجهة المنشئة. يرجى التحقق من شجرة الجهات.');
             }
 
-            $currentEntity = InternalEntity::find($entityId);
-            if (! $currentEntity) {
-                Log::warning('Internal Entity not found', ['entity_id' => $entityId]);
+            // 4. Remove any existing transient approval records for this project
+            ProjectApproval::where('project_id', $project->id)->delete();
 
-                return null;
+            $createdApprovals = collect();
+            $firstStage = $stages[0];
+
+            // 5. Create the approval chain steps
+            foreach ($stages as $stageData) {
+                $isFirst = ($stageData['order'] === 1);
+
+                $approval = ProjectApproval::create([
+                    'project_id' => $project->id,
+                    'entity_id' => $stageData['entity_id'],
+                    'drop' => $stageData['code'],
+                    'phase' => $stageData['phase'] ?? null,
+                    'step_order' => $stageData['order'],
+                    'status' => $isFirst ? ApprovalStepStatus::Pending->value : ApprovalStepStatus::Locked->value,
+                    'is_active' => $isFirst,
+                    'created_by' => $user->id,
+                    'financial_review_status' => ($stageData['phase'] === 'financial_review') ? 'pending' : null,
+                    'technical_review_status' => ($stageData['phase'] === 'technical_review') ? 'pending' : null,
+                ]);
+
+                $createdApprovals->push($approval);
             }
 
-            // Create the first approval stage for the user's entity
-            $firstApproval = ProjectApproval::create([
-                'project_id' => $project->id,
-                'authority_id' => $entityId,
-                'drop' => 'entity_'.$entityId, // Match code format from EntityHierarchyService
-                'step_order' => 1,
-                'status' => 'pending',
-                'created_by' => Auth::id(),
-            ]);
-
-            // Update project status and entity tracking
+            // 6. Update project state
             $project->update([
-                'creator_entity_id' => $currentEntity->id,
+                'status' => ProjectStatus::PendingApproval->value,
                 'approval_status' => 'pending',
-                'current_stage' => 'entity_'.$entityId,
+                'current_stage' => $firstStage['code'],
                 'current_stage_order' => 1,
-                'current_approval_stage_id' => null,
+                'creator_entity_id' => $originEntityId,
+                'finalized_at' => Carbon::now(),
             ]);
 
-            // Log activity
-            $this->logActivity($project, 'initiated', [
-                'notes' => 'Project initiated by '.$user->name.' at '.$currentEntity->name,
-                'from_stage_name' => 'Draft',
-                'to_stage_name' => $currentEntity->name,
+            // 7. Log in activity history
+            $this->logActivity($project, 'finalized', [
+                'user_id' => $user->id,
+                'from_stage_name' => 'المسودة (Draft)',
+                'from_stage_order' => 0,
+                'to_stage_name' => $firstStage['name_ar'],
                 'to_stage_order' => 1,
+                'notes' => 'تم إغلاق المسودة وتوليد مسار الاعتمادات بنجاح.',
             ]);
 
-            return $firstApproval;
-        } catch (\Exception $e) {
-            Log::error('Failed to initialize recursive approvals', [
+            Log::info('Approval chain generated for project', [
                 'project_id' => $project->id,
-                'error' => $e->getMessage(),
+                'origin_entity_id' => $originEntityId,
+                'total_steps' => count($stages),
+                'first_stage' => $firstStage['code'],
             ]);
 
-            return null;
-        }
+            return $createdApprovals;
+        });
+    }
+
+    // =========================================================================
+    // 2. ACTIVE STEP RESOLUTION & AUTHORIZATION
+    // =========================================================================
+
+    /**
+     * Get the single active approval step for the project
+     */
+    public function getActiveStep(Project $project): ?ProjectApproval
+    {
+        return $project->projectApprovals()
+            ->where('is_active', true)
+            ->first() ?? (
+                $project->current_stage
+                    ? $project->projectApprovals()->where('drop', $project->current_stage)->first()
+                    : null
+            );
     }
 
     /**
-     * Progress project to the next parent entity in the hierarchy
+     * Check if a user is authorized to perform actions on a specific approval step
      */
-    public function progressToNextParentStage(ProjectApproval $currentApproval): ?ProjectApproval
+    public function canUserActOnStep(User $user, ProjectApproval $step): bool
     {
-        $project = $currentApproval->project;
-        $currentEntityId = $currentApproval->entity_id;
-        $currentEntity = InternalEntity::find($currentEntityId);
 
-        if (! $currentEntity || ! $currentEntity->parent_id) {
-            // Reached the root or no parent found - Move to Implementation Stage
-            $implementationApproval = ProjectApproval::create([
-                'project_id' => $project->id,
-                'authority_id' => $currentEntity ? $currentEntity->id : null, // keep same authority or central?
-                'drop' => 'implementation',
-                'step_order' => $currentApproval->step_order + 1,
-                'status' => 'pending',
-                'created_by' => Auth::id(),
-            ]);
+        // Must match step's entity
+        $userEntityId = (int) $user->entity_id;
+        $stepEntityId = (int) $step->entity_id;
 
-            $project->update(['status' => 'implementation']);
-            $this->logActivity($project, 'approved_to_implementation', [
-                'notes' => 'Project has passed all entity approvals and moved to Implementation Stage.',
-                'from_stage_name' => $currentEntity ? $currentEntity->name : 'Unknown',
-                'to_stage_name' => 'Implementation Stage',
-            ]);
-
-            return $implementationApproval;
+        if ($stepEntityId && ($userEntityId !== $stepEntityId)) {
+            return false;
         }
 
-        $parentEntity = $currentEntity->parent;
+        // Check phase-specific permission if permissions table is populated
+        $phaseEnum = $step->getPhaseEnum();
+        if ($phaseEnum) {
+            $requiredPermission = $phaseEnum->permissionSlug();
+            $permissionExists = Schema::hasTable('permissions')
+                && DB::table('permissions')->where('slug', $requiredPermission)->exists();
 
-        // Create the next stage for the parent entity
-        $nextApproval = ProjectApproval::create([
-            'project_id' => $project->id,
-            'authority_id' => $parentEntity->id,
-            'drop' => 'entity_'.$parentEntity->id, // Match code format
-            'step_order' => $currentApproval->step_order + 1,
-            'status' => 'pending',
-            'created_by' => Auth::id(),
-        ]);
-
-        $this->logActivity($project, 'approved', [
-            'from_stage_name' => $currentEntity->name,
-            'from_stage_order' => $currentApproval->step_order,
-            'to_stage_name' => $parentEntity->name,
-            'to_stage_order' => $nextApproval->step_order,
-        ]);
-
-        return $nextApproval;
-    }
-
-    /**
-     * Create approval stages for a project based on its supervising authorities
-     */
-    public function createProjectApprovalStages(Project $project): Collection
-    {
-        $approvals = collect();
-
-        $supervisingAuthorities = $project->supervisingAuthorities()->get();
-
-        if ($supervisingAuthorities->isEmpty()) {
-            return $approvals;
-        }
-
-        foreach ($supervisingAuthorities as $supervising) {
-            $authority = $supervising->authority;
-            if (! $authority) {
-                continue;
-            }
-
-            $hierarchy = $this->getAuthorityHierarchy($authority);
-
-            foreach ($hierarchy as $auth) {
-                $flows = ApprovalFlow::where('authority_id', $auth->id)
-                    ->where('is_active', true)
-                    ->orderBy('step_order')
-                    ->get();
-
-                foreach ($flows as $flow) {
-                    $existing = ProjectApproval::where('project_id', $project->id)
-                        ->where('authority_id', $auth->id)
-                        ->where('step_order', $flow->step_order)
-                        ->first();
-
-                    if (! $existing) {
-                        $approval = ProjectApproval::create([
-                            'project_id' => $project->id,
-                            'authority_id' => $auth->id,
-                            'approval_flow_id' => $flow->id,
-                            'step_order' => $flow->step_order,
-                            'status' => 'pending',
-                        ]);
-
-                        $approvals->push($approval);
+            if ($permissionExists && ! $user->hasPermission($requiredPermission)) {
+                // Fallback check for alternate permission names
+                $alternateMap = [
+                    'approvals.technical-review' => ['reviews.technical', 'approvals.technical'],
+                    'approvals.financial-review' => ['reviews.financial', 'approvals.financial'],
+                    'approvals.approve' => ['projects.approve', 'approvals.stage-approve'],
+                ];
+                $alternates = $alternateMap[$requiredPermission] ?? [];
+                $hasAlt = false;
+                foreach ($alternates as $alt) {
+                    if ($user->hasPermission($alt)) {
+                        $hasAlt = true;
+                        break;
                     }
+                }
+                if (! $hasAlt) {
+                    return false;
                 }
             }
         }
-
-        return $approvals;
-    }
-
-    /**
-     * Get all authorities in a hierarchy (from child to root)
-     */
-    public function getAuthorityHierarchy(Authority $authority): array
-    {
-        $hierarchy = [];
-        $current = $authority;
-
-        while ($current) {
-            array_unshift($hierarchy, $current);
-            $current = $current->parent;
+        if ($step->phase === 'technical_review') {
+            $assignedId = $step->technical_reviewer_id ?? $step->technical_review_user_id;
+            if (! $assignedId || (int) $assignedId !== (int) $user->id) {
+                return false;
+            }
+        } elseif ($step->phase === 'financial_review') {
+            $assignedId = $step->financial_reviewer_id ?? $step->financial_review_user_id;
+            if (! $assignedId || (int) $assignedId !== (int) $user->id) {
+                return false;
+            }
+        } else {
+            // All other phases (stage approvals, etc.) must be explicitly assigned to the user
+            $assignedId = $step->assigned_user_id;
+            if (! $assignedId || (int) $assignedId !== (int) $user->id) {
+                return false;
+            }
         }
 
-        return $hierarchy;
+        return true;
     }
 
-    /**
-     * Get all internal entities in a hierarchy (from child to root)
-     */
-    public function getEntityHierarchy(InternalEntity $entity): array
-    {
-        $hierarchy = [];
-        $current = $entity;
+    // =========================================================================
+    // 3. APPROVE STEP & PROGRESSION (اعتماد الخطوة النشطة)
+    // =========================================================================
 
-        while ($current) {
-            $hierarchy[] = $current;
-            $current = $current->parent;
+    /**
+     * Approve the current active step and progress to next step or finalize to in_execution
+     *
+     * @throws InvalidWorkflowTransitionException
+     * @throws UnauthorizedWorkflowActionException
+     */
+    public function approveActiveStep(Project $project, User $user, ?string $notes = null, ?string $attachment = null): array
+    {
+        return DB::transaction(function () use ($project, $user, $notes, $attachment) {
+            $activeStep = $this->getActiveStep($project);
+
+
+            
+            if (! $activeStep || ! $activeStep->isActive()) {
+                throw new InvalidWorkflowTransitionException('لا يمكن تنفيذ الاعتماد؛ لا توجد مرحلة نشطة لهذا المشروع.');
+            }
+
+            if (! $this->canUserActOnStep($user, $activeStep)) {
+                throw new UnauthorizedWorkflowActionException('ليس لديك الصلاحية لاعتماد هذه المرحلة.');
+            }
+
+            $timestamp = Carbon::now();
+            $fromStageName = $activeStep->getResolvedStageName();
+            $fromStageOrder = $activeStep->step_order;
+
+            // 1. Mark current active step as completed
+            $activeStep->update([
+                'status' => ApprovalStepStatus::Approved->value,
+                'is_active' => false,
+                'is_completed' => true,
+                'reviewed_by' => $user->id,
+                'reviewed_at' => $timestamp,
+                'notes' => $notes ?: 'تمت الموافقة بواسطة '.$user->name,
+                'attachment' => $attachment,
+                'financial_review_status' => ($activeStep->phase === 'financial_review') ? 'approved' : $activeStep->financial_review_status,
+                'technical_review_status' => ($activeStep->phase === 'technical_review') ? 'approved' : $activeStep->technical_review_status,
+            ]);
+
+            // 2. Find next step in chain
+            $nextStep = ProjectApproval::where('project_id', $project->id)
+                ->where('step_order', $fromStageOrder + 1)
+                ->first();
+
+            if ($nextStep) {
+                // Activate next step
+                $nextStep->update([
+                    'status' => ApprovalStepStatus::Pending->value,
+                    'is_active' => true,
+                ]);
+
+                $project->update([
+                    'current_stage' => $nextStep->drop,
+                    'current_stage_order' => $nextStep->step_order,
+                    'status' => ProjectStatus::PendingApproval->value,
+                ]);
+
+                $this->logActivity($project, 'approved', [
+                    'user_id' => $user->id,
+                    'from_stage_name' => $fromStageName,
+                    'from_stage_order' => $fromStageOrder,
+                    'to_stage_name' => $nextStep->getResolvedStageName(),
+                    'to_stage_order' => $nextStep->step_order,
+                    'notes' => $notes ?: 'تمت الموافقة والانتقال للمرحلة التالية.',
+                    'action_details' => $notes,
+                ]);
+
+                return [
+                    'success' => true,
+                    'is_final' => false,
+                    'approved_step' => $activeStep,
+                    'next_step' => $nextStep,
+                    'project_status' => ProjectStatus::PendingApproval->value,
+                    'message' => 'تمت الموافقة بنجاح والانتقال إلى: '.$nextStep->getResolvedStageName(),
+                ];
+            }
+
+            // 3. No next step -> Root Stage Approval completed -> FINAL APPROVAL!
+            $project->update([
+                'status' => ProjectStatus::InExecution->value,
+                'current_stage' => null,
+                'current_stage_order' => null,
+                'completed_at' => $timestamp,
+            ]);
+
+            $this->logActivity($project, 'approved_to_implementation', [
+                'user_id' => $user->id,
+                'from_stage_name' => $fromStageName,
+                'from_stage_order' => $fromStageOrder,
+                'to_stage_name' => 'مرحلة التنفيذ (In Execution)',
+                'to_stage_order' => $fromStageOrder + 1,
+                'notes' => 'اكتملت جميع مراحل الاعتماد بنجاح — تم نقل المشروع لمرحلة التنفيذ.',
+            ]);
+
+            // Safely trigger sync
+            $this->safelySyncProjectOnExecution($project);
+
+            return [
+                'success' => true,
+                'is_final' => true,
+                'approved_step' => $activeStep,
+                'next_step' => null,
+                'project_status' => ProjectStatus::InExecution->value,
+                'message' => 'تم اكتمال دورة الاعتمادات بالكامل ونقل المشروع إلى مرحلة التنفيذ.',
+            ];
+        });
+    }
+
+    // =========================================================================
+    // 4. REJECT STEP (رفض المشروع)
+    // =========================================================================
+
+    /**
+     * Reject the active step with mandatory reason
+     *
+     * @throws WorkflowValidationException
+     * @throws InvalidWorkflowTransitionException
+     * @throws UnauthorizedWorkflowActionException
+     */
+    public function rejectActiveStep(Project $project, User $user, string $reason, ?string $attachment = null): ProjectApproval
+    {
+        $trimmedReason = trim($reason);
+        if (empty($trimmedReason) || mb_strlen($trimmedReason) < 10) {
+            throw new WorkflowValidationException('سبب الرفض إلزامي ويجب ألا يقل عن 10 أحرف.');
         }
 
-        return $hierarchy;
+        return DB::transaction(function () use ($project, $user, $trimmedReason, $attachment) {
+            $activeStep = $this->getActiveStep($project);
+
+            if (! $activeStep || ! $activeStep->isActive()) {
+                throw new InvalidWorkflowTransitionException('لا يمكن تنفيذ الرفض؛ لا توجد مرحلة نشطة لهذا المشروع.');
+            }
+
+            if (! $this->canUserActOnStep($user, $activeStep)) {
+                throw new UnauthorizedWorkflowActionException('ليس لديك الصلاحية لرفض المشروع في هذه المرحلة.');
+            }
+
+            $fromStageName = $activeStep->getResolvedStageName();
+            $timestamp = Carbon::now();
+
+            // Mark active step as rejected
+            $activeStep->update([
+                'status' => ApprovalStepStatus::Rejected->value,
+                'is_active' => false,
+                'rejection_reason' => $trimmedReason,
+                'notes' => $trimmedReason,
+                'reviewed_by' => $user->id,
+                'reviewed_at' => $timestamp,
+                'attachment' => $attachment,
+            ]);
+
+            // Freeze future steps
+            ProjectApproval::where('project_id', $project->id)
+                ->where('step_order', '>', $activeStep->step_order)
+                ->update([
+                    'status' => ApprovalStepStatus::Locked->value,
+                    'is_active' => false,
+                ]);
+
+            // Update project status
+            $project->update([
+                'status' => ProjectStatus::Rejected->value,
+                'approval_status' => 'rejected',
+            ]);
+
+            // Log activity
+            $this->logActivity($project, 'rejected', [
+                'user_id' => $user->id,
+                'from_stage_name' => $fromStageName,
+                'from_stage_order' => $activeStep->step_order,
+                'to_stage_name' => 'مرفوض',
+                'notes' => $trimmedReason,
+                'action_details' => $trimmedReason,
+            ]);
+
+            return $activeStep;
+        });
+    }
+
+    // =========================================================================
+    // 5. REQUEST COMPLETION (طلب استكمال / إرجاع)
+    // =========================================================================
+
+    /**
+     * Request completion: either roll back to Creator Entity or to Previous Step
+     *
+     * @throws WorkflowValidationException
+     * @throws InvalidWorkflowTransitionException
+     * @throws UnauthorizedWorkflowActionException
+     */
+    public function requestCompletion(Project $project, User $user, string $notes, ReturnTarget $target, ?string $attachment = null): array
+    {
+        $trimmedNotes = trim($notes);
+        if (empty($trimmedNotes) || mb_strlen($trimmedNotes) < 10) {
+            throw new WorkflowValidationException('ملاحظات طلب الاستكمال إلزامية ومفصلة (10 أحرف على الأقل).');
+        }
+
+        return DB::transaction(function () use ($project, $user, $trimmedNotes, $target, $attachment) {
+            $activeStep = $this->getActiveStep($project);
+
+            if (! $activeStep || ! $activeStep->isActive()) {
+                throw new InvalidWorkflowTransitionException('لا يمكن طلب استكمال؛ لا توجد مرحلة نشطة لهذا المشروع.');
+            }
+
+            if (! $this->canUserActOnStep($user, $activeStep)) {
+                throw new UnauthorizedWorkflowActionException('ليس لديك الصلاحية لطلب استكمال في هذه المرحلة.');
+            }
+
+            $timestamp = Carbon::now();
+            $fromStageName = $activeStep->getResolvedStageName();
+            $fromStageOrder = $activeStep->step_order;
+
+            if ($target === ReturnTarget::CreatorEntity || $fromStageOrder <= 1) {
+                // Mode A: Return to Creator Entity
+                $activeStep->update([
+                    'status' => ApprovalStepStatus::NeedAction->value,
+                    'is_active' => false,
+                    'return_target' => ReturnTarget::CreatorEntity->value,
+                    'returned_to_step_order' => $fromStageOrder,
+                    'notes' => $trimmedNotes,
+                    'required_action' => $trimmedNotes,
+                    'attachment' => $attachment,
+                    'reviewed_by' => $user->id,
+                    'reviewed_at' => $timestamp,
+                ]);
+
+                $project->update([
+                    'status' => ProjectStatus::RolledBackForReview->value,
+                    'approval_status' => 'action_requested',
+                ]);
+
+                $this->logActivity($project, 'need_action', [
+                    'user_id' => $user->id,
+                    'from_stage_name' => $fromStageName,
+                    'from_stage_order' => $fromStageOrder,
+                    'to_stage_name' => 'الجهة المنشئة (المسودة)',
+                    'to_stage_order' => 0,
+                    'notes' => $trimmedNotes,
+                    'action_details' => $trimmedNotes,
+                ]);
+
+                return [
+                    'success' => true,
+                    'target' => 'creator_entity',
+                    'returned_step' => $activeStep,
+                    'project_status' => ProjectStatus::RolledBackForReview->value,
+                    'message' => 'تم طلب استكمال النواقص وإرجاع المشروع للجهة المنشئة لتعديله.',
+                ];
+            }
+
+            // Mode B: Return to Previous Step
+            $previousStep = ProjectApproval::where('project_id', $project->id)
+                ->where('step_order', $fromStageOrder - 1)
+                ->first();
+
+            if (! $previousStep) {
+                // Fallback to CreatorEntity
+                return $this->requestCompletion($project, $user, $trimmedNotes, ReturnTarget::CreatorEntity, $attachment);
+            }
+
+            $activeStep->update([
+                'status' => ApprovalStepStatus::Returned->value,
+                'is_active' => false,
+                'return_target' => ReturnTarget::PreviousStep->value,
+                'returned_to_step_order' => $previousStep->step_order,
+                'notes' => $trimmedNotes,
+                'attachment' => $attachment,
+                'reviewed_by' => $user->id,
+                'reviewed_at' => $timestamp,
+            ]);
+
+            $previousStep->update([
+                'status' => ApprovalStepStatus::Pending->value,
+                'is_active' => true,
+                'is_completed' => false,
+            ]);
+
+            $project->update([
+                'current_stage' => $previousStep->drop,
+                'current_stage_order' => $previousStep->step_order,
+                'status' => ProjectStatus::PendingApproval->value,
+            ]);
+
+            $this->logActivity($project, 'returned', [
+                'user_id' => $user->id,
+                'from_stage_name' => $fromStageName,
+                'from_stage_order' => $fromStageOrder,
+                'to_stage_name' => $previousStep->getResolvedStageName(),
+                'to_stage_order' => $previousStep->step_order,
+                'notes' => $trimmedNotes,
+                'action_details' => $trimmedNotes,
+            ]);
+
+            return [
+                'success' => true,
+                'target' => 'previous_step',
+                'returned_step' => $activeStep,
+                'active_step' => $previousStep,
+                'project_status' => ProjectStatus::PendingApproval->value,
+                'message' => 'تم إرجاع المشروع إلى المرحلة السابقة: '.$previousStep->getResolvedStageName(),
+            ];
+        });
+    }
+
+    // =========================================================================
+    // 6. RESUBMIT PROJECT (إعادة التقديم بعد الاستكمال)
+    // =========================================================================
+
+    /**
+     * Resubmit project from rolled_back_for_review back to the active step that requested action
+     *
+     * @throws InvalidWorkflowTransitionException
+     * @throws UnauthorizedWorkflowActionException
+     */
+    public function resubmitProject(Project $project, User $user, ?string $notes = null, ?string $attachment = null): ProjectApproval
+    {
+        if ($project->status !== ProjectStatus::RolledBackForReview->value && $project->status !== 'rolled_back_for_review') {
+            throw new InvalidWorkflowTransitionException('لا يمكن إعادة التقديم؛ المشروع ليس في حالة إعادة مراجعة واستكمال.');
+        }
+
+        // Validate creator authority
+        if (! $user->isAdmin()) {
+            $originEntityId = $project->getOriginEntityId();
+            $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+            $isCreatorUser = ($project->created_by_user_id === $user->id);
+            $belongsToOrigin = ($originEntityId && in_array((int) $originEntityId, $allowedEntityIds, true));
+
+            if (! $isCreatorUser && ! $belongsToOrigin) {
+                throw new UnauthorizedWorkflowActionException('فقط أعضاء الجهة المنشئة للمشروع يمكنهم إعادة التقديم.');
+            }
+        }
+
+        return DB::transaction(function () use ($project, $user, $notes, $attachment) {
+            // Find the step that requested action
+            $targetStep = ProjectApproval::where('project_id', $project->id)
+                ->whereIn('status', [ApprovalStepStatus::NeedAction->value, 'requires_action', 'need_action'])
+                ->latest('updated_at')
+                ->first()
+                ?? ProjectApproval::where('project_id', $project->id)
+                    ->whereNotNull('returned_to_step_order')
+                    ->latest('updated_at')
+                    ->first()
+                ?? ProjectApproval::where('project_id', $project->id)
+                    ->orderBy('step_order')
+                    ->first();
+
+            if (! $targetStep) {
+                throw new InvalidWorkflowTransitionException('تعذر العثور على مرحلة لإعادة التقديم إليها.');
+            }
+
+            // Reactivate target step
+            $targetStep->update([
+                'status' => ApprovalStepStatus::Pending->value,
+                'is_active' => true,
+                'notes' => $notes ?: 'تم استكمال المطلوب وإعادة تقديم المشروع.',
+                'attachment' => $attachment ?: $targetStep->attachment,
+            ]);
+
+            // Update project
+            $project->update([
+                'status' => ProjectStatus::PendingApproval->value,
+                'approval_status' => 'pending',
+                'current_stage' => $targetStep->drop,
+                'current_stage_order' => $targetStep->step_order,
+            ]);
+
+            // Log activity
+            $this->logActivity($project, 'resubmitted', [
+                'user_id' => $user->id,
+                'from_stage_name' => 'الجهة المنشئة (المسودة)',
+                'from_stage_order' => 0,
+                'to_stage_name' => $targetStep->getResolvedStageName(),
+                'to_stage_order' => $targetStep->step_order,
+                'notes' => $notes ?: 'تمت إعادة تقديم المشروع بعد استكمال النواقص.',
+            ]);
+
+            return $targetStep;
+        });
+    }
+
+    // =========================================================================
+    // 7. CONSULTATION / REFERRAL (الاستشارة / الإحالة المستقلة)
+    // =========================================================================
+
+    /**
+     * Record a consultation/referral without altering active step or approval chain
+     */
+    public function recordConsultation(Project $project, User $user, int $referredEntityId, string $referralText, ?array $attachments = null): ProjectReferral
+    {
+        return DB::transaction(function () use ($project, $user, $referredEntityId, $referralText, $attachments) {
+            $referral = ProjectReferral::create([
+                'project_id' => $project->id,
+                'drop' => $project->current_stage,
+                'referring_entity_id' => $user->entity_id ?? $project->creator_entity_id,
+                'referring_user_id' => $user->id,
+                'referred_entity_id' => $referredEntityId,
+                'referral_text' => $referralText,
+                'referral_attachments' => $attachments,
+                'status' => 'pending',
+            ]);
+
+            $referredEntity = InternalEntity::find($referredEntityId);
+            $referredName = $referredEntity ? $referredEntity->name : "الجهة #{$referredEntityId}";
+
+            $this->logActivity($project, 'referral', [
+                'user_id' => $user->id,
+                'from_stage_name' => $project->current_stage ?? 'مسار الاعتماد',
+                'to_stage_name' => $referredName,
+                'notes' => "تم طلب استشارة/إحالة إلى: {$referredName} (دون تغيير المرحلة النشطة).",
+                'action_details' => $referralText,
+            ]);
+
+            return $referral;
+        });
     }
 
     /**
-     * Create project activity history log
+     * Respond to a consultation/referral without altering active step or approval chain
      */
+    public function respondToConsultation(
+        ProjectReferral $referral,
+        string $responseText,
+        User $user,
+        string $status = 'responded',
+        ?array $attachments = null
+    ): ProjectReferral {
+        return DB::transaction(function () use ($referral, $responseText, $user, $status, $attachments) {
+            $updateData = [
+                'response_text' => $responseText,
+                'responding_user_id' => $user->id,
+                'responded_at' => now(),
+                'status' => $status,
+            ];
+
+            if ($attachments !== null) {
+                $updateData['response_attachments'] = $attachments;
+            }
+
+            $referral->update($updateData);
+
+            $project = $referral->project;
+            $statusLabel = $status === 'returned' ? 'إرجاع الاستشارة' : 'الرد على الاستشارة';
+            $respondingEntityName = $referral->referredEntity?->name ?? 'الجهة المستشارة';
+
+            if ($project) {
+                $this->logActivity($project, 'referral_response', [
+                    'user_id' => $user->id,
+                    'from_stage_name' => $respondingEntityName,
+                    'to_stage_name' => $referral->referringEntity?->name ?? 'الجهة الطالبة',
+                    'notes' => "{$statusLabel} من قبل: {$respondingEntityName} (دون تغيير المرحلة النشطة).",
+                    'action_details' => $responseText,
+                    'metadata' => [
+                        'referral_id' => $referral->id,
+                        'status' => $status,
+                        'attachments_count' => count($attachments ?? []),
+                    ],
+                ]);
+            }
+
+            return $referral->fresh(['referringEntity', 'referredEntity', 'referringUser', 'respondingUser']);
+        });
+    }
+
+    /**
+     * Close a consultation/referral
+     */
+    public function closeConsultation(ProjectReferral $referral, User $user, ?string $notes = null): ProjectReferral
+    {
+        return DB::transaction(function () use ($referral, $user, $notes) {
+            $referral->update([
+                'status' => 'closed',
+            ]);
+
+            $project = $referral->project;
+            if ($project) {
+                $this->logActivity($project, 'referral_closed', [
+                    'user_id' => $user->id,
+                    'notes' => $notes ?: 'تم إغلاق الاستشارة من قبل الجهة الطالبة.',
+                    'metadata' => [
+                        'referral_id' => $referral->id,
+                    ],
+                ]);
+            }
+
+            return $referral->fresh();
+        });
+    }
+
+    // =========================================================================
+    // 8. LOGGING & HELPERS
+    // =========================================================================
+
     public function logActivity(Project $project, string $actionType, array $data = []): ProjectActivityHistory
     {
         $lastActivity = ProjectActivityHistory::where('project_id', $project->id)
@@ -230,9 +717,11 @@ class ApprovalService
             $metadata['time_seconds'] = now()->diffInSeconds($lastActivity->created_at);
         }
 
+        $userId = Auth::id() ?? $data['user_id'] ?? $project->created_by_user_id ?? $project->created_by ?? 1;
+
         return ProjectActivityHistory::create([
             'project_id' => $project->id,
-            'user_id' => Auth::id(),
+            'user_id' => $userId,
             'action_type' => $actionType,
             'from_stage_order' => $data['from_stage_order'] ?? null,
             'from_stage_name' => $data['from_stage_name'] ?? null,
@@ -244,1372 +733,190 @@ class ApprovalService
         ]);
     }
 
-    /**
-     * Approve an approval stage
-     */
+    private function safelySyncProjectOnExecution(Project $project): void
+    {
+        try {
+            if (class_exists(ProjectService::class)) {
+                app(ProjectService::class)->syncProjectToEmpowermentDepartment($project);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to sync to empowerment on execution transition: '.$e->getMessage());
+        }
+
+        try {
+            if (class_exists(FrappeAPIService::class)) {
+                app(FrappeAPIService::class)->sendProjectOnExecution($project, true);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to sync to ERPNext on execution transition: '.$e->getMessage());
+        }
+    }
+
+    // =========================================================================
+    // 9. BACKWARD COMPATIBILITY METHODS
+    // =========================================================================
+
+    public function initializeRecursiveApprovals(Project $project): ?ProjectApproval
+    {
+        $user = auth()->user() ?? $project->createdBy;
+        if (! $user) {
+            return null;
+        }
+
+        try {
+            $chain = $this->closeDraftAndGenerateApprovalChain($project, $user);
+
+            return $chain->first();
+        } catch (\Throwable $e) {
+            Log::warning('initializeRecursiveApprovals fallback error: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    public function initializeProjectWithStages(Project $project, ?Stage $stage = null): ?ProjectApproval
+    {
+        $user = auth()->user() ?? $project->createdBy;
+        if (! $user) {
+            return null;
+        }
+
+        try {
+            $chain = $this->closeDraftAndGenerateApprovalChain($project, $user);
+
+            return $chain->first();
+        } catch (\Throwable $e) {
+            Log::warning('initializeProjectWithStages fallback error: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    public function progressToNextParentStage(ProjectApproval $currentApproval): ?ProjectApproval
+    {
+        $project = $currentApproval->project;
+        $user = auth()->user() ?? User::find($currentApproval->created_by);
+        if (! $project || ! $user) {
+            return null;
+        }
+
+        try {
+            $result = $this->approveActiveStep($project, $user);
+
+            return $result['next_step'] ?? null;
+        } catch (\Throwable $e) {
+            Log::warning('progressToNextParentStage error: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
     public function approveStage(
         ProjectApproval $approval,
         string $notes = '',
         ?string $attachment = null,
         ?int $userId = null
     ): ProjectApproval {
-        $approval->update([
-            'status' => 'approved',
-            'notes' => $notes,
-            'attachment' => $attachment,
-            'reviewed_at' => now(),
-            'created_by' => $userId ?? auth()->id(),
-        ]);
+        $user = ($userId ? User::find($userId) : auth()->user()) ?? $approval->project?->createdBy;
+        $project = $approval->project;
 
-        return $approval;
-    }
-
-    /**
-     * Split a stage into financial and technical reviews
-     */
-    public function splitToFinancialAndTechnicalReview(ProjectApproval $currentApproval): array
-    {
-        $project = $currentApproval->project;
-
-        $currentApproval->update([
-            'status' => 'financial_technical_review',
-            'financial_review_completed' => false,
-            'technical_review_completed' => false,
-        ]);
-
-        $this->logActivity($project, 'sent_for_review', [
-            'notes' => 'Project sent for simultaneous Financial and Technical review.',
-            'from_stage_name' => $currentApproval->drop,
-        ]);
-
-        return [
-            'success' => true,
-            'approval' => $currentApproval,
-        ];
-    }
-
-    /**
-     * Submit a specific review (financial or technical)
-     */
-    public function submitReview(ProjectApproval $approval, string $type, ?string $notes = null, ?string $attachment = null): bool
-    {
-        $data = [
-            "{$type}_review_completed" => true,
-            "{$type}_review_completed_at" => now(),
-            "{$type}_review_user_id" => Auth::id(),
-            "{$type}_review_notes" => $notes,
-        ];
-
-        if ($attachment) {
-            $approval->attachment = $attachment;
+        if ($project && $user) {
+            $this->approveActiveStep($project, $user, $notes, $attachment);
         }
 
-        $approval->update($data);
-
-        $this->logActivity($approval->project, 'review_completed', [
-            'notes' => ucfirst($type).' review completed by '.Auth::user()->name,
-            'action_details' => $notes,
-            'from_stage_name' => $approval->drop,
-        ]);
-
-        // Check if both are completed
-        if ($approval->financial_review_completed && $approval->technical_review_completed) {
-            return true;
-        }
-
-        return false;
+        return $approval->fresh();
     }
 
-    /**
-     * Reject an approval stage
-     */
     public function rejectStage(
         ProjectApproval $approval,
         string $reason = '',
         ?string $attachment = null,
         ?int $userId = null
     ): ProjectApproval {
-        $approval->update([
-            'status' => 'rejected',
-            'notes' => $reason,
-            'attachment' => $attachment,
-            'reviewed_at' => now(),
-            'created_by' => $userId ?? auth()->id(),
-        ]);
-
-        return $approval;
-    }
-
-    /**
-     * Mark stage as needing revision
-     */
-    public function requestRevision(
-        ProjectApproval $approval,
-        string $revisionNotes = '',
-        ?int $userId = null
-    ): ProjectApproval {
-        $approval->update([
-            'status' => 'need_action', // Use need_action as per controller
-            'notes' => $revisionNotes,
-            'reviewed_at' => now(),
-            'created_by' => $userId ?? auth()->id(),
-        ]);
-
-        return $approval;
-    }
-
-    /**
-     * Return project to previous stage in hierarchy
-     */
-    public function returnToPreviousStage(ProjectApproval $currentApproval, string $notes): ?ProjectApproval
-    {
-        $project = $currentApproval->project;
-        $currentOrder = $currentApproval->step_order;
-
-        if ($currentOrder <= 1) {
-            // Cannot return further back than the first stage
-            $project->update(['status' => 'draft']);
-
-            return null;
-        }
-
-        $previousApproval = ProjectApproval::where('project_id', $project->id)
-            ->where('step_order', $currentOrder - 1)
-            ->first();
-
-        if ($previousApproval) {
-            // Re-open the previous stage
-            $previousApproval->update([
-                'status' => 'pending',
-                'notes' => $previousApproval->notes."\n\n[إرجاع من المرحلة التالية: ".$notes.']',
-                'reviewed_at' => null,
-            ]);
-
-            // Mark subsequent stages as returned instead of hard deleting to preserve audit history
-            ProjectApproval::where('project_id', $project->id)
-                ->where('step_order', '>=', $currentOrder)
-                ->update(['status' => 'returned']);
-
-            $project->update(['status' => 'pending_approval']);
-
-            $this->logActivity($project, 'stage_regression', [
-                'notes' => $notes,
-                'from_stage_name' => $currentApproval->drop,
-                'to_stage_name' => $previousApproval->drop,
-            ]);
-
-            return $previousApproval;
-        }
-
-        return null;
-    }
-
-    /**
-     * Put approval on hold
-     */
-    public function holdApproval(
-        ProjectApproval $approval,
-        string $reason = '',
-        ?int $userId = null
-    ): ProjectApproval {
-        $approval->update([
-            'status' => 'on_hold',
-            'notes' => $reason,
-            'created_by' => $userId ?? auth()->id(),
-        ]);
-
-        return $approval;
-    }
-
-    /**
-     * Reset approval to pending
-     */
-    public function resetApproval(ProjectApproval $approval): ProjectApproval
-    {
-        $approval->update([
-            'status' => 'pending',
-            'notes' => null,
-            'attachment' => null,
-            'reviewed_at' => null,
-            'created_by' => null,
-        ]);
-
-        return $approval;
-    }
-
-    /**
-     * Get all pending approvals for an authority (entity)
-     */
-    public function getPendingApprovalsForAuthority(Authority $authority): Collection
-    {
-        return ProjectApproval::where('entity_id', $authority->id)
-            ->where('status', 'pending')
-            ->with('project', 'approvalFlow')
-            ->orderBy('created_at', 'desc')
-            ->get();
-    }
-
-    /**
-     * Get approval status summary for a project
-     */
-    public function getProjectApprovalSummary(Project $project): array
-    {
-        $approvals = $project->projectApprovals()->withTrashed()->with('authority', 'approvalFlow')->get();
-
-        $summary = [
-            'total_stages' => $approvals->count(),
-            'approved' => $approvals->where('status', 'approved')->count(),
-            'pending' => $approvals->where('status', 'pending')->count(),
-            'rejected' => $approvals->where('status', 'rejected')->count(),
-            'needs_revision' => $approvals->where('status', 'needs_revision')->count(),
-            'on_hold' => $approvals->where('status', 'on_hold')->count(),
-            'by_authority' => $this->groupApprovalsByAuthority($approvals),
-        ];
-
-        return $summary;
-    }
-
-    /**
-     * Group approvals by authority with status counts
-     */
-    private function groupApprovalsByAuthority(Collection $approvals): array
-    {
-        $grouped = [];
-
-        foreach ($approvals->groupBy('authority_id') as $authorityId => $authorityApprovals) {
-            $authority = $authorityApprovals->first()->authority;
-
-            $grouped[$authority->agency_name] = [
-                'total' => $authorityApprovals->count(),
-                'approved' => $authorityApprovals->where('status', 'approved')->count(),
-                'pending' => $authorityApprovals->where('status', 'pending')->count(),
-                'rejected' => $authorityApprovals->where('status', 'rejected')->count(),
-                'stages' => $authorityApprovals->map(function ($approval) {
-                    return [
-                        'step' => $approval->step_order,
-                        'name' => $approval->approvalFlow?->step_name ?? 'Stage '.$approval->step_order,
-                        'status' => $approval->status,
-                        'reviewed_at' => $approval->reviewed_at?->format('Y-m-d H:i'),
-                    ];
-                })->toArray(),
-            ];
-        }
-
-        return $grouped;
-    }
-
-    /**
-     * Check if project has any pending approvals
-     */
-    public function hasPendingApprovals(Project $project): bool
-    {
-        return $project->projectApprovals()
-            ->whereIn('status', ['pending', 'needs_revision', 'on_hold'])
-            ->exists();
-    }
-
-    /**
-     * Check if project is fully approved
-     */
-    public function isFullyApproved(Project $project): bool
-    {
-        $totalApprovals = $project->projectApprovals()->count();
-
-        if ($totalApprovals === 0) {
-            return false;
-        }
-
-        $approvedCount = $project->projectApprovals()
-            ->where('status', 'approved')
-            ->count();
-
-        return $approvedCount === $totalApprovals;
-    }
-
-    /**
-     * Get next pending stage for a project from a specific authority
-     */
-    public function getNextPendingStage(Project $project, Authority $authority): ?ProjectApproval
-    {
-        return ProjectApproval::where('project_id', $project->id)
-            ->where('authority_id', $authority->id)
-            ->where('status', 'pending')
-            ->orderBy('step_order')
-            ->first();
-    }
-
-    /**
-     * Get all approvals for a project ordered by stage
-     */
-    public function getProjectApprovalTimeline(Project $project): Collection
-    {
-        return ProjectApproval::withTrashed()->where('project_id', $project->id)
-            ->with('authority', 'approvalFlow', 'createdBy')
-            ->orderBy('authority_id')
-            ->orderBy('step_order')
-            ->get();
-    }
-
-    /**
-     * Get approval statistics for dashboard
-     */
-    public function getApprovalStatistics(): array
-    {
-        $totalApprovals = ProjectApproval::count();
-        $pendingCount = ProjectApproval::where('status', 'pending')->count();
-        $approvedCount = ProjectApproval::where('status', 'approved')->count();
-        $rejectedCount = ProjectApproval::where('status', 'rejected')->count();
-
-        return [
-            'total' => $totalApprovals,
-            'pending' => $pendingCount,
-            'pending_percentage' => $totalApprovals > 0 ? round(($pendingCount / $totalApprovals) * 100, 2) : 0,
-            'approved' => $approvedCount,
-            'approved_percentage' => $totalApprovals > 0 ? round(($approvedCount / $totalApprovals) * 100, 2) : 0,
-            'rejected' => $rejectedCount,
-            'rejected_percentage' => $totalApprovals > 0 ? round(($rejectedCount / $totalApprovals) * 100, 2) : 0,
-        ];
-    }
-
-    /**
-     * Build approval workflow for display
-     */
-    public function buildApprovalWorkflow(Project $project): array
-    {
-        $approvals = $project->projectApprovals()->withTrashed()->with('authority', 'approvalFlow')->get();
-        $workflow = [];
-
-        foreach ($approvals->groupBy('authority_id') as $authorityId => $stages) {
-            $authority = $stages->first()->authority;
-
-            $stageData = [];
-            foreach ($stages->sortBy('step_order') as $approval) {
-                $stageData[] = [
-                    'id' => $approval->id,
-                    'step' => $approval->step_order,
-                    'name' => $approval->approvalFlow?->step_name ?? 'Stage '.$approval->step_order,
-                    'status' => $approval->status,
-                    'notes' => $approval->notes,
-                    'reviewed_at' => $approval->reviewed_at,
-                    'reviewed_by' => $approval->createdBy?->name,
-                ];
-            }
-
-            $workflow[] = [
-                'authority' => $authority->agency_name,
-                'authority_id' => $authority->id,
-                'stages' => $stageData,
-            ];
-        }
-
-        return $workflow;
-    }
-
-    /**
-     * Log project movement/state change
-     */
-    public function logProjectMovement(
-        Project $project,
-        string $action,
-        string $stage,
-        string $notes = '',
-        ?int $authorityId = null
-    ): ProjectMovementLog {
-        return ProjectMovementLog::create([
-            'project_id' => $project->id,
-            'user_id' => Auth::id(),
-            'entity' => $stage,
-            'status' => $action,
-            'action_required' => false,
-            'notes' => $notes,
-            'logged_at' => now(),
-        ]);
-    }
-
-    /**
-     * Auto-approve and progress to next stage
-     */
-    public function approveAndProgress(ProjectApproval $approval, string $notes = '', ?string $attachment = null): array
-    {
+        $user = ($userId ? User::find($userId) : auth()->user()) ?? $approval->project?->createdBy;
         $project = $approval->project;
 
-        // Approve current stage
-        $this->approveStage($approval, $notes, $attachment, Auth::id());
-
-        // Log the approval
-        $this->logProjectMovement(
-            $project,
-            'approved',
-            $this->getDropArabic($approval->drop),
-            'Approved by: '.Auth::user()->name.'. Notes: '.$notes,
-            $approval->entity_id
-        );
-
-        // Ensure project status is reset to pending if it was rolled back (e.g. admin approved without waiting for resubmit)
-        if ($project->status === 'rolled_back_for_review') {
-            $project->update(['status' => 'pending']);
+        if ($project && $user) {
+            $this->rejectActiveStep($project, $user, $reason ?: 'تم رفض المرحلة من قبل المستخدم', $attachment);
         }
 
-        // Create and return next stage
-        $nextStage = $this->createNextApprovalStage($project, $approval->drop);
+        return $approval->fresh();
+    }
 
-        // If this is the final stage (implementation), transition project to in_progress
-        if (! $nextStage && $approval->drop === 'implementation') {
-            $project->update(['status' => 'in_progress']);
+    public function requestRevision(
+        ProjectApproval $approval,
+        string $notes = '',
+        ?string $attachment = null,
+        ?int $userId = null
+    ): ProjectApproval {
+        $user = ($userId ? User::find($userId) : auth()->user()) ?? $approval->project?->createdBy;
+        $project = $approval->project;
 
-            // Log the transition to in_progress
-            $this->logProjectMovement(
-                $project,
-                'auto_progressed',
-                'مرحلة التنفيذ',
-                'Project status updated to In Progress after implementation phase approval',
-                $approval->entity_id
-            );
+        if ($project && $user) {
+            $this->requestCompletion($project, $user, $notes ?: 'مطلوب استكمال النواقص والتعديلات.', ReturnTarget::CreatorEntity, $attachment);
         }
 
+        return $approval->fresh();
+    }
+
+    public function splitToFinancialAndTechnicalReview(ProjectApproval $currentApproval): array
+    {
         return [
             'success' => true,
-            'current_stage' => $approval->drop,
-            'current_stage_arabic' => $this->getDropArabic($approval->drop),
-            'next_stage' => $nextStage ? $nextStage->drop : null,
-            'next_stage_arabic' => $nextStage ? $this->getDropArabic($nextStage->drop) : 'مكتمل',
-            'is_final_stage' => ! $nextStage,
-            'is_execution_phase' => $approval->drop === 'committee' && $nextStage && $nextStage->drop === 'implementation', // Flag to show it entered implementation phase
-            'message' => $nextStage
-                ? 'تم الموافقة ودخول المرحلة التالية: '.$this->getDropArabic($nextStage->drop)
-                : 'تم الموافقة على مرحلة التنفيذ - المشروع الآن قيد التنفيذ (In Progress)',
+            'approval' => $currentApproval,
         ];
     }
 
-    /**
-     * Create the next approval stage automatically
-     */
-    private function createNextApprovalStage(Project $project, string $currentDrop): ?ProjectApproval
+    public function submitReview(ProjectApproval $approval, string $type, ?string $notes = null, ?string $attachment = null): bool
     {
-        $drops = ['assembly', 'union', 'committee', 'implementation'];
-        $currentIndex = array_search($currentDrop, $drops);
-
-        if ($currentIndex === false || $currentIndex >= count($drops) - 1) {
-            // Final stage reached - update project to implementation ready
-            $project->update(['status' => 'approved']);
-
-            return null;
-        }
-
-        $nextDrop = $drops[$currentIndex + 1];
-
-        // Check if next stage already exists
-        $existing = ProjectApproval::where('project_id', $project->id)
-            ->where('drop', $nextDrop)
-            ->first();
-
-        if ($existing) {
-            return $existing;
-        }
-
-        // Get the appropriate authority for next stage
-        $supervisingAuthority = $project->supervisingAuthorities()
-            ->with('authority')
-            ->skip($currentIndex + 1)
-            ->first();
-
-        $nextAuthority = $supervisingAuthority ? $supervisingAuthority->authority : $project->supervisingAuthorities()->first()->authority;
-
-        $nextStage = ProjectApproval::create([
-            'project_id' => $project->id,
-            'authority_id' => $nextAuthority->id,
-            'drop' => $nextDrop,
-            'step_order' => $currentIndex + 2,
-            'status' => 'pending',
-            'created_by' => Auth::id(),
-        ]);
-
-        // Log the automatic stage creation
-        $this->logProjectMovement(
-            $project,
-            'auto_progressed',
-            $this->getDropArabic($nextDrop),
-            'Project automatically progressed to next stage after approval',
-            $nextAuthority->id
-        );
-
-        return $nextStage;
-    }
-
-    /**
-     * Get drop name in Arabic
-     */
-    private function getDropArabic(string $drop): string
-    {
-        $stage = Stage::where('code', $drop)->first();
-
-        return $stage ? $stage->name_ar : $drop;
-    }
-
-    /**
-     * ============= NEW STAGE SYSTEM METHODS =============
-     */
-
-    /**
-     * Initialize project with first stage using new stage system
-     */
-    public function initializeProjectWithStages(Project $project, ?Stage $stage = null): ?ProjectApproval
-    {
-        try {
-            // 1. Determine the origin entity ID
-            // Use the project's ORIGINAL creator entity for approval chain
-            $originEntityId = $project->creator_entity_id
-                ?? $project->internal_entity_id
-                ?? optional($project->createdBy)->entity_id
-                ?? (auth()->check() ? auth()->user()->entity_id : null);
-
-            // Try to get creator entity ID (if integer) or name (if string)
-            if (! $originEntityId && $project->created_by_entity) {
-                if (is_numeric($project->created_by_entity)) {
-                    $originEntityId = (int) $project->created_by_entity;
-                } else {
-                    $entity = InternalEntity::where('name', trim($project->created_by_entity))->first();
-
-                    // Try fuzzy match if exact match fails
-                    if (! $entity) {
-                        $entity = InternalEntity::where('name', 'like', '%'.trim($project->created_by_entity).'%')->first();
-                    }
-
-                    $originEntityId = $entity ? $entity->id : null;
-                }
-            }
-
-            if (! $originEntityId) {
-                Log::warning('Could not determine origin entity for project initialization', ['project_id' => $project->id]);
-
-                // If we can't find an entity, we can't start a hierarchical chain
-                return null;
-            }
-
-            // 2. Generate dynamic stages from the origin entity (usually current department/entity)
-            // EntityHierarchyService::generateApprovalStagesFromSelectedEntity now starts from the PARENT
-            $entityHierarchyService = app(EntityHierarchyService::class);
-            $dynamicStages = $entityHierarchyService->generateApprovalStagesFromSelectedEntity($originEntityId);
-
-            if (empty($dynamicStages)) {
-                Log::warning('No dynamic stages found for entity hierarchy', ['origin_entity_id' => $originEntityId]);
-
-                return null;
-            }
-
-            // The first dynamic stage is now the parent of the origin entity
-            $firstStage = $dynamicStages[0];
-
-            // Get pending status
-            $pendingStatus = StageStatus::where('code', 'pending')
-                ->where('is_active', true)
-                ->first();
-            $pendingStatusId = $pendingStatus ? $pendingStatus->id : null;
-
-            // 3. Create the initial project approval record
-            $approval = ProjectApproval::updateOrCreate(
-                [
-                    'project_id' => $project->id,
-                    'drop' => $firstStage['code'],
-                ],
-                [
-                    'entity_id' => $firstStage['entity_id'],
-                    'status' => 'pending',
-                    'step_order' => $firstStage['order'],
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]
-            );
-
-            // 4. Update the project itself with current stage information
-            $project->update([
-                'status' => 'pending_approval',
-                'current_stage' => $firstStage['code'],
-                'current_stage_order' => $firstStage['order'],
-                'updated_at' => Carbon::now(),
-            ]);
-
-            Log::info('Project initialized with dynamic first stage (parent entity)', [
-                'project_id' => $project->id,
-                'origin_entity_id' => $originEntityId,
-                'first_stage_code' => $firstStage['code'],
-                'first_entity_id' => $firstStage['entity_id'],
-            ]);
-
-            return $approval;
-        } catch (\Exception $e) {
-            Log::error('Failed to initialize project with stages', [
-                'project_id' => $project->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return null;
-        }
-    }
-
-    /**
-     * Approve stage and progress to next using stage flows
-     */
-    public function approveStageAndProgress(ProjectApproval $approval, string $notes = '', ?string $attachment = null): array
-    {
-        try {
-            DB::beginTransaction();
-
-            $project = $approval->project;
-            $currentStage = $approval->stage;
-
-            if (! $currentStage) {
-                throw new \Exception('Current stage not found for approval');
-            }
-
-            // Update approval to approved status
-            $approvedStatus = StageStatus::where('code', 'approved')
-                ->where('is_active', true)
-                ->firstOrFail();
-
-            $approval->update([
-                'stage_status_id' => $approvedStatus->id,
-                'status' => 'approved',
-                'notes' => $notes,
-                'attachment' => $attachment,
-                'reviewed_at' => now(),
-                'created_by' => Auth::id(),
-            ]);
-
-            // Log the approval
-            $this->logProjectMovement(
-                $project,
-                'approved',
-                $currentStage->name_ar,
-                'Approved by: '.Auth::user()->name.'. Notes: '.$notes,
-                $approval->entity_id
-            );
-
-            // Find next stage using StageFlow
-            $nextFlow = StageFlow::where('from_stage_id', $currentStage->id)
-                ->where('trigger_status', 'approved')
-                ->where('is_active', true)
-                ->first();
-
-            $nextStage = null;
-            if ($nextFlow) {
-                $nextStage = $nextFlow->toStage;
-
-                // Auto-create next stage if configured
-                if ($nextFlow->shouldAutoCreateNext()) {
-                    $nextApproval = $this->createNextStageApproval($project, $nextStage, $approval->entity_id);
-
-                    if ($nextApproval) {
-                        $this->logProjectMovement(
-                            $project,
-                            'auto_progressed',
-                            $nextStage->name_ar,
-                            'Project automatically progressed to next stage',
-                            $approval->entity_id
-                        );
-                    }
-                }
-            }
-
-            // Check if this is the final stage
-            $isFinalStage = ! $nextStage;
-            if ($isFinalStage && $currentStage->code === 'implementation') {
-                $project->update(['status' => 'in_progress']);
-                $this->logProjectMovement(
-                    $project,
-                    'auto_progressed',
-                    $currentStage->name_ar,
-                    'Project moved to in_progress status after final stage approval',
-                    $approval->entity_id
-                );
-            }
-
-            DB::commit();
-
-            return [
-                'success' => true,
-                'current_stage_id' => $currentStage->id,
-                'current_stage_code' => $currentStage->code,
-                'current_stage_name' => $currentStage->name_ar,
-                'next_stage_id' => $nextStage ? $nextStage->id : null,
-                'next_stage_code' => $nextStage ? $nextStage->code : null,
-                'next_stage_name' => $nextStage ? $nextStage->name_ar : 'مكتمل',
-                'is_final_stage' => $isFinalStage,
-                'message' => $nextStage
-                    ? 'تم الموافقة ودخول المرحلة التالية: '.$nextStage->name_ar
-                    : 'تم الموافقة على المرحلة النهائية - المشروع الآن قيد التنفيذ',
-            ];
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to approve and progress stage', [
-                'approval_id' => $approval->id,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Create next stage approval
-     */
-    private function createNextStageApproval(Project $project, Stage $nextStage, int $currentAuthorityId): ?ProjectApproval
-    {
-        // Check if approval already exists for next stage
-        $existing = ProjectApproval::where('project_id', $project->id)
-            ->where('stage_id', $nextStage->id)
-            ->first();
-
-        if ($existing) {
-            return $existing;
-        }
-
-        // Get supervisory authority for next stage
-        $supervisingAuthority = $project->supervisingAuthorities()
-            ->with('authority')
-            ->first();
-
-        $authority = $supervisingAuthority ? $supervisingAuthority->authority : Authority::find($currentAuthorityId);
-
-        if (! $authority) {
-            Log::warning('No authority found for creating next stage', [
-                'project_id' => $project->id,
-                'next_stage_id' => $nextStage->id,
-            ]);
-
-            return null;
-        }
-
-        $pendingStatus = StageStatus::where('code', 'pending')
-            ->where('is_active', true)
-            ->first();
-
-        return ProjectApproval::create([
-            'project_id' => $project->id,
-            'authority_id' => $authority->id,
-            'stage_id' => $nextStage->id,
-            'stage_status_id' => $pendingStatus->id,
-            'drop' => $nextStage->code,
-            'step_order' => $nextStage->order,
-            'status' => 'pending',
-            'created_by' => Auth::id(),
-        ]);
-    }
-
-    /**
-     * Return stage for revision using stage flows
-     */
-    public function returnStageForRevision(ProjectApproval $approval, string $revisionNotes = ''): array
-    {
-        try {
-            DB::beginTransaction();
-
-            $project = $approval->project;
-            $currentStage = $approval->stage;
-
-            if (! $currentStage) {
-                throw new \Exception('Current stage not found');
-            }
-
-            // Update current approval to needs_revision status
-            $revisionsStatus = StageStatus::where('code', 'needs_revision')
-                ->where('is_active', true)
-                ->firstOrFail();
-
-            $approval->update([
-                'stage_status_id' => $revisionsStatus->id,
-                'status' => 'needs_revision',
-                'notes' => $approval->notes."\n\n[Returned for Revision: ".$revisionNotes.']',
-                'reviewed_at' => now(),
-                'created_by' => Auth::id(),
-            ]);
-
-            // Find previous stage using incoming flows
-            $previousFlow = StageFlow::where('to_stage_id', $currentStage->id)
-                ->where('is_active', true)
-                ->first();
-
-            $previousStage = null;
-            if ($previousFlow) {
-                $previousStage = $previousFlow->fromStage;
-
-                // Find previous approval and reset it to needs_revision
-                $previousApproval = ProjectApproval::where('project_id', $project->id)
-                    ->where('stage_id', $previousStage->id)
-                    ->first();
-
-                if ($previousApproval) {
-                    $previousApproval->update([
-                        'stage_status_id' => $revisionsStatus->id,
-                        'status' => 'needs_revision',
-                        'notes' => $previousApproval->notes."\n\n[Revision requested from: ".$currentStage->name_ar.']',
-                        'updated_at' => now(),
-                    ]);
-                }
-
-                // Delete all subsequent stages
-                $this->deleteSubsequentStagesFromFlow($project, $currentStage);
-            }
-
-            // Update project status
-            $project->update(['status' => 'rolled_back_for_review']);
-
-            // Log the revision request
-            $this->logProjectMovement(
-                $project,
-                'returned_for_revision',
-                $currentStage->name_ar,
-                'Project returned for revision. Reason: '.$revisionNotes,
-                $approval->entity_id
-            );
-
-            DB::commit();
-
-            return [
-                'success' => true,
-                'current_stage_id' => $currentStage->id,
-                'current_stage_name' => $currentStage->name_ar,
-                'previous_stage_id' => $previousStage ? $previousStage->id : null,
-                'previous_stage_name' => $previousStage ? $previousStage->name_ar : null,
-                'message' => 'تم إرجاع المشروع للمراجعة والتعديل',
-            ];
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to return stage for revision', [
-                'approval_id' => $approval->id,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Reject stage
-     */
-    public function rejectStageWithReason(ProjectApproval $approval, string $reason = ''): array
-    {
-        try {
-            DB::beginTransaction();
-
-            $project = $approval->project;
-            $currentStage = $approval->stage;
-
-            if (! $currentStage) {
-                throw new \Exception('Current stage not found');
-            }
-
-            $rejectedStatus = StageStatus::where('code', 'rejected')
-                ->where('is_active', true)
-                ->firstOrFail();
-
-            $approval->update([
-                'stage_status_id' => $rejectedStatus->id,
-                'status' => 'rejected',
-                'notes' => $reason,
-                'reviewed_at' => now(),
-                'created_by' => Auth::id(),
-            ]);
-
-            $project->update(['status' => 'rejected']);
-
-            // Log the rejection
-            $this->logProjectMovement(
-                $project,
-                'rejected',
-                $currentStage->name_ar,
-                'Project rejected at stage. Reason: '.$reason,
-                $approval->entity_id
-            );
-
-            DB::commit();
-
-            return [
-                'success' => true,
-                'stage_id' => $currentStage->id,
-                'stage_name' => $currentStage->name_ar,
-                'message' => 'تم رفض المشروع ويمكن إعادة التقديم بعد التعديلات',
-            ];
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to reject stage', [
-                'approval_id' => $approval->id,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Delete all subsequent stages from current stage using stage flows
-     */
-    private function deleteSubsequentStagesFromFlow(Project $project, Stage $currentStage): void
-    {
-        $subsequentStages = $currentStage->outgoingFlows()
-            ->pluck('to_stage_id')
-            ->toArray();
-
-        if (! empty($subsequentStages)) {
-            ProjectApproval::where('project_id', $project->id)
-                ->whereIn('stage_id', $subsequentStages)
-                ->update(['status' => 'returned']);
-
-            // Recursively update further stages
-            foreach ($subsequentStages as $stageId) {
-                $nextStage = Stage::find($stageId);
-                if ($nextStage) {
-                    $this->deleteSubsequentStagesFromFlow($project, $nextStage);
-                }
-            }
-        }
-    }
-
-    /**
-     * Get approval workflow using new stage system
-     */
-    public function getApprovalWorkflowByStages(Project $project): array
-    {
-        $approvals = $project->projectApprovals()
-            ->with('stage', 'stageStatus', 'authority', 'createdBy')
-            ->whereNotNull('stage_id')
-            ->orderBy('created_at')
-            ->get();
-
-        return [
-            'total_approvals' => $approvals->count(),
-            'approvals' => $approvals->map(function ($approval) {
-                return [
-                    'id' => $approval->id,
-                    'stage_id' => $approval->stage_id,
-                    'stage_code' => $approval->stage?->code,
-                    'stage_name' => $approval->stage?->name_ar,
-                    'status_id' => $approval->stage_status_id,
-                    'status_code' => $approval->stageStatus?->code,
-                    'status_name' => $approval->stageStatus?->name_ar,
-                    'authority' => $approval->entity?->name,
-                    'reviewer' => $approval->createdBy?->name,
-                    'notes' => $approval->notes,
-                    'reviewed_at' => $approval->reviewed_at?->format('Y-m-d H:i:s'),
-                    'created_at' => $approval->created_at->format('Y-m-d H:i:s'),
-                ];
-            })->toArray(),
-            'stage_sequence' => $this->buildStageSequence($project),
-        ];
-    }
-
-    /**
-     * Build stage sequence for project
-     */
-    public function buildStageSequence(Project $project): array
-    {
-        $stages = Stage::where('is_active', true)
-            ->orderBy('order')
-            ->get();
-
-        return $stages->map(function ($stage) use ($project) {
-            $approval = ProjectApproval::where('project_id', $project->id)
-                ->where('stage_id', $stage->id)
-                ->first();
-
-            return [
-                'stage_id' => $stage->id,
-                'stage_code' => $stage->code,
-                'stage_name' => $stage->name_ar,
-                'order' => $stage->order,
-                'approval_id' => $approval?->id,
-                'approval_status' => $approval?->stageStatus?->code ?? 'not_started',
-                'approval_status_name' => $approval?->stageStatus?->name_ar ?? 'لم يتم البدء',
-                'is_completed' => $approval?->stageStatus?->code === 'approved',
-            ];
-        })->toArray();
-    }
-
-    /**
-     * Get list of all available stages
-     */
-    public function getAllStages(bool $activeOnly = true): Collection
-    {
-        $query = Stage::query();
-
-        if ($activeOnly) {
-            $query->where('is_active', true);
-        }
-
-        return $query->orderBy('order')->get();
-    }
-
-    /**
-     * Get list of all available stage statuses
-     */
-    public function getAllStageStatuses(bool $activeOnly = true): Collection
-    {
-        $query = StageStatus::query();
-
-        if ($activeOnly) {
-            $query->where('is_active', true);
-        }
-
-        return $query->orderBy('order')->get();
-    }
-
-    /**
-     * Get stage flow details
-     */
-    public function getStageFlowDetails(Stage $fromStage, ?Stage $toStage = null): Collection
-    {
-        $query = StageFlow::where('from_stage_id', $fromStage->id)
-            ->where('is_active', true)
-            ->with('toStage');
-
-        if ($toStage) {
-            $query->where('to_stage_id', $toStage->id);
-        }
-
-        return $query->get();
-    }
-
-    /**
-     * ============= ENHANCED ENTITY-BASED WORKFLOW METHODS =============
-     */
-
-    /**
-     * Build entity approval chain from user's entity to root
-     */
-    public function buildEntityApprovalChain(Project $project, User $user): Collection
-    {
-        $userEntity = $user->getApprovalEntity();
-
-        return $userEntity->getApprovalChainToRoot();
-    }
-
-    /**
-     * Create approval stages from entity chain
-     */
-    public function createApprovalStagesFromEntityChain(Project $project, Collection $entityChain): Collection
-    {
-        $approvals = collect();
-        $stepOrder = 1;
-
-        foreach ($entityChain as $entity) {
-            $approval = ProjectApproval::create([
-                'project_id' => $project->id,
-                'authority_id' => $entity->id,
-                'drop' => 'entity_'.$entity->id,
-                'step_order' => $stepOrder,
-                'status' => ($stepOrder === 1) ? 'pending' : 'not_started',
-                'created_by' => auth()->id(),
-            ]);
-
-            $approvals->push($approval);
-            $stepOrder++;
-        }
-
-        // Log initialization
-        $this->logActivity($project, 'initiated', [
-            'notes' => 'Approval workflow initialized with '.$entityChain->count().' stages',
-            'from_stage_name' => 'Draft',
-            'to_stage_name' => $entityChain->first()->name,
-            'to_stage_order' => 1,
-            'metadata' => [
-                'entity_chain' => $entityChain->pluck('name', 'id')->toArray(),
-            ],
-        ]);
-
-        return $approvals;
-    }
-
-    /**
-     * Handle Approved Status - Progress to next stage without requiring comments
-     */
-    public function handleApprovedStatus(ProjectApproval $approval, ?string $notes = null, ?string $attachment = null): void
-    {
-        DB::transaction(function () use ($approval, $notes, $attachment) {
-            // Mark as approved
-            $approval->update([
-                'status' => 'approved',
-                'notes' => $notes ?? 'Approved',
-                'attachment' => $attachment,
-                'reviewed_at' => now(),
-                'created_by' => auth()->id(),
-            ]);
-
-            // Log activity
-            $this->logActivity($approval->project, 'approved', [
-                'from_stage_name' => $this->getEntityName($approval->entity_id),
-                'from_stage_order' => $approval->step_order,
-                'notes' => $notes ?? 'Approved without comments',
-            ]);
-
-            // Progress to next stage
-            $this->progressToNextEntityStage($approval);
-        });
-    }
-
-    /**
-     * Handle Financial & Technical Review Status
-     */
-    public function handleFinancialTechnicalReview(ProjectApproval $approval): void
-    {
-        DB::transaction(function () use ($approval) {
-            // Update status
-            $approval->update([
-                'status' => 'financial_technical_review',
-                'financial_review_completed' => false,
-                'technical_review_completed' => false,
-            ]);
-
-            // Log activity
-            $this->logActivity($approval->project, 'sent_for_review', [
-                'from_stage_name' => $this->getEntityName($approval->entity_id),
-                'from_stage_order' => $approval->step_order,
-                'notes' => 'Sent for simultaneous financial and technical review',
-                'metadata' => [
-                    'review_type' => 'dual',
-                    'stage_id' => $approval->id,
-                ],
-            ]);
-
-            // TODO: Notify financial and technical reviewers
-            // This would integrate with your notification system
-        });
-    }
-
-    /**
-     * Handle Requires Action Status - Return to previous stage with mandatory reason
-     */
-    public function handleRequiresAction(ProjectApproval $approval, string $reason, ?string $attachment = null): void
-    {
-        if (empty($reason)) {
-            throw new \Exception('Reason is mandatory for Requires Action status');
-        }
-
-        DB::transaction(function () use ($approval, $reason, $attachment) {
-            // Mark current stage
-            $approval->update([
-                'status' => 'requires_action',
-                'required_action' => $reason,
-                'attachment' => $attachment,
-                'reviewed_at' => now(),
-                'created_by' => auth()->id(),
-            ]);
-
-            // Log activity
-            $this->logActivity($approval->project, 'requires_action', [
-                'from_stage_name' => $this->getEntityName($approval->entity_id),
-                'from_stage_order' => $approval->step_order,
-                'action_details' => $reason,
-                'notes' => 'Returned to previous stage for required action',
-            ]);
-
-            // Return to previous stage
-            $this->returnToPreviousEntityStage($approval);
-        });
-    }
-
-    /**
-     * Handle Rejected Status - Return to previous stage with mandatory reason
-     */
-    public function handleRejected(ProjectApproval $approval, string $reason, ?string $attachment = null): void
-    {
-        if (empty($reason)) {
-            throw new \Exception('Reason is mandatory for Rejected status');
-        }
-
-        DB::transaction(function () use ($approval, $reason, $attachment) {
-            // Mark as rejected
-            $approval->update([
-                'status' => 'rejected',
-                'rejection_reason' => $reason,
-                'attachment' => $attachment,
-                'reviewed_at' => now(),
-                'created_by' => auth()->id(),
-            ]);
-
-            // Log activity
-            $this->logActivity($approval->project, 'rejected', [
-                'from_stage_name' => $this->getEntityName($approval->entity_id),
-                'from_stage_order' => $approval->step_order,
-                'action_details' => $reason,
-                'notes' => 'Project rejected and returned to previous stage',
-            ]);
-
-            // Return to previous stage
-            $this->returnToPreviousEntityStage($approval);
-        });
-    }
-
-    /**
-     * Handle Resubmit Status - Return to stage that requested action
-     */
-    public function handleResubmit(ProjectApproval $approval, ?string $notes = null, ?string $attachment = null): void
-    {
-        DB::transaction(function () use ($approval, $notes, $attachment) {
-            // Get the stage that returned it (the one that set requires_action or rejected)
-            $returningStage = $this->getReturningStage($approval);
-
-            // Update approval to pending
-            $approval->update([
-                'status' => 'pending',
-                'notes' => $notes,
-                'attachment' => $attachment,
-                'resubmitted_at' => now(),
-                'resubmitted_by' => auth()->id(),
-            ]);
-
-            // Log activity
-            $this->logActivity($approval->project, 'resubmitted', [
-                'from_stage_name' => $this->getEntityName($approval->entity_id),
-                'to_stage_name' => $returningStage ? $this->getEntityName($returningStage->entity_id) : 'Next Stage',
-                'notes' => $notes ?? 'Resubmitted for review',
-                'metadata' => [
-                    'resubmitted_to_stage' => $returningStage?->id,
-                ],
-            ]);
-        });
-    }
-
-    /**
-     * Progress to next entity stage in hierarchy
-     */
-    private function progressToNextEntityStage(ProjectApproval $currentApproval): ?ProjectApproval
-    {
-        $project = $currentApproval->project;
-
-        // Check if there's a next stage already created
-        $nextApproval = ProjectApproval::where('project_id', $project->id)
-            ->where('step_order', $currentApproval->step_order + 1)
-            ->first();
-
-        if ($nextApproval) {
-            // Activate the next stage
-            $nextApproval->update(['status' => 'pending']);
-
-            $this->logActivity($project, 'approved', [
-                'from_stage_name' => $this->getEntityName($currentApproval->entity_id),
-                'from_stage_order' => $currentApproval->step_order,
-                'to_stage_name' => $this->getEntityName($nextApproval->entity_id),
-                'to_stage_order' => $nextApproval->step_order,
-                'notes' => 'Progressed to next stage',
-            ]);
-
-            return $nextApproval;
-        }
-
-        // No more stages - project is fully approved
-        $project->update(['status' => 'approved']);
-
-        $this->logActivity($project, 'completed', [
-            'from_stage_name' => $this->getEntityName($currentApproval->entity_id),
-            'notes' => 'All approval stages completed',
-        ]);
-
-        return null;
-    }
-
-    /**
-     * Return to previous entity stage
-     */
-    private function returnToPreviousEntityStage(ProjectApproval $currentApproval): ?ProjectApproval
-    {
-        $project = $currentApproval->project;
-
-        if ($currentApproval->step_order <= 1) {
-            // Cannot return further back
-            $project->update(['status' => 'draft']);
-
-            return null;
-        }
-
-        // Find previous stage
-        $previousApproval = ProjectApproval::where('project_id', $project->id)
-            ->where('step_order', $currentApproval->step_order - 1)
-            ->first();
-
-        if ($previousApproval) {
-            // Reopen previous stage
-            $previousApproval->update([
-                'status' => 'pending',
-                'reviewed_at' => null,
-            ]);
-
-            // Delete current and future stages
-            ProjectApproval::where('project_id', $project->id)
-                ->where('step_order', '>=', $currentApproval->step_order)
-                ->delete();
-
-            $project->update(['status' => 'pending_approval']);
-
-            $this->logActivity($project, 'returned_to_previous', [
-                'from_stage_name' => $this->getEntityName($currentApproval->entity_id),
-                'to_stage_name' => $this->getEntityName($previousApproval->entity_id),
-                'notes' => 'Returned to previous stage',
-            ]);
-
-            return $previousApproval;
-        }
-
-        return null;
-    }
-
-    /**
-     * Get the stage that requested action (for resubmit)
-     */
-    private function getReturningStage(ProjectApproval $approval): ?ProjectApproval
-    {
-        // Find the next stage that has requires_action or rejected status
-        return ProjectApproval::where('project_id', $approval->project_id)
-            ->where('step_order', '>', $approval->step_order)
-            ->whereIn('status', ['requires_action', 'rejected'])
-            ->orderBy('step_order')
-            ->first();
-    }
-
-    /**
-     * Get entity name by ID
-     */
-    private function getEntityName(int $entityId): string
-    {
-        $entity = InternalEntity::find($entityId);
-
-        return $entity ? $entity->name : 'Unknown Entity';
-    }
-
-    /**
-     * Complete financial or technical review
-     */
-    public function completeReview(ProjectApproval $approval, string $reviewType, ?string $notes = null, ?string $attachment = null): bool
-    {
-        if (! in_array($reviewType, ['financial', 'technical'])) {
-            throw new \Exception('Invalid review type. Must be "financial" or "technical"');
-        }
-
-        DB::transaction(function () use ($approval, $reviewType, $notes, $attachment) {
-            $approval->update([
-                "{$reviewType}_review_completed" => true,
-                "{$reviewType}_review_completed_at" => now(),
-                "{$reviewType}_review_user_id" => auth()->id(),
-                "{$reviewType}_review_notes" => $notes,
-            ]);
-
-            if ($attachment) {
-                $approval->update(['attachment' => $attachment]);
-            }
-
-            $this->logActivity($approval->project, "{$reviewType}_review_completed", [
-                'from_stage_name' => $this->getEntityName($approval->entity_id),
-                'notes' => ucfirst($reviewType).' review completed',
-                'action_details' => $notes,
-            ]);
-        });
-
-        // Check if both reviews are completed
-        $approval->refresh();
-        if ($approval->financial_review_completed && $approval->technical_review_completed) {
-            // Both completed - progress to next stage
-            $this->progressToNextEntityStage($approval);
+        $user = auth()->user() ?? User::find($approval->created_by);
+        $project = $approval->project;
+
+        if ($project && $user && $approval->isActive()) {
+            $this->approveActiveStep($project, $user, $notes, $attachment);
 
             return true;
         }
 
         return false;
+    }
+
+    public function resetApproval(ProjectApproval $approval): ProjectApproval
+    {
+        $approval->update([
+            'status' => ApprovalStepStatus::Pending->value,
+            'is_active' => true,
+            'reviewed_at' => null,
+            'reviewed_by' => null,
+            'notes' => null,
+        ]);
+
+        return $approval;
+    }
+
+    public function getProjectApprovalSummary(Project $project): array
+    {
+        $approvals = $project->projectApprovals()->orderBy('step_order')->get();
+        $total = $approvals->count();
+        $approved = $approvals->where('status', ApprovalStepStatus::Approved->value)->count();
+
+        return [
+            'total_stages' => $total,
+            'approved_stages' => $approved,
+            'pending_stages' => $approvals->where('status', ApprovalStepStatus::Pending->value)->count(),
+            'rejected_stages' => $approvals->where('status', ApprovalStepStatus::Rejected->value)->count(),
+            'completion_percentage' => $total > 0 ? round(($approved / $total) * 100, 2) : 0,
+            'is_fully_approved' => $project->status === ProjectStatus::InExecution->value,
+        ];
+    }
+
+    public function getApprovalStages(Project $project): Collection
+    {
+        return $project->projectApprovals()->orderBy('step_order')->get();
+    }
+
+    public function createProjectApprovalStages(Project $project): Collection
+    {
+        return collect();
     }
 }

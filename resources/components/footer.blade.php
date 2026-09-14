@@ -2,6 +2,9 @@
 <script src="{{ asset('js/libs/jquery-3.7.0.min.js') }}"></script>
 <!-- Bootstrap JS aligned to CSS version -->
 <link rel="stylesheet" href="{{ asset('css/unified-master-design.css') }}">
+<!-- Select2 CSS - مطلوب لعمل قوائم البحث المنسدلة -->
+<link rel="stylesheet" href="{{ asset('css/libs/select2.min.css') }}">
+<link rel="stylesheet" href="{{ asset('css/libs/select2-bootstrap-5-theme.min.css') }}">
 <!-- preconnect لتسريع تحميل خط Cairo من Google Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

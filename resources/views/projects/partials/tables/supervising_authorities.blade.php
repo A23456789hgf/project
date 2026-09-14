@@ -1,10 +1,10 @@
-<div class="mb-4">
-    <div class="project-table-header mb-3">
-        <i class="fas fa-users-cog"></i> الجهات الإشرافية
+<div class="project-table-container">
+    <div class="project-table-header">
+        <i class="fas fa-users-cog me-1"></i>الجهات الإشرافية
     </div>
 
-    <div class="table-responsive">
-        <table class="project-table w-100" id="supervisingAuthoritiesTable">
+    <div class="project-table-wrapper">
+        <table class="project-table" id="supervisingAuthoritiesTable">
             <thead>
                 <tr>
                     <th>نوع الجهة</th>

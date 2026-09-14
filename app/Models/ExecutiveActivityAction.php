@@ -154,4 +154,14 @@ class ExecutiveActivityAction extends Model
     {
         return $this->morphMany(ActivityAssignment::class, 'assignable');
     }
+
+    public function getActionNameAttribute(): ?string
+    {
+        return $this->attributes['action'] ?? null;
+    }
+
+    public function setActionNameAttribute(?string $value): void
+    {
+        $this->attributes['action'] = $value;
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Project;
 
+use App\Http\Controllers\Controller;
 use App\Models\InternalEntity;
 use App\Models\Project;
 use App\Services\ScopeService;

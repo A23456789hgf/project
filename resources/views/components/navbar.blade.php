@@ -204,7 +204,10 @@
                     @php
                         $isProjectsActive = request()->routeIs('projects.*')
                             || request()->routeIs('execution.*')
-                            || request()->routeIs('projects.quality.*');
+                            || request()->routeIs('projects.quality.*')
+                            || request()->routeIs('approvals.*')
+                            || request()->routeIs('consultations.*')
+                            || request()->routeIs('project-referrals.*');
                     @endphp
 
                     <a class="nav-link d-flex justify-content-between align-items-center {{ $isProjectsActive ? 'active' : '' }}"
@@ -239,9 +242,19 @@
                                         إنجازات المشاريع السابقة
                                     </a>
                                 </li>
+                                <li class="nav-item auth-perm-approvals-sidebar">
+                                    <a class="nav-link {{ request()->routeIs('approvals.*') || request()->routeIs('projects.approval.*') ? 'active' : '' }}"
+                                        href="{{ route('approvals.index') }}">
+                                        <i class="fas fa-clipboard-check me-2"></i> مركز المراجعة والاعتمادات
+                                    </a>
+                                </li>
+                                <li class="nav-item auth-perm-referrals-sidebar">
+                                    <a class="nav-link {{ request()->routeIs('consultations.*') || request()->routeIs('project-referrals.*') ? 'active' : '' }}"
+                                        href="{{ route('consultations.index') }}">
+                                        <i class="fas fa-comments me-2"></i> الاستشارات والإحالات
+                                    </a>
+                                </li>
                             @endcan
-
-
 
                             @can('projects-implementation.sidebar')
                                 <li class="nav-item auth-perm-projects-implementation-sidebar">
@@ -270,11 +283,26 @@
                                 </li>
                             @endcan
 
-
-
-
                         </ul>
                     </div>
+                </li>
+            @endcanany
+
+            @canany(['approvals.view', 'projects.view', 'projects.sidebar'])
+                <li class="nav-item auth-perm-approvals-sidebar" data-sidebar-module="approvals">
+                    <a class="nav-link {{ request()->routeIs('approvals.*') || request()->routeIs('projects.approval.*') ? 'active' : '' }}"
+                        href="{{ route('approvals.index') }}">
+                        <i class="fas fa-clipboard-check me-2"></i> مركز المراجعة والاعتمادات
+                    </a>
+                </li>
+            @endcanany
+
+            @canany(['referrals.view', 'approvals.view', 'projects.view', 'projects.sidebar'])
+                <li class="nav-item auth-perm-referrals-sidebar" data-sidebar-module="consultations">
+                    <a class="nav-link {{ request()->routeIs('consultations.*') || request()->routeIs('project-referrals.*') ? 'active' : '' }}"
+                        href="{{ route('consultations.index') }}">
+                        <i class="fas fa-comments me-2"></i> الاستشارات والإحالات
+                    </a>
                 </li>
             @endcanany
 
@@ -529,7 +557,7 @@
                 </li>
             @endcan
 
-            @can('main_modules.value-chains')
+            {{-- @can('main_modules.value-chains')
             <li class="nav-item auth-perm-value-chains-sidebar" data-sidebar-module="value-chains">
                 @php
                     $isValueChainsActive = request()->routeIs('value-chains.*') || request()->routeIs('value-chain-members.*') || request()->routeIs('global-financings.*') || request()->routeIs('chain_plans.*');
@@ -580,7 +608,7 @@
                     </ul>
                 </div>
             </li>
-            @endcanany
+            @endcanany --}}
 
             @php
                 $encodingPermissions = [

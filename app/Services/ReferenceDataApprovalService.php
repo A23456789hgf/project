@@ -79,10 +79,23 @@ class ReferenceDataApprovalService
      */
     public static function approve(Model $record): bool
     {
-        return $record->update([
+        $updated = $record->update([
             'status' => self::STATUS_APPROVED,
             'is_active' => true,
         ]);
+
+        if ($updated) {
+            try {
+                $moduleName = class_basename($record);
+                $itemName = $record->name ?? ($record->title ?? ($record->agency_name ?? 'عنصر مرجعي'));
+                $creatorId = $record->created_by_user_id ?? ($record->created_by ?? null);
+                app(NotificationService::class)->notifyLookupApproval($moduleName, $itemName, 'approved', $creatorId, auth()->user());
+            } catch (\Exception $e) {
+                \Log::error('Notification error in ReferenceDataApprovalService::approve: '.$e->getMessage());
+            }
+        }
+
+        return $updated;
     }
 
     /**
@@ -90,10 +103,23 @@ class ReferenceDataApprovalService
      */
     public static function reject(Model $record): bool
     {
-        return $record->update([
+        $updated = $record->update([
             'status' => self::STATUS_REJECTED,
             'is_active' => false,
         ]);
+
+        if ($updated) {
+            try {
+                $moduleName = class_basename($record);
+                $itemName = $record->name ?? ($record->title ?? ($record->agency_name ?? 'عنصر مرجعي'));
+                $creatorId = $record->created_by_user_id ?? ($record->created_by ?? null);
+                app(NotificationService::class)->notifyLookupApproval($moduleName, $itemName, 'rejected', $creatorId, auth()->user());
+            } catch (\Exception $e) {
+                \Log::error('Notification error in ReferenceDataApprovalService::reject: '.$e->getMessage());
+            }
+        }
+
+        return $updated;
     }
 
     /**

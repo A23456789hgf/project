@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('project_approvals', function (Blueprint $table) {
-            $table->enum('drop', ['assembly', 'union', 'committee'])->nullable()->after('authority_id');
-        });
+        if (! Schema::hasColumn('project_approvals', 'drop')) {
+            Schema::table('project_approvals', function (Blueprint $table) {
+                $table->string('drop', 50)->nullable()->after('authority_id');
+            });
+        }
     }
 
     /**

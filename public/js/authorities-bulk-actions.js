@@ -188,14 +188,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedIds = Array.from(getSelectedCheckboxes()).map(cb => cb.value);
             if (selectedIds.length === 0) return;
 
-            const isActiveVal = document.getElementById('bulk_is_active').value;
-            const parentIdVal = document.getElementById('bulk_parent_id').value;
-            const govIdVal = document.getElementById('bulk_governorate_id').value;
-            const dirIdVal = document.getElementById('bulk_directorate_id').value;
+            const isActiveVal = document.getElementById('bulk_is_active') ? document.getElementById('bulk_is_active').value : '';
+            const isFundedVal = document.getElementById('bulk_is_funded') ? document.getElementById('bulk_is_funded').value : '';
+            const parentIdVal = document.getElementById('bulk_parent_id') ? document.getElementById('bulk_parent_id').value : '';
+            const govIdVal = document.getElementById('bulk_governorate_id') ? document.getElementById('bulk_governorate_id').value : '';
+            const dirIdVal = document.getElementById('bulk_directorate_id') ? document.getElementById('bulk_directorate_id').value : '';
+            const typeEntityVal = document.getElementById('bulk_type_entity_id') ? document.getElementById('bulk_type_entity_id').value : '';
             const scopeVal = document.getElementById('bulk_entity_scope') ? document.getElementById('bulk_entity_scope').value : '';
             const formIdVal = document.getElementById('bulk_financing_form_id') ? document.getElementById('bulk_financing_form_id').value : '';
 
-            if (isActiveVal === '' && parentIdVal === '' && govIdVal === '' && dirIdVal === '' && scopeVal === '' && formIdVal === '') {
+            if (isActiveVal === '' && isFundedVal === '' && parentIdVal === '' && govIdVal === '' && dirIdVal === '' && typeEntityVal === '' && scopeVal === '' && formIdVal === '') {
                 if (typeof toastr !== 'undefined') {
                     toastr.warning('الرجاء تحديد تعديل واحد على الأقل لتطبيقه على الجهات المحددة.');
                 } else if (typeof Swal !== 'undefined') {
@@ -223,9 +225,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                     ids: selectedIds,
                     is_active: isActiveVal,
+                    is_funded: isFundedVal,
                     parent_id: parentIdVal,
                     governorate_id: govIdVal,
                     directorate_id: dirIdVal,
+                    type_entity_id: typeEntityVal,
                     entity_scope: scopeVal,
                     financing_form_id: formIdVal
                 })

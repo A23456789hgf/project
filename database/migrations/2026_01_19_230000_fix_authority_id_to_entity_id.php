@@ -25,14 +25,20 @@ return new class extends Migration
             DB::statement('UPDATE project_approvals SET entity_id = authority_id WHERE entity_id IS NULL');
 
             // Step 3: Drop the foreign key constraint on authority_id
-            Schema::table('project_approvals', function (Blueprint $table) {
-                $table->dropForeign(['authority_id']);
-            });
+            try {
+                Schema::table('project_approvals', function (Blueprint $table) {
+                    $table->dropForeign(['authority_id']);
+                });
+            } catch (Throwable $e) {
+            }
 
             // Step 4: Drop the authority_id column
-            Schema::table('project_approvals', function (Blueprint $table) {
-                $table->dropColumn('authority_id');
-            });
+            try {
+                Schema::table('project_approvals', function (Blueprint $table) {
+                    $table->dropColumn('authority_id');
+                });
+            } catch (Throwable $e) {
+            }
         }
 
         // Step 5: Make entity_id NOT NULL and add foreign key

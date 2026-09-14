@@ -138,9 +138,9 @@
                         </a>
                         @endcan
                         @can('reports.profit_and_loss.print')
-                        <button type="button" class="btn btn-secondary" onclick="window.print()">
+                        <a href="{{ route('projects.reports.profit_and_loss', array_merge(request()->all(), ['export' => 'print'])) }}" target="_blank" class="btn btn-secondary">
                             <i class="fas fa-print"></i> طباعة
-                        </button>
+                        </a>
                         @endcan
                     </div>
                 </div>

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Authority;
 use App\Models\BeneficiaryGroup;
 use App\Models\Directorate;
 use App\Models\Domain;
@@ -51,33 +50,8 @@ class LookupController extends Controller
             // ========================================
             // الجهات الخارجية
             // ========================================
-            case 'authority':
-
-                $query = Authority::withoutGlobalScope('entity_display_filtering')
-                    ->with('parent');
-
-                if ($request->filled('funding_source_id')) {
-                    $fundingSourceId = $request->get('funding_source_id');
-                    $typeEntityId = null;
-                    if ($fundingSourceId == 1) { // حكومي
-                        $typeEntityId = 1;
-                    } elseif ($fundingSourceId == 2) { // مجتمعي
-                        $typeEntityId = 2;
-                    } elseif ($fundingSourceId == 5) { // خاص
-                        $typeEntityId = 3;
-                    }
-
-                    if ($typeEntityId !== null) {
-                        $query->where('type_entity_id', $typeEntityId);
-                    }
-                }
-
-                $textField = 'agency_name';
-                $idField = 'id';
-
-                // ========================================
-                // الجهات الداخلية
-                // ========================================
+            // الجهات الداخلية
+            // ========================================
             case 'internal_entity':
 
                 $user = auth()->user();
@@ -87,7 +61,7 @@ class LookupController extends Controller
 
                 $entityIds = [];
 
-                // تحميل النطاقات الجغرافية
+                // تحميل النطاقات الجغرافية للمستخدم
                 $user->loadMissing('geographicScopes');
 
                 foreach ($user->geographicScopes as $scope) {
@@ -118,38 +92,186 @@ class LookupController extends Controller
                     );
                 }
 
-                $entityIds = array_unique($entityIds);
+                $entityIds = array_unique(array_filter($entityIds));
 
                 /*
-                 |--------------------------------------------------------------------------
-                 | تطبيق فلترة الجهات
-                 |--------------------------------------------------------------------------
-                 |
-                 | - بدون نطاق جغرافي => يرى الجميع
-                 | - لديه نطاق جغرافي => يرى نطاقه + الجهات المركزية فقط
-                 |
-                 */
+                |--------------------------------------------------------------------------
+                | إضافة الآباء
+                |--------------------------------------------------------------------------
+                |
+                | إذا كانت الجهة داخل النطاق:
+                |
+                | الضالع
+                |   └── مكتب الصحة
+                |        └── إدارة معينة
+                |
+                | فإن المستخدم يرى الجهة + الأب + أب الأب.
+                |
+                | لكن لا يتم إضافة أي جهة من محافظة أخرى.
+                |
+                */
 
                 if (! empty($entityIds)) {
 
-                    $query->where(function ($q) use ($entityIds) {
+                    $allowedEntityIds = $entityIds;
 
-                        // الجهات التابعة للنطاق الجغرافي
-                        $q->whereIn('id', $entityIds)
+                    // جلب الجهات المطلوبة مع parent_id
+                    $entities = InternalEntity::withoutGlobalScope('entity_display_filtering')
+                        ->whereIn('id', $entityIds)
+                        ->get(['id', 'parent_id']);
 
-                          // الجهات المركزية
-                            ->orWhere(function ($central) {
+                    $parentIds = $entities
+                        ->pluck('parent_id')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
 
-                                $central->whereNull('governorate_id')
-                                    ->whereNull('directorate_id');
+                    /*
+                     * الصعود في شجرة الجهات حتى الوصول إلى الجذر.
+                     */
+                    while (! empty($parentIds)) {
 
-                            });
+                        $newParentIds = [];
 
-                    });
+                        $parents = InternalEntity::withoutGlobalScope('entity_display_filtering')
+                            ->whereIn('id', $parentIds)
+                            ->get(['id', 'parent_id']);
 
+                        foreach ($parents as $parent) {
+
+                            if (! in_array($parent->id, $allowedEntityIds, true)) {
+                                $allowedEntityIds[] = $parent->id;
+                            }
+
+                            if ($parent->parent_id) {
+                                $newParentIds[] = $parent->parent_id;
+                            }
+                        }
+
+                        $parentIds = array_values(
+                            array_unique(
+                                array_diff($newParentIds, $allowedEntityIds)
+                            )
+                        );
+                    }
+
+                    $allowedEntityIds = array_values(
+                        array_unique($allowedEntityIds)
+                    );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | تطبيق النطاق
+                    |--------------------------------------------------------------------------
+                    |
+                    | لا نضيف هنا كل الجهات المركزية بشكل عام.
+                    | الأب يدخل فقط إذا كان أبًا فعليًا لجهة تقع داخل نطاق المستخدم.
+                    |
+                    */
+
+                    $query->whereIn('id', $allowedEntityIds);
+
+                } else {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | المستخدم المركزي
+                    |--------------------------------------------------------------------------
+                    |
+                    | لا يوجد له نطاق جغرافي محدد، لذلك نسمح له بالفلترة
+                    | حسب المحافظة / المديرية المختارة في الطلب.
+                    |
+                    */
+
+                    $selectedGovernorateId =
+                        $request->filled('governorate_id') &&
+                        $request->get('governorate_id') != '0'
+                            ? $request->get('governorate_id')
+                            : null;
+
+                    $selectedDirectorateId =
+                        $request->filled('directorate_id') &&
+                        $request->get('directorate_id') != '0'
+                            ? $request->get('directorate_id')
+                            : null;
+
+                    $selectedEntityIds = [];
+
+                    if ($selectedDirectorateId) {
+
+                        $selectedEntityIds = InternalEntity::getAllByDirectorate(
+                            $selectedDirectorateId
+                        );
+
+                    } elseif ($selectedGovernorateId) {
+
+                        $selectedEntityIds = InternalEntity::getAllByGovernorate(
+                            $selectedGovernorateId
+                        );
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | إضافة الآباء للنطاق المختار
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (! empty($selectedEntityIds)) {
+
+                        $allowedEntityIds = array_values(
+                            array_unique(
+                                array_filter($selectedEntityIds)
+                            )
+                        );
+
+                        $parentIds = InternalEntity::withoutGlobalScope(
+                            'entity_display_filtering'
+                        )
+                            ->whereIn('id', $allowedEntityIds)
+                            ->pluck('parent_id')
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all();
+
+                        while (! empty($parentIds)) {
+
+                            $newParentIds = [];
+
+                            $parents = InternalEntity::withoutGlobalScope(
+                                'entity_display_filtering'
+                            )
+                                ->whereIn('id', $parentIds)
+                                ->get(['id', 'parent_id']);
+
+                            foreach ($parents as $parent) {
+
+                                if (! in_array($parent->id, $allowedEntityIds, true)) {
+                                    $allowedEntityIds[] = $parent->id;
+                                }
+
+                                if ($parent->parent_id) {
+                                    $newParentIds[] = $parent->parent_id;
+                                }
+                            }
+
+                            $parentIds = array_values(
+                                array_unique(
+                                    array_diff($newParentIds, $allowedEntityIds)
+                                )
+                            );
+                        }
+
+                        $query->whereIn(
+                            'id',
+                            array_values(array_unique($allowedEntityIds))
+                        );
+                    }
+
+                    // إذا لم يحدد المستخدم محافظة أو مديرية:
+                    // يبقى المستخدم المركزي قادرًا على رؤية الجميع.
                 }
-                // else:
-                // لا يوجد نطاق جغرافي => لا نضيف أي شرط ويرى كل الجهات
 
                 $textField = 'name';
                 $idField = 'id';

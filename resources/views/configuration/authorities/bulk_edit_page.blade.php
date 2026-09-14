@@ -32,6 +32,14 @@
                             </select>
                         </div>
                         <div class="col-md-2">
+                            <label class="form-label small fw-bold">اجعل كل السجلات للتمويل:</label>
+                            <select id="bulk_funded_apply" class="form-select form-select-sm border-warning" onchange="applyBulkValuesToRows()">
+                                <option value="">-- اختر لتعميم التمويل --</option>
+                                <option value="1">ممولة</option>
+                                <option value="0">غير ممولة</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold">اجعل كل السجلات للجهة الأب:</label>
                             <select id="bulk_parent_apply" class="form-select form-select-sm border-warning" onchange="applyBulkValuesToRows()">
                                 <option value="">-- اختر لتعميم الأب --</option>
@@ -129,12 +137,13 @@
                                 <thead class="table-dark text-center">
                                     <tr>
                                         <th width="3%">#</th>
-                                        <th width="21%">اسم الجهة <span class="text-danger">*</span></th>
-                                        <th width="10%">الحالة</th>
-                                        <th width="18%">الجهة الأب</th>
+                                        <th width="19%">اسم الجهة <span class="text-danger">*</span></th>
+                                        <th width="9%">الحالة</th>
+                                        <th width="9%">جهة ممولة</th>
+                                        <th width="17%">الجهة الأب</th>
                                         <th width="14%">المحافظة</th>
                                         <th width="14%">المديرية</th>
-                                        <th width="10%">نوع الجهة</th>
+                                        <th width="15%">نوع الجهة</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -149,6 +158,12 @@
                                                 <select name="authorities[{{ $auth->id }}][is_active]" class="form-select form-select-sm row-is-active" onchange="updateRowDataAttr(this)">
                                                     <option value="1" {{ $auth->is_active ? 'selected' : '' }}>نشط</option>
                                                     <option value="0" {{ !$auth->is_active ? 'selected' : '' }}>غير نشط</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <select name="authorities[{{ $auth->id }}][is_funded]" class="form-select form-select-sm row-is-funded">
+                                                    <option value="1" {{ $auth->is_funded ? 'selected' : '' }}>ممولة</option>
+                                                    <option value="0" {{ !$auth->is_funded ? 'selected' : '' }}>غير ممولة</option>
                                                 </select>
                                             </td>
                                             <td>
@@ -239,10 +254,11 @@ document.getElementById('bulk_gov_apply').addEventListener('change', function() 
 // تطبيق القيم الجماعية على الصفوف المعروضة
 function applyBulkValuesToRows(isBtnClick = false) {
     const statusVal = document.getElementById('bulk_status_apply').value;
+    const fundedVal = document.getElementById('bulk_funded_apply') ? document.getElementById('bulk_funded_apply').value : '';
     const parentVal = document.getElementById('bulk_parent_apply').value;
     const govVal = document.getElementById('bulk_gov_apply').value;
     const dirVal = document.getElementById('bulk_dir_apply').value;
-            const typeEntityVal = document.getElementById('bulk_type_entity_apply').value;
+    const typeEntityVal = document.getElementById('bulk_type_entity_apply').value;
 
     const rows = document.querySelectorAll('#authoritiesEditTable tbody tr.auth-edit-row');
     let count = 0;
@@ -253,6 +269,10 @@ function applyBulkValuesToRows(isBtnClick = false) {
             if (statusVal !== '') {
                 const sel = row.querySelector('.row-is-active');
                 if (sel) { sel.value = statusVal; updateRowDataAttr(sel); }
+            }
+            if (fundedVal !== '') {
+                const sel = row.querySelector('.row-is-funded');
+                if (sel) { sel.value = fundedVal; }
             }
             if (parentVal !== '') {
                 const sel = row.querySelector('.row-parent-id');

@@ -288,6 +288,16 @@
         color: #10b981;
         background: #f0fdf4;
     }
+    .action-btn-stop:hover {
+        border-color: #e11d48;
+        color: #e11d48;
+        background: #fff1f2;
+    }
+    .action-btn-stop.is-stopped {
+        color: #dc2626;
+        background: #fee2e2;
+        border-color: #fca5a5;
+    }
 </style>
 @endsection
 
@@ -419,6 +429,11 @@
                                 {{ $task->title }}
                             </h6>
                             <div class="action-buttons">
+                                @can('task.edit', $task)
+                                <button type="button" class="action-btn action-btn-stop" onclick="event.stopPropagation(); openStopTaskModal({{ $task->id }}, '{{ addslashes($task->title) }}', '{{ $task->status }}')" title="إيقاف المهمة وإشعار المكلفين">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                @endcan
                                 @can('task.view', $task)
                                 <a href="{{ route('projects.tasks.print', [$project->id, $task->id]) }}" target="_blank" class="action-btn action-btn-print" onclick="event.stopPropagation()" title="طباعة المهمة">
                                     <i class="fas fa-print"></i>
@@ -483,6 +498,11 @@
                                 {{ $task->title }}
                             </h6>
                             <div class="action-buttons">
+                                @can('task.edit', $task)
+                                <button type="button" class="action-btn action-btn-stop" onclick="event.stopPropagation(); openStopTaskModal({{ $task->id }}, '{{ addslashes($task->title) }}', '{{ $task->status }}')" title="إيقاف المهمة وإشعار المكلفين">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                @endcan
                                 @can('task.view', $task)
                                 <a href="{{ route('projects.tasks.print', [$project->id, $task->id]) }}" target="_blank" class="action-btn action-btn-print" onclick="event.stopPropagation()" title="طباعة المهمة">
                                     <i class="fas fa-print"></i>
@@ -546,6 +566,11 @@
                                 {{ $task->title }}
                             </h6>
                             <div class="action-buttons">
+                                @can('task.edit', $task)
+                                <button type="button" class="action-btn action-btn-stop" onclick="event.stopPropagation(); openStopTaskModal({{ $task->id }}, '{{ addslashes($task->title) }}', '{{ $task->status }}')" title="إيقاف المهمة وإشعار المكلفين">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                @endcan
                                 @can('task.view', $task)
                                 <a href="{{ route('projects.tasks.print', [$project->id, $task->id]) }}" target="_blank" class="action-btn action-btn-print" onclick="event.stopPropagation()" title="طباعة المهمة">
                                     <i class="fas fa-print"></i>
@@ -609,6 +634,11 @@
                                 {{ $task->title }}
                             </h6>
                             <div class="action-buttons">
+                                @can('task.edit', $task)
+                                <button type="button" class="action-btn action-btn-stop is-stopped" onclick="event.stopPropagation(); openStopTaskModal({{ $task->id }}, '{{ addslashes($task->title) }}', '{{ $task->status }}')" title="استئناف المهمة وإشعار المكلفين">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                @endcan
                                 @can('task.view', $task)
                                 <a href="{{ route('projects.tasks.print', [$project->id, $task->id]) }}" target="_blank" class="action-btn action-btn-print" onclick="event.stopPropagation()" title="طباعة المهمة">
                                     <i class="fas fa-print"></i>
@@ -764,6 +794,9 @@
                                 <td class="text-center">
                                     <div class="action-buttons">
                                         @can('task.edit', $task)
+                                        <button type="button" class="action-btn action-btn-stop {{ $task->status === 'cancelled' ? 'is-stopped' : '' }}" title="{{ $task->status === 'cancelled' ? 'استئناف المهمة وإشعار المكلفين' : 'إيقاف المهمة وإشعار المكلفين' }}" onclick="openStopTaskModal({{ $task->id }}, '{{ addslashes($task->title) }}', '{{ $task->status }}')">
+                                            <i class="fas {{ $task->status === 'cancelled' ? 'fa-play' : 'fa-pause' }}"></i>
+                                        </button>
                                         <button type="button" class="action-btn action-btn-edit" title="تعديل" onclick="editTaskModal({{ json_encode($task) }})">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -1040,6 +1073,57 @@
 </div>
 @endcan
 
+<!-- Stop / Resume Task Modal -->
+<div class="modal fade" id="stopTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle p-3 d-flex align-items-center justify-content-center" id="stopModalIconBg" style="width:48px;height:48px;background:#fee2e2;color:#dc2626;">
+                        <i class="fas fa-pause fs-5" id="stopModalIcon"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="stopModalTitle">إيقاف المهمة</h5>
+                        <small class="text-muted" id="stopModalSubtitle">تغيير حالة المهمة وإشعار المكلفين</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="stopTaskForm" method="POST" onsubmit="submitStopTask(event)">
+                @csrf
+                <div class="modal-body py-4">
+                    <div class="alert alert-light border rounded-3 d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-tasks text-primary"></i>
+                        <span class="fw-bold" id="stopTaskTitleDisplay"></span>
+                    </div>
+
+                    <div class="mb-3" id="stopReasonWrapper">
+                        <label class="form-label fw-bold small">سبب الإيقاف / ملاحظات (اختياري)</label>
+                        <textarea name="reason" id="stopTaskReason" class="form-control" rows="3" placeholder="اكتب سبب إيقاف المهمة ليتم إرساله للمكلفين..."></textarea>
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 border">
+                        <div class="d-flex align-items-center gap-2 text-primary small fw-bold mb-2">
+                            <i class="fas fa-bell"></i>
+                            <span>سيتم إرسال إشعار فوري داخل النظام لجميع المستخدمين المكلفين</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 text-success small fw-bold">
+                            <i class="fas fa-sms"></i>
+                            <span>سيتم إرسال رسالة نصية قصيرة (SMS) إلى أرقام هواتف المكلفين</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold" id="stopModalSubmitBtn">
+                        <i class="fas fa-check me-1"></i>تأكيد الإجراء
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -1285,6 +1369,108 @@
 
         const modal = new bootstrap.Modal(document.getElementById('editTaskModal'));
         modal.show();
+    }
+
+    // Stop / Resume Task Modal Handling
+    let currentStopTaskId = null;
+    let currentStopTaskStatus = null;
+
+    function openStopTaskModal(taskId, taskTitle, taskStatus) {
+        currentStopTaskId = taskId;
+        currentStopTaskStatus = taskStatus;
+        
+        const isCancelled = (taskStatus === 'cancelled');
+        const modalTitle = document.getElementById('stopModalTitle');
+        const modalSubtitle = document.getElementById('stopModalSubtitle');
+        const modalIcon = document.getElementById('stopModalIcon');
+        const modalIconBg = document.getElementById('stopModalIconBg');
+        const submitBtn = document.getElementById('stopModalSubmitBtn');
+        const reasonWrapper = document.getElementById('stopReasonWrapper');
+        
+        document.getElementById('stopTaskTitleDisplay').textContent = taskTitle;
+        document.getElementById('stopTaskReason').value = '';
+        
+        if (isCancelled) {
+            modalTitle.textContent = 'استئناف المهمة';
+            modalSubtitle.textContent = 'إعادة تفعيل المهمة وإشعار المكلفين';
+            modalIcon.className = 'fas fa-play fs-5';
+            modalIconBg.style.background = '#dcfce7';
+            modalIconBg.style.color = '#16a34a';
+            submitBtn.className = 'btn btn-success rounded-pill px-4 fw-bold';
+            submitBtn.innerHTML = '<i class="fas fa-play me-1"></i>تأكيد الاستئناف';
+            reasonWrapper.querySelector('label').textContent = 'ملاحظات الاستئناف (اختياري)';
+        } else {
+            modalTitle.textContent = 'إيقاف / تعليق المهمة';
+            modalSubtitle.textContent = 'إيقاف المهمة مؤقتاً وإشعار المكلفين عبر النظام و SMS';
+            modalIcon.className = 'fas fa-pause fs-5';
+            modalIconBg.style.background = '#fee2e2';
+            modalIconBg.style.color = '#dc2626';
+            submitBtn.className = 'btn btn-danger rounded-pill px-4 fw-bold';
+            submitBtn.innerHTML = '<i class="fas fa-pause me-1"></i>تأكيد إيقاف المهمة';
+            reasonWrapper.querySelector('label').textContent = 'سبب الإيقاف / ملاحظات (اختياري)';
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('stopTaskModal'));
+        modal.show();
+    }
+
+    function submitStopTask(e) {
+        e.preventDefault();
+        if (!currentStopTaskId) return;
+        
+        const reason = document.getElementById('stopTaskReason').value;
+        const submitBtn = document.getElementById('stopModalSubmitBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري التنفيذ...';
+        
+        fetch(`/projects/{{ $project->id }}/tasks/${currentStopTaskId}/stop`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ reason: reason })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('stopTaskModal')).hide();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم بنجاح',
+                        text: data.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    alert(data.message);
+                    window.location.reload();
+                }
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('خطأ', data.message || 'حدث خطأ أثناء تنفيذ العملية', 'error');
+                } else {
+                    alert(data.message || 'حدث خطأ');
+                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        })
+        .catch(err => {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire('خطأ', 'حدث خطأ في الاتصال بالخادم', 'error');
+            } else {
+                alert('حدث خطأ في الاتصال بالخادم');
+            }
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
     }
 
     // Preserve view mode on load

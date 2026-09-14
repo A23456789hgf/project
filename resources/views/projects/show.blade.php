@@ -914,6 +914,9 @@
 
             <!-- Step 2: المخاطر والجهات والأنشطة والتكاليف -->
             <div class="step-content" id="step-2">
+                <!-- الوضع المالي للمشروع (Phase 4) -->
+                @include('projects.partials.financial_status')
+
                 <!-- 1. Risks and Stakeholders -->
                 <div id="technical-details-section" class="content-section">
                     <div class="section-header">
@@ -1595,7 +1598,7 @@
                                     </div>
                                 @endif
                             @else
-                                {{-- Project is in pending_approval or other approval status – show the approval workflow --}}
+                                {{-- Project is in pending_approval or other approval status – show link to Approval Center --}}
                                 <div class="alert alert-info border-0 shadow-sm rounded-4 p-3 mb-3 animate-fade-in">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-info-circle fs-4 me-3 text-info"></i>
@@ -1606,24 +1609,20 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Approval Form Component -->
-                                @can('approve', $project)
-                                <div class="mb-4">
-                                    @include('projects.partials.approval-form')
-                                </div>
-                                @else
-                                <div class="alert alert-warning border-0 shadow-sm rounded-4 p-4 mb-4 mt-3">
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-warning text-white rounded-circle p-3 me-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                                            <i class="fas fa-lock fs-4"></i>
+                                <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                                    <div class="card-body p-4 text-center">
+                                        <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle mb-3" style="width: 80px; height: 80px;">
+                                            <i class="fas fa-clipboard-check text-primary fs-2"></i>
                                         </div>
-                                        <div>
-                                            <h5 class="alert-heading fw-bold mb-1">المشروع بانتظار الاعتماد</h5>
-                                            <p class="mb-0 text-muted">لا تملك صلاحية الموافقة على هذا المشروع. (لا يمكنك الموافقة على مشروع قمت بإنشائه، أو أن المشروع بانتظار موافقة جهة أخرى).</p>
-                                        </div>
+                                        <h5 class="fw-bold text-dark mb-2">إدارة ومتابعة الاعتمادات</h5>
+                                        <p class="text-muted mb-3 mx-auto" style="max-width: 520px;">
+                                            تتم متابعة مسار الاعتماد واتخاذ القرارات الإدارية والفنية الخاصة بهذا المشروع حصرياً من خلال <strong>مركز المراجعة والاعتمادات</strong>.
+                                        </p>
+                                        <a href="{{ route('approvals.show', $project->id) }}" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm">
+                                            <i class="fas fa-external-link-alt me-2"></i> الانتقال إلى مركز المراجعة والاعتمادات
+                                        </a>
                                     </div>
                                 </div>
-                                @endcan
                             @endif
                         @endif
 
@@ -1814,172 +1813,6 @@
                 }
             }, 500);
         }
-        
-        // Initialize approval form if it exists
-        const approvalFormEl = document.getElementById('approvalForm');
-        if (typeof initializeApprovalForm === 'function' && approvalFormEl) {
-            const projectId = {{ $project->id }};
-            initializeApprovalForm(projectId);
-        }
-
-        // Load and display approval phases with automatic transitions
-        loadApprovalPhasesTimeline();
     });
-
-    function loadApprovalPhasesTimeline() {
-        const projectId = {{ $project->id }};
-        const timelineContainer = document.getElementById('approvalPhasesTimeline');
-        const phaseTransitionInfo = document.getElementById('phaseTransitionInfo');
-        
-        // Check if timeline container exists
-        if (!timelineContainer) {
-            console.log('Approval phases timeline container not found');
-            return;
-        }
-
-        fetch(`/projects/${projectId}/approval-workflow/status`)
-            .then(res => {
-                // Check if response is OK and is JSON
-                if (!res.ok) {
-                    console.warn('Approval workflow status endpoint returned error:', res.status);
-                    return null;
-                }
-                const contentType = res.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    console.warn('Approval workflow status endpoint did not return JSON');
-                    return null;
-                }
-                return res.json();
-            })
-            .then(data => {
-                if (!data || !data.success || !data.summary) {
-                    return;
-                }
-
-                const summary = data.summary;
-                const phases = [
-                    { name: 'موافقة الجمعية', code: 'assembly', order: 1 },
-                    { name: 'موافقة الاتحاد', code: 'union', order: 2 },
-                    { name: 'موافقة اللجنة', code: 'committee', order: 3 },
-                    { name: 'مرحلة التنفيذ', code: 'implementation', order: 4 }
-                ];
-
-                let html = '';
-                let hasNextPhase = false;
-
-                phases.forEach((phase, index) => {
-                    const stageDetails = summary.stage_details[phase.code];
-                    let status = 'pending';
-                    let statusText = 'معلق';
-                    let statusColor = '#90a4ae';
-                    let statusBg = '#eceff1';
-                    let icon = 'fa-clock';
-                    let animation = '';
-
-                    if (stageDetails) {
-                        status = stageDetails.status;
-                        statusText = stageDetails.status_arabic || status;
-                        
-                        if (status === 'approved') {
-                            statusColor = '#4caf50';
-                            statusBg = '#e8f5e9';
-                            icon = 'fa-check-circle';
-                        } else if (status === 'rejected') {
-                            statusColor = '#f44336';
-                            statusBg = '#ffebee';
-                            icon = 'fa-times-circle';
-                        } else if (status === 'need_action') {
-                            statusColor = '#ff9800';
-                            statusBg = '#fff3e0';
-                            icon = 'fa-exclamation-circle';
-                        }
-                    }
-
-                    const isCurrentPhase = summary.current_stage === phase.name;
-                    const isCompleted = status === 'approved';
-                    
-                    if (isCurrentPhase) {
-                        animation = 'animation: glowPulse 2s infinite;';
-                        statusColor = '#2196f3';
-                        statusBg = '#e3f2fd';
-                        if (!stageDetails) {
-                            icon = 'fa-spinner fa-spin';
-                            statusText = 'قيد المراجعة حالياً';
-                        }
-                    }
-                    
-                    html += `
-                        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; flex: 1; min-width: 140px; padding: 1rem; background: ${isCurrentPhase ? 'rgba(33, 150, 243, 0.05)' : 'transparent'}; border-radius: 12px; transition: all 0.3s ease;">
-                            <div style="position: relative; width: 70px; height: 70px; margin-bottom: 1rem;">
-                                <div style="width: 70px; height: 70px; border-radius: 50%; background: ${statusBg}; border: 4px solid ${statusColor}; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: ${statusColor}; box-shadow: 0 4px 10px rgba(0,0,0,0.1); ${animation}">
-                                    <i class="fas ${icon}"></i>
-                                </div>
-                                ${isCurrentPhase ? '<div style="position: absolute; top: -5px; right: -5px; width: 24px; height: 24px; background: #f44336; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">!</div>' : ''}
-                            </div>
-                            <strong style="font-size: 1rem; color: #2c3e50; margin-bottom: 0.4rem; display: block;">${phase.name}</strong>
-                            <div style="padding: 0.25rem 0.75rem; background: ${statusBg}; color: ${statusColor}; border-radius: 20px; font-size: 0.8rem; font-weight: 700; border: 1px solid ${statusColor}44;">
-                                ${statusText}
-                            </div>
-                            ${isCompleted && index < phases.length - 1 ? `
-                                <div style="margin-top: 0.75rem; color: #4caf50; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 0.3rem;">
-                                    <i class="fas fa-magic"></i> انتقال تلقائي
-                                </div>
-                            ` : ''}
-                        </div>
-                        ${index < phases.length - 1 ? `
-                            <div style="display: flex; align-items: center; height: 70px; color: ${isCompleted ? '#4caf50' : '#cfd8dc'};">
-                                <i class="fas fa-chevron-left" style="font-size: 1.5rem; ${isCompleted ? 'animation: slideArrowAr 1.5s infinite;' : ''}"></i>
-                            </div>
-                        ` : ''}
-                    `;
-                });
-
-                // Add animations
-                const style = document.createElement('style');
-                style.textContent = `
-                    @keyframes glowPulse {
-                        0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.4); }
-                        70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); }
-                        100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
-                    }
-                    @keyframes slideArrowAr {
-                        0% { transform: translateX(0); opacity: 0.5; }
-                        50% { transform: translateX(-8px); opacity: 1; }
-                        100% { transform: translateX(0); opacity: 0.5; }
-                    }
-                `;
-                document.head.appendChild(style);
-
-                timelineContainer.innerHTML = html;
-
-                // Show phase transition info if there's a next phase
-                if (summary.next_stage_arabic) {
-                    hasNextPhase = true;
-                    const nextPhaseText = document.getElementById('phaseTransitionText');
-                    nextPhaseText.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 32px; height: 32px; background: #4caf50; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">
-                                <i class="fas fa-bolt" style="font-size: 0.9rem;"></i>
-                            </div>
-                            <div>
-                                عند الموافقة على <span style="color: #1976d2; font-weight: 700;">${summary.current_stage}</span>، 
-                                سيقوم النظام <span style="color: #2e7d32; font-weight: 700;">تلقائياً</span> بالانتقال إلى <span style="color: #1976d2; font-weight: 700;">${summary.next_stage_arabic}</span>
-                            </div>
-                        </div>
-                    `;
-                    phaseTransitionInfo.style.display = 'block';
-                    phaseTransitionInfo.style.animation = 'slideDown 0.5s ease-out';
-                } else {
-                    phaseTransitionInfo.style.display = 'none';
-                }
-            })
-            .catch(error => {
-                console.warn('Could not load approval phases timeline:', error.message);
-                // Silently fail - timeline is optional UI enhancement
-                if (timelineContainer) {
-                    timelineContainer.innerHTML = '';
-                }
-            });
-    }
 </script>
 @endsection

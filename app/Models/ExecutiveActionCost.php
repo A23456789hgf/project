@@ -103,4 +103,24 @@ class ExecutiveActionCost extends Model
     {
         return $query->where('executive_activity_action_id', $actionId);
     }
+
+    public function getUnitPriceAttribute()
+    {
+        return $this->attributes['amount'] ?? null;
+    }
+
+    public function setUnitPriceAttribute($value): void
+    {
+        $this->attributes['amount'] = $value;
+    }
+
+    public function getTotalCostAttribute()
+    {
+        return $this->attributes['total'] ?? null;
+    }
+
+    public function setTotalCostAttribute($value): void
+    {
+        $this->attributes['total'] = $value;
+    }
 }

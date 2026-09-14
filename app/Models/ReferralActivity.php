@@ -12,6 +12,7 @@ class ReferralActivity extends Model
         'from_user_id',
         'from_department_id',
         'to_department_id',
+        'to_user_id',
         'referral_text',
         'attachments',
         'referral_date',
@@ -46,6 +47,11 @@ class ReferralActivity extends Model
     public function toDepartment()
     {
         return $this->belongsTo(InternalEntity::class, 'to_department_id');
+    }
+
+    public function toUser()
+    {
+        return $this->belongsTo(User::class, 'to_user_id');
     }
 
     public function responder()

@@ -15,13 +15,23 @@
                 </div>
 
                 <form id="bulkEditForm">
-                    <div class="mb-3">
-                        <label for="bulk_is_active" class="form-label fw-semibold small text-muted">الحالة</label>
-                        <select id="bulk_is_active" class="form-select shadow-sm">
-                            <option value="">-- بدون تغيير --</option>
-                            <option value="1">نشط</option>
-                            <option value="0">غير نشط</option>
-                        </select>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="bulk_is_active" class="form-label fw-semibold small text-muted">الحالة</label>
+                            <select id="bulk_is_active" class="form-select shadow-sm">
+                                <option value="">-- بدون تغيير --</option>
+                                <option value="1">نشط</option>
+                                <option value="0">غير نشط</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bulk_is_funded" class="form-label fw-semibold small text-muted">جهة ممولة</label>
+                            <select id="bulk_is_funded" class="form-select shadow-sm">
+                                <option value="">-- بدون تغيير --</option>
+                                <option value="1">ممولة</option>
+                                <option value="0">غير ممولة</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="mb-3">

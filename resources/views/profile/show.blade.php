@@ -271,8 +271,8 @@
                             </p>
                             ${item.notes ? `<div class="bg-light p-2 rounded small text-secondary mb-2 flex-grow-1" style="font-size: 0.75rem; border-right: 2px solid #cbd5e1;"><strong>ملاحظة:</strong> ${item.notes}</div>` : ''}
                             <div class="text-start mt-auto pt-2">
-                                <a href="/projects/${item.project_id}/execution" class="btn btn-sm btn-link text-primary p-0" style="text-decoration: none; font-size: 0.8rem; font-weight: 600;">
-                                    <i class="fas fa-external-link-alt me-1"></i>انتقال للتنفيذ
+                                <a href="${item.view_url || (item.is_standalone_task ? `/tasks/${item.task_id}` : `/projects/${item.project_id}/execution`)}" class="btn btn-sm btn-link text-primary p-0" style="text-decoration: none; font-size: 0.8rem; font-weight: 600;">
+                                    <i class="fas fa-external-link-alt me-1"></i>${item.is_standalone_task ? 'عرض تفاصيل المهمة' : 'انتقال للتنفيذ'}
                                 </a>
                             </div>
                         </div>

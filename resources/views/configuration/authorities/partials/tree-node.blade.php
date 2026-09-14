@@ -25,6 +25,12 @@
                     {{ $authority->is_active ? 'نشط' : 'غير نشط' }}
                 </span>
                 
+                @if($authority->is_funded)
+                    <span class="badge bg-success bg-opacity-75">
+                        ممولة
+                    </span>
+                @endif
+                
                 @if($authority->children_count > 0)
                     <span class="badge bg-info">
                         {{ $authority->children_count }} جهة تابعة

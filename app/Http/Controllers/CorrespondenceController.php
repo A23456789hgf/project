@@ -10,11 +10,13 @@ use App\Models\InternalEntity;
 use App\Models\Project;
 use App\Models\User;
 use App\Scopes\DomainScope;
+use App\Services\NotificationService;
 use App\Traits\HandlesDataVisibility;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -325,19 +327,19 @@ class CorrespondenceController extends Controller
         // ------------------------------------------------------------
         // 9. جلب البيانات الإضافية للـ View
         // ------------------------------------------------------------
-        // الأقسام الفرعية (للتوجيه الداخلي)
-        $subDepartments = InternalEntity::where('is_active', true)
-            ->when(
-                method_exists($user, 'canViewEntitiesInDropdowns') && $user->canViewEntitiesInDropdowns(),
-                fn ($q) => $q->withoutGlobalScope(DomainScope::class)
-            )
-            ->where('id', '!=', $user->entity_id)
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
+        $subDepartments = Cache::remember('correspondence_sub_depts_'.$user->id, now()->addHours(2), function () use ($user) {
+            return InternalEntity::where('is_active', true)
+                ->when(
+                    method_exists($user, 'canViewEntitiesInDropdowns') && $user->canViewEntitiesInDropdowns(),
+                    fn ($q) => $q->withoutGlobalScope(DomainScope::class)
+                )
+                ->where('id', '!=', $user->entity_id)
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+        });
 
-        // قائمة المشاريع (لشريط الفلترة ولتبويب المشاريع)
-        $projects = Project::select('id', 'project_name')->orderBy('project_name')->get();
+        $projects = collect();
 
         // ------------------------------------------------------------
         // 10. إرجاع العرض (view)
@@ -731,6 +733,9 @@ class CorrespondenceController extends Controller
                 'correspondence_id' => $correspondence->id,
                 'correspondence_number' => $correspondence->correspondence_number,
             ]);
+
+            // إرسال الإشعارات للجهات المعنية
+            app(NotificationService::class)->notifyCorrespondence($correspondence, $request->correspondence_type === 'reply' ? 'reply' : 'created');
 
             return redirect()->route('correspondence.show', $correspondence->id)
                 ->with('success', 'تم إنشاء المراسلة بنجاح. رقم المراسلة: '.$correspondence->correspondence_number);
@@ -1238,10 +1243,10 @@ class CorrespondenceController extends Controller
                 ]
             );
 
-            // تسجيل النشاط
-            $correspondence->logActivity('replied', 'تم إضافة رد وإرجاع المراسلة للمرسل');
-
             DB::commit();
+
+            // إرسال الإشعار لمرسل المراسلة
+            app(NotificationService::class)->notifyCorrespondence($correspondence, 'reply');
 
             return back()->with('success', 'تم إضافة الرد بنجاح.');
 
@@ -1345,6 +1350,9 @@ class CorrespondenceController extends Controller
 
             DB::commit();
 
+            // إرسال الإشعار للجهة المحال إليها
+            app(NotificationService::class)->notifyCorrespondence($correspondence, 'referral');
+
             return back()->with('success', 'تم إضافة الإحالة بنجاح.');
 
         } catch (\Exception $e) {
@@ -1401,6 +1409,9 @@ class CorrespondenceController extends Controller
             $correspondence->logActivity('closed', 'تم إغلاق المراسلة: '.$request->close_reason);
 
             DB::commit();
+
+            // إرسال الإشعار بإغلاق المراسلة
+            app(NotificationService::class)->notifyCorrespondence($correspondence, 'close');
 
             return back()->with('success', 'تم إغلاق المراسلة بنجاح.');
 
@@ -1986,6 +1997,9 @@ class CorrespondenceController extends Controller
                 ]
             );
         }
+
+        // إرسال الإشعار للجهات الموجه إليها
+        app(NotificationService::class)->notifyCorrespondence($correspondence, 'forward');
 
         return redirect()->back()->with('success', 'تم توجيه المراسلة بنجاح.');
     }

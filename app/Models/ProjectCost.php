@@ -17,6 +17,9 @@ class ProjectCost extends Model
         'spent_amount',
         'remaining_amount',
         'hijri_year',
+        'year_type',
+        'approval_date_hijri',
+        'approval_year_gregorian',
     ];
 
     public function project()

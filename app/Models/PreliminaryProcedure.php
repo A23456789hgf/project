@@ -130,6 +130,16 @@ class PreliminaryProcedure extends Model
         $this->attributes['duration_days'] = $value;
     }
 
+    public function getProcedureAttribute(): ?string
+    {
+        return $this->attributes['procedure_name'] ?? null;
+    }
+
+    public function setProcedureAttribute(?string $value): void
+    {
+        $this->attributes['procedure_name'] = $value;
+    }
+
     public function activity()
     {
         return $this->belongsTo(PreliminaryActivity::class, 'activity_id');

@@ -734,6 +734,19 @@ class ProjectController extends Controller
     }
 
     /**
+     * Print financial status of the specified project
+     *
+     * @return View
+     */
+    public function printFinancial(Project $project)
+    {
+        $this->projectService->authorizeProjectAccess($project);
+        $financialStatus = $this->projectService->calculateProjectFinancialStatus($project);
+
+        return view('projects.reports.print_project_financial', compact('project', 'financialStatus'));
+    }
+
+    /**
      * Show the form for editing the specified project
      *
      * @return View
@@ -1124,16 +1137,33 @@ class ProjectController extends Controller
 
         try {
             $project->load([
+                'preliminaryActivities.assignments.assignedTo',
                 'preliminaryActivities.procedures.costs.financialItem',
                 'preliminaryActivities.procedures.executions.delayExplanation',
+                'preliminaryActivities.procedures.assignments.assignedTo',
+                'preliminaryActivities.procedures.budgetJustification',
+                'preliminaryActivities.procedures.budgetJustifications',
+                'preliminaryActivities.procedures.procedureBudgetJustification.createdBy',
+                'preliminaryActivities.procedures.procedureBudgetJustification.reviewedBy',
+                'preliminaryActivities.procedures.technicalJustification',
+                'preliminaryActivities.procedures.technicalJustifications.createdBy',
+                'preliminaryActivities.procedures.technicalJustifications.reviewedBy',
+                'preliminaryActivities.procedures.assignedEntity',
                 'preliminaryFinancialSummaries.financialItem',
                 'preliminaryFinancialSummaries.activity',
                 'preliminaryFinancialSummaries.procedure',
                 'preliminaryFinancialSummaries.cost',
+                'executiveActivities.assignments.assignedTo',
                 'executiveActivities.actions.assignedEntities',
                 'executiveActivities.actions.costs.financialItem',
-                'executiveActivities.actions.executions',
+                'executiveActivities.actions.executions.delayExplanation',
                 'executiveActivities.actions.execution.delayExplanation',
+                'executiveActivities.actions.assignments.assignedTo',
+                'executiveActivities.actions.budgetJustification.createdBy',
+                'executiveActivities.actions.budgetJustification.reviewedBy',
+                'executiveActivities.actions.technicalJustification',
+                'executiveActivities.actions.technicalJustifications.createdBy',
+                'executiveActivities.actions.technicalJustifications.reviewedBy',
                 'executiveFinancialSummaries',
                 'cost',
             ]);
@@ -1141,7 +1171,14 @@ class ProjectController extends Controller
             // If eager loading fails, load what we can
             $project->load([
                 'preliminaryActivities.procedures.costs.financialItem',
-                'executiveActivities.actions',
+                'preliminaryActivities.procedures.assignments.assignedTo',
+                'preliminaryActivities.procedures.budgetJustification',
+                'preliminaryActivities.procedures.budgetJustifications',
+                'preliminaryActivities.procedures.technicalJustifications',
+                'executiveActivities.actions.costs.financialItem',
+                'executiveActivities.actions.assignments.assignedTo',
+                'executiveActivities.actions.budgetJustification',
+                'executiveActivities.actions.technicalJustifications',
             ]);
         }
 

@@ -8,6 +8,7 @@ use App\Models\ExecutionBudgetJustification;
 use App\Models\PreliminaryProcedureExecution;
 use App\Models\Project;
 use App\Models\ProjectExecution;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -84,6 +85,12 @@ class ExecutionBudgetJustificationController extends Controller
             ]
         );
 
+        try {
+            app(NotificationService::class)->notifyBudgetJustification($project, $justification, 'submitted', auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in ExecutionBudgetJustificationController store: '.$e->getMessage());
+        }
+
         return redirect()->back()->with('success', 'تم حفظ التبرير المالي بنجاح');
     }
 
@@ -112,6 +119,12 @@ class ExecutionBudgetJustificationController extends Controller
             'reviewed_at' => now(),
             'reviewer_notes' => $validated['reviewer_notes'] ?? null,
         ]);
+
+        try {
+            app(NotificationService::class)->notifyBudgetJustification($project, $justification, $validated['approval_status'], auth()->user());
+        } catch (\Exception $e) {
+            \Log::error('Notification error in ExecutionBudgetJustificationController approve: '.$e->getMessage());
+        }
 
         return redirect()->back()->with(
             'success',

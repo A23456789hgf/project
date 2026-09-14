@@ -52,6 +52,24 @@ class ERPNextFinancialReportController extends Controller
             ->orderBy('project_name')
             ->get();
 
+        if ($request->has('print') || $request->input('export') === 'print') {
+            $dataResponse = $this->getFinancialData($request)->getData(true);
+            $plSummary = $dataResponse['pl_summary'] ?? [];
+            $plStatement = $dataResponse['pl_statement'] ?? [];
+            $plExpenses = $dataResponse['pl_expenses'] ?? [];
+            $glReport = $dataResponse['gl_report'] ?? [];
+            $company = $request->query('company') ?: ($userEntityName ?? 'كافة الجهات');
+
+            return view('projects.reports.print_erpnext_financial', compact(
+                'isAdmin',
+                'company',
+                'plSummary',
+                'plStatement',
+                'plExpenses',
+                'glReport'
+            ));
+        }
+
         return view('projects.reports.erpnext_financial', compact(
             'isAdmin',
             'userEntityName',

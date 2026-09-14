@@ -61,6 +61,19 @@ class AuthoritiesImport implements ToCollection, WithHeadingRow
             }
             $isActive = $this->parseActiveStatus($activeVal ?? 'نشط');
 
+            $fundedVal = $row['is_funded'] ?? $row['funded'] ?? $row['algh_almmwlh'] ?? $row['جهة_ممولة'] ?? $row['ممولة'] ?? null;
+            if ($fundedVal === null) {
+                foreach ($row as $key => $val) {
+                    if (str_contains($key, 'funded') || str_contains($key, 'mmwlh') || str_contains($key, 'تمويل') || str_contains($key, 'ممولة')) {
+                        if (trim($val) !== '') {
+                            $fundedVal = $val;
+                            break;
+                        }
+                    }
+                }
+            }
+            $isFunded = $this->parseFundedStatus($fundedVal ?? 'غير ممولة');
+
             if (empty($agencyName) || str_starts_with($agencyName, '=')) {
                 $hasOtherData = false;
                 foreach ($row as $val) {
@@ -188,6 +201,7 @@ class AuthoritiesImport implements ToCollection, WithHeadingRow
                         Authority::create([
                             'agency_name' => $agencyName,
                             'is_active' => $isActive,
+                            'is_funded' => $isFunded,
                             'parent_id' => $parentId,
                             'governorate_id' => $govId,
                             'directorate_id' => $dirId,
@@ -209,6 +223,9 @@ class AuthoritiesImport implements ToCollection, WithHeadingRow
                             'governorate_id' => $govId,
                             'directorate_id' => $dirId,
                         ];
+                        if ($fundedVal !== null) {
+                            $updateData['is_funded'] = $isFunded;
+                        }
                         if ($parentId !== null) {
                             $updateData['parent_id'] = $parentId;
                         }
@@ -239,6 +256,9 @@ class AuthoritiesImport implements ToCollection, WithHeadingRow
                             'governorate_id' => $govId,
                             'directorate_id' => $dirId,
                         ];
+                        if ($fundedVal !== null) {
+                            $updateData['is_funded'] = $isFunded;
+                        }
                         if ($parentId !== null) {
                             $updateData['parent_id'] = $parentId;
                         }
@@ -256,6 +276,7 @@ class AuthoritiesImport implements ToCollection, WithHeadingRow
                         Authority::create([
                             'agency_name' => $agencyName,
                             'is_active' => $isActive,
+                            'is_funded' => $isFunded,
                             'parent_id' => $parentId,
                             'governorate_id' => $govId,
                             'directorate_id' => $dirId,
@@ -309,5 +330,23 @@ class AuthoritiesImport implements ToCollection, WithHeadingRow
 
         // Default to active
         return true;
+    }
+
+    /**
+     * Parse funded status from various formats
+     */
+    protected function parseFundedStatus($value)
+    {
+        $value = trim(strtolower((string) $value));
+
+        if ($value === 'ممولة' || $value === 'ممولة' || $value === 'funded' || $value === '1' || $value === 'true' || $value === 'نعم' || $value === 'yes') {
+            return true;
+        }
+
+        if ($value === 'غير ممولة' || $value === 'غير ممول' || $value === 'unfunded' || $value === '0' || $value === 'false' || $value === 'لا' || $value === 'no') {
+            return false;
+        }
+
+        return false;
     }
 }

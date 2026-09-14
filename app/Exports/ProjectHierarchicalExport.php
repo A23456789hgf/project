@@ -67,8 +67,8 @@ class ProjectHierarchicalExport
 
         foreach ($projects as $project) {
             $this->project = $project;
-            $this->project->loadMissing([
-                'program', 'domain', 'subdomain', 'intervention', 'priority', 'targetCategory', 'detail',
+            $this->project->load([
+                'program', 'domain', 'subdomain', 'intervention', 'priority', 'mainRouter', 'subRouter', 'targetCategory', 'detail',
                 'locations.governorate', 'locations.directorate', 'locations.subArea', 'locations.village',
                 'mainObjectives', 'specialObjectives.results.outputs', 'risks', 'cost',
                 'financings.fundingSource', 'financings.authority', 'financings.financingType', 'financings.financingForm',
@@ -90,7 +90,7 @@ class ProjectHierarchicalExport
         }
 
         // Auto-fit all sheets
-        foreach ($spreadsheet->getAllSheets() as $sheet) {
+        foreach ($spreadsheet->getSheetIterator() as $sheet) {
             $this->autoFitColumns($sheet);
         }
 
@@ -113,7 +113,7 @@ class ProjectHierarchicalExport
             'المعرف', 'رقم المشروع', 'اسم المشروع', 'البرنامج', 'المجال الرئيسي', 'المجال الفرعي',
             'التدخل', 'الأولوية', 'الحالة', 'حالة الاعتماد', 'المستفيدين',
             'تاريخ البدء (ميلادي)', 'تاريخ البدء (هجري)', 'تاريخ الانتهاء (ميلادي)', 'تاريخ الانتهاء (هجري)', 'المدة',
-            'الفئة المستهدفة',
+            'المسار الرئيسي', 'المسار الفرعي', 'الفئة المستهدفة',
             'الملخص', 'المقدمة', 'المشكلة والمبررات', 'المكونات', 'الأثر المتوقع',
             'جزء من خطة', 'الجهة المنشئة', 'تاريخ الإنشاء', 'معرف ERPNext', 'حالة مزامنة Frappe',
         ];
@@ -269,6 +269,8 @@ class ProjectHierarchicalExport
             $this->project->end_date_gregorian ?? '',
             $this->project->end_date_hijri ?? '',
             $this->project->project_duration ?? 0,
+            $this->project->mainRouter->main_router ?? '',
+            $this->project->subRouter->sub_router ?? '',
             $this->project->targetCategory->name ?? '',
             $this->project->detail->project_summary ?? '',
             $this->project->detail->project_introduction ?? '',
@@ -386,8 +388,8 @@ class ProjectHierarchicalExport
                 $sheet->setCellValueByColumnAndRow(1, $r, $id);
                 $sheet->setCellValueByColumnAndRow(2, $r, $name);
                 $sheet->setCellValueByColumnAndRow(3, $r, $roleLabel);
-                $sheet->setCellValueByColumnAndRow(4, $r, $entity->authority->agency_name ?? '');
-                $sheet->setCellValueByColumnAndRow(5, $r, $entity->authority_type ?? '');
+                $sheet->setCellValueByColumnAndRow(4, $r, $entity->authority->name ?? '');
+                $sheet->setCellValueByColumnAndRow(5, $r, $entity->authority->entity_type ?? '');
                 $r++;
             }
         }
@@ -658,7 +660,7 @@ class ProjectHierarchicalExport
     private function addHierarchicalProjectSheets(&$spreadsheet)
     {
         $this->project->load([
-            'program', 'domain', 'subdomain', 'intervention', 'priority', 'targetCategory', 'detail',
+            'program', 'domain', 'subdomain', 'intervention', 'priority', 'mainRouter', 'subRouter', 'targetCategory', 'detail',
             'locations.governorate', 'locations.directorate', 'locations.subArea', 'locations.village',
             'mainObjectives', 'specialObjectives.results.outputs', 'risks', 'cost',
             'financings.fundingSource', 'financings.authority', 'financings.financingType', 'financings.financingForm',
