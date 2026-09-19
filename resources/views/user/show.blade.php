@@ -23,38 +23,59 @@
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="fw-bold">معرف المستخدم:</label>
                             <p>{{ $user->user_id }}</p>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="fw-bold">الاسم الكامل:</label>
                             <p>{{ $user->name }}</p>
                         </div>
-                        <div class="col-md-4">
-                            <label class="fw-bold">رقم الهاتف:</label>
-                            <p>{{ $user->phone ?? 'N/A' }}</p>
+                        <div class="col-md-3">
+                            <label class="fw-bold">نوع المستخدم:</label>
+                            <p>
+                                @if($user->organization_type === 'external')
+                                    <span class="badge bg-warning text-dark">خارجي (جهة خارجية)</span>
+                                @else
+                                    <span class="badge bg-primary">داخلي (الوزارة / الجهات التابعة)</span>
+                                @endif
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">الجهة:</label>
+                            <p class="fw-semibold text-dark">{{ $user->entity?->name ?? $user->authority?->agency_name ?? 'N/A' }}</p>
                         </div>
                     </div>
 
                     <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label class="fw-bold">الجهة:</label>
-                            <p>{{ $user->entity->name ?? 'N/A' }}</p>
+                        <div class="col-md-3">
+                            <label class="fw-bold">رقم الهاتف:</label>
+                            <p>{{ $user->phone ?? 'N/A' }}</p>
                         </div>
-                        <div class="col-md-4">
-                            <label class="fw-bold">المحافظة:</label>
-                            <p>{{ $user->governorate_name ?? 'N/A' }}</p>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="fw-bold">المديرية:</label>
-                            <p>{{ $user->directorate_name ?? 'N/A' }}</p>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-3">
                             <label class="fw-bold">العمل:</label>
                             <p>{{ $user->work ?? 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">مسؤولية الموافقات:</label>
+                            <p>
+                                @if($user->responsibility)
+                                    <span class="badge bg-info text-dark">{{ \App\Enums\UserResponsibilityType::tryFrom($user->responsibility)?->label() ?? $user->responsibility }}</span>
+                                @else
+                                    <span class="text-muted">بدون مسؤولية خاصة</span>
+                                @endif
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold">النطاق الإداري:</label>
+                            <p>{{ $user->internalEntity?->name ?? 'غير محدد' }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="fw-bold">المحافظة والمديرية الأساسية:</label>
+                            <p>{{ $user->governorate_name ?? $user->governorate?->name ?? 'N/A' }} / {{ $user->directorate_name ?? $user->directorate?->name ?? 'N/A' }}</p>
                         </div>
                         <div class="col-md-6">
                             <label class="fw-bold">تصنيف النطاق الجغرافي:</label>

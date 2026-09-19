@@ -249,7 +249,7 @@ class ProjectApproval extends Model
 
     public function getResolvedStageName(): string
     {
-        $entityName = $this->entity?->name ?? 'الجهة';
+        $entityName = $this->entity?->name ?? $this->authority?->agency_name ?? 'الجهة';
         $phaseLabel = $this->getPhaseLabel();
 
         return "{$entityName} - {$phaseLabel}";

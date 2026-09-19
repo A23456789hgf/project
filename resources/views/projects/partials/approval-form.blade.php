@@ -8,7 +8,7 @@
     // Fetch active step
     $activeStep = $project->projectApprovals()
         ->where('is_active', true)
-        ->with(['entity', 'reviewedByUser'])
+        ->with(['entity', 'authority', 'reviewedByUser'])
         ->first();
 
     // Internal entities list for consultation
@@ -158,7 +158,7 @@
                     <div class="col-md-6">
                         <div class="p-3 bg-light rounded-3 border">
                             <small class="text-muted d-block">الجهة المسؤولة عن المراجعة:</small>
-                            <strong class="text-dark fs-6">{{ $activeStep->entity->name ?? 'الجهة المعنية' }}</strong>
+                            <strong class="text-dark fs-6">{{ $activeStep->entity?->name ?? $activeStep->authority?->agency_name ?? 'الجهة المعنية' }}</strong>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -194,7 +194,7 @@
                         <i class="fas fa-lock fs-4 text-secondary"></i>
                         <div>
                             <strong class="d-block text-dark">بانتظار إجراء الجهة المسؤولة</strong>
-                            <small class="text-muted">المشروع بانتظار اتخاذ إجراء من قبل مراجعي <strong>{{ $activeStep->entity->name ?? 'الجهة المختصة' }}</strong> المخولين بصلاحية ({{ $activeStep->getPhaseArabicName() }}).</small>
+                            <small class="text-muted">المشروع بانتظار اتخاذ إجراء من قبل مراجعي <strong>{{ $activeStep->entity?->name ?? $activeStep->authority?->agency_name ?? 'الجهة المختصة' }}</strong> المخولين بصلاحية ({{ $activeStep->getPhaseArabicName() }}).</small>
                         </div>
                     </div>
                 @endcan
