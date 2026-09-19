@@ -318,6 +318,9 @@ class ProjectController extends Controller
                 $user = auth()->user();
                 $entity = $user->entity;
 
+                // ERPNext validation only applies to internal entity users.
+                // External authority users (organization_type === 'external') do not have
+                // an associated InternalEntity, so this block is intentionally skipped for them.
                 if ($entity) {
                     $frappeService = app(FrappeAPIService::class);
 
@@ -457,12 +460,26 @@ class ProjectController extends Controller
     {
         $user = auth()->user();
         $validated['created_by_user_id'] = $user->id;
-        // Always store the entity NAME (string) so geo-scope filtering works correctly.
-        // The HasEntityVisibility trait matches created_by_entity against entity names.
-        $validated['created_by_entity'] = $user->entity?->name ?? $user->department;
         $validated['status'] = 'draft';
         $validated['last_saved_step'] = 1;
         $validated['draft_saved_at'] = now();
+
+        if ($user->organization_type === 'external') {
+            // External authority user: track authority and mark source as external.
+            // creator_entity_id is intentionally left null — HasCreatorTracking will not
+            // find an entity for this user, which is correct.
+            $validated['source_type'] = 'external';
+            $validated['authority_id'] = $user->authority_id;
+            // Store authority name as the "entity" string for display/search purposes.
+            $validated['created_by_entity'] = $user->authority?->agency_name ?? $user->department;
+        } else {
+            // Internal entity user: mark source as internal.
+            // creator_entity_id and created_by_entity are handled by HasCreatorTracking
+            // (bootHasCreatorTracking) which fires automatically on Project::create().
+            $validated['source_type'] = 'internal';
+            // Always store the entity NAME string so geo-scope filtering works correctly.
+            $validated['created_by_entity'] = $user->entity?->name ?? $user->department;
+        }
 
         $project = Project::create($validated);
 
@@ -1484,10 +1501,12 @@ class ProjectController extends Controller
      */
     public function getLastDraft(): JsonResponse
     {
-        // نطاق المستخدم (الجهة + الأبناء)
-        $entityIds = InternalEntity::getAllChildrenIds(
-            auth()->user()->entity_id
-        );
+        $user = auth()->user();
+        if ($user->isExternal()) {
+            $entityIds = $user->authority_id ? [$user->authority_id] : [];
+        } else {
+            $entityIds = InternalEntity::getAllChildrenIds($user->entity_id);
+        }
 
         $draftProject = Project::where('status', 'draft')
             ->where(function ($q) use ($entityIds) {

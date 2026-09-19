@@ -1980,15 +1980,22 @@ class ProjectApprovalController extends Controller
     public function getPendingApprovals(): JsonResponse
     {
         try {
-            $entityId = auth()->user()->entity_id;
-            if (! $entityId) {
-                return response()->json(['success' => true, 'pending_approvals' => [], 'count' => 0]);
+            $user = auth()->user();
+            $query = ProjectApproval::where('status', 'pending')->with(['project', 'stage']);
+
+            if ($user->isExternal()) {
+                if (! $user->authority_id) {
+                    return response()->json(['success' => true, 'pending_approvals' => [], 'count' => 0]);
+                }
+                $query->where('authority_id', $user->authority_id);
+            } else {
+                if (! $user->entity_id) {
+                    return response()->json(['success' => true, 'pending_approvals' => [], 'count' => 0]);
+                }
+                $query->where('entity_id', $user->entity_id);
             }
 
-            $pending = ProjectApproval::where('entity_id', $entityId)
-                ->where('status', 'pending')
-                ->with(['project', 'stage'])
-                ->get();
+            $pending = $query->get();
 
             return response()->json([
                 'success' => true,

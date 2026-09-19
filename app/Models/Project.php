@@ -70,6 +70,7 @@ class Project extends Model
         'current_stage_order',
         'completed_at',
         'internal_entity_id',
+        'source_type',
         'authority_id',
         'created_by',
         'creator_username',
@@ -848,6 +849,41 @@ class Project extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Get the ID of the external authority that created the project.
+     * Never returns an internal entity ID — respects semantic separation.
+     */
+    public function getOriginAuthorityId(): ?int
+    {
+        if ($this->authority_id) {
+            return (int) $this->authority_id;
+        }
+
+        if ($this->createdBy && $this->createdBy->authority_id) {
+            return (int) $this->createdBy->authority_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the origin type of the project: 'external' or 'internal'.
+     * Relies on source_type when available; falls back to field inspection.
+     */
+    public function getOriginType(): string
+    {
+        if (! empty($this->source_type)) {
+            return $this->source_type;
+        }
+
+        // Heuristic: if authority_id is set and creator_entity_id is not, it is external.
+        if ($this->authority_id && ! $this->creator_entity_id && ! $this->internal_entity_id) {
+            return 'external';
+        }
+
+        return 'internal';
     }
 
     /**

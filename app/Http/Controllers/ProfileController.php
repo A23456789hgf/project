@@ -16,9 +16,35 @@ class ProfileController extends Controller
         $this->middleware('auth');
     }
 
+    /**
+     * عرض الملف الشخصي للمستخدم مع تحميل جميع العلاقات المطلوبة:
+     * الدور، الجهة، النطاق الجغرافي، النطاق الإداري، نوع المستخدم، ومسؤولية الموافقات.
+     */
     public function show()
     {
-        $user = auth()->user()->load(['role', 'entity']);
+        $user = auth()->user()->load([
+            // الدور
+            'role',
+
+            // الجهة (كيان داخلي) والسلطة (جهة خارجية) مع نطاقهما الجغرافي
+            'entity.governorate',
+            'entity.directorate',
+            'entity.authority.governorate',
+            'entity.authority.directorate',
+            'authority.governorate',
+            'authority.directorate',
+
+            // النطاق الإداري
+            'internalEntity.governorate',
+            'internalEntity.directorate',
+
+            // النطاقات الجغرافية المتعددة
+            'geographicScopes.governorate',
+            'geographicScopes.directorate',
+
+            // مسؤوليات الموافقات (المراحل التي هذا المستخدم مسؤول عنها)
+            'responsibleApprovalStages.entity',
+        ]);
 
         return view('profile.show', compact('user'));
     }

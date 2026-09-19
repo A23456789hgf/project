@@ -710,7 +710,7 @@ class AuthController extends Controller
 
         // Send OTP via SMS
         $message = 'رمز استعادة كلمة المرور الخاص بك في نظام إدارة المشاريع هو: '.$otp;
-        $smsService->sendSMS($user->id, $user->phone, $message, 'password_reset_otp');
+        $smsService->sendSmsSync($user->id, $user->phone, $message, 'password_reset_otp');
 
         return response()->json(['success' => true, 'message' => 'تم إرسال رمز التحقق بنجاح إلى رقم هاتفك']);
     }

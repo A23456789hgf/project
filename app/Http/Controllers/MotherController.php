@@ -46,7 +46,7 @@ class MotherController extends Controller
     {
         $this->authorize('update', Mother::class);
 
-        $mother = class_exists(Mother::class) ? Mother::findOrFail($id) : (object)['id' => $id, 'name' => ''];
+        $mother = class_exists(Mother::class) ? Mother::findOrFail($id) : (object) ['id' => $id, 'name' => ''];
 
         return view('configuration.mothers.edit', compact('mother'));
     }
@@ -79,5 +79,3 @@ class MotherController extends Controller
         return redirect()->route('mothers.index')->with('success', 'تم حذف الجهة بنجاح');
     }
 }
-PHP;
-

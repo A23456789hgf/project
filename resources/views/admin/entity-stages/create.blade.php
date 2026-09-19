@@ -24,23 +24,60 @@
 
     <div class="card border-0 shadow-sm rounded-4">
         <div class="card-body p-5">
-            <form action="{{ route('admin.entity-stages.store') }}" method="POST">
+            <form action="{{ route('admin.entity-stages.store', ['tab' => $tab]) }}" method="POST">
                 @csrf
+                <input type="hidden" name="tab" value="{{ $tab }}">
                 
                 <div class="row mb-5">
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">الجهة <span class="text-danger">*</span></label>
-                        <select name="entity_id" class="form-select select2-search" required>
-                            <option value="">-- اختر الجهة --</option>
-                            @foreach($entities as $entity)
-                                <option value="{{ $entity->id }}" @selected(old('entity_id') == $entity->id)>
-                                    {{ $entity->name }}
-                                </option>
-                            @endforeach
-                        </select>
+                        @if($tab === 'internal')
+                            <label class="form-label fw-bold">الجهة الداخلية <span class="text-danger">*</span></label>
+                            <select name="entity_id" class="form-select select2-search" required>
+                                <option value="">-- اختر الجهة الداخلية --</option>
+                                @foreach($entities as $entity)
+                                    <option value="{{ $entity->id }}" @selected(old('entity_id') == $entity->id)>
+                                        {{ $entity->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        @else
+                            <label class="form-label fw-bold">الجهة الخارجية <span class="text-danger">*</span></label>
+                            <select name="authority_id" class="form-select select2-search" required>
+                                <option value="">-- اختر الجهة الخارجية --</option>
+                                @foreach($authorities as $authority)
+                                    <option value="{{ $authority->id }}" @selected(old('authority_id') == $authority->id)>
+                                        {{ $authority->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        @endif
                         <div class="form-text">اختر الجهة التي تريد تفعيل مسار الموافقات لها.</div>
                     </div>
                 </div>
+
+                @if($tab === 'external')
+                <div class="row mb-5">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">الوجهة التالية في المسار <span class="text-danger">*</span></label>
+                        <select name="route_destination_type" id="route_destination_type" class="form-select" required>
+                            <option value="ministry" @selected(old('route_destination_type') == 'ministry')>الوزارة كجهة نهائية (Ministry Root)</option>
+                            <option value="authority" @selected(old('route_destination_type') == 'authority')>جهة خارجية أخرى</option>
+                        </select>
+                        <div class="form-text">إلى أين سيتم توجيه المشروع بعد انتهاء اعتمادات هذه الجهة؟</div>
+                    </div>
+                    <div class="col-md-6" id="destination_authority_container" style="display: {{ old('route_destination_type') == 'authority' ? 'block' : 'none' }};">
+                        <label class="form-label fw-bold">الجهة الخارجية الوجهة <span class="text-danger">*</span></label>
+                        <select name="destination_authority_id" class="form-select select2-search">
+                            <option value="">-- اختر الجهة الخارجية الوجهة --</option>
+                            @foreach($authorities as $authority)
+                                <option value="{{ $authority->id }}" @selected(old('destination_authority_id') == $authority->id)>
+                                    {{ $authority->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                @endif
 
                 <hr class="border-light">
 
@@ -114,6 +151,16 @@
             if (e.target.tagName !== 'INPUT') {
                 const checkbox = $(this).find('input[type="checkbox"]');
                 checkbox.prop('checked', !checkbox.prop('checked'));
+            }
+        });
+
+        $('#route_destination_type').on('change', function() {
+            if ($(this).val() === 'authority') {
+                $('#destination_authority_container').show();
+                $('#destination_authority_container select').prop('required', true);
+            } else {
+                $('#destination_authority_container').hide();
+                $('#destination_authority_container select').prop('required', false).val('').trigger('change');
             }
         });
     });

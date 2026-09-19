@@ -125,6 +125,7 @@ class ApprovalWorkflowHardeningTest extends TestCase
             'role_id' => $this->reviewerRole->id,
             'signature_path' => 'signatures/test_signature.png',
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         foreach ([
@@ -388,6 +389,7 @@ class ApprovalWorkflowHardeningTest extends TestCase
             'name' => 'الجهة الجذرية المنشئة مباشرة (Root Creator)',
             'parent_id' => null,
             'is_active' => true,
+            'is_ministry_root' => true,
         ]);
 
         $rootCreator = $this->createUserForEntity($rootEntity, 'RootCreator');
@@ -888,7 +890,7 @@ class ApprovalWorkflowHardeningTest extends TestCase
      */
     public function test_double_approval_race_protection_on_same_step()
     {
-        $root = InternalEntity::withoutGlobalScopes()->create(['name' => 'Race Root', 'parent_id' => null, 'is_active' => true]);
+        $root = InternalEntity::withoutGlobalScopes()->create(['name' => 'Race Root', 'parent_id' => null, 'is_active' => true, 'is_ministry_root' => true]);
         $creator = InternalEntity::withoutGlobalScopes()->create(['name' => 'Race Creator', 'parent_id' => $root->id, 'is_active' => true]);
 
         $creatorUser = $this->createUserForEntity($creator, 'RaceCreator');

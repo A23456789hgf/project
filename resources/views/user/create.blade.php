@@ -60,16 +60,38 @@
             </select>
         </div>
 
-        {{-- الجهة --}}
+        {{-- نوع المستخدم (الجهة) --}}
         <div class="col-md-6">
-            <label class="form-label fw-semibold text-muted small mb-1">الجهة <span class="text-danger">*</span></label>
-            <select name="entity_id" id="entity_id" class="form-select search-select @error('entity_id') is-invalid @enderror" required>
-                <option value="">-- اختر الجهة --</option>
+            <label class="form-label fw-semibold text-muted small mb-1">نوع المستخدم <span class="text-danger">*</span></label>
+            <select name="organization_type" id="organization_type" class="form-select @error('organization_type') is-invalid @enderror" required>
+                <option value="internal" @selected(old('organization_type', 'internal') == 'internal')>داخلي (الوزارة / الجهات التابعة)</option>
+                <option value="external" @selected(old('organization_type') == 'external')>خارجي (جهة خارجية)</option>
+            </select>
+            @error('organization_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        {{-- الجهة الداخلية --}}
+        <div class="col-md-6" id="internal_entity_container">
+            <label class="form-label fw-semibold text-muted small mb-1">الجهة الداخلية <span class="text-danger">*</span></label>
+            <select name="entity_id" id="entity_id" class="form-select search-select @error('entity_id') is-invalid @enderror">
+                <option value="">-- اختر الجهة الداخلية --</option>
                 @foreach($entities as $entity)
                     <option value="{{ $entity->id }}" @selected(old('entity_id') == $entity->id)>{{ $entity->name }}</option>
                 @endforeach
             </select>
             @error('entity_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        {{-- الجهة الخارجية --}}
+        <div class="col-md-6" id="external_authority_container" style="display: none;">
+            <label class="form-label fw-semibold text-muted small mb-1">الجهة الخارجية <span class="text-danger">*</span></label>
+            <select name="authority_id" id="authority_id" class="form-select search-select @error('authority_id') is-invalid @enderror">
+                <option value="">-- اختر الجهة الخارجية --</option>
+                @foreach($authorities as $authority)
+                    <option value="{{ $authority->id }}" @selected(old('authority_id') == $authority->id)>{{ $authority->agency_name }}</option>
+                @endforeach
+            </select>
+            @error('authority_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
         {{-- مسؤولية الموافقات --}}
@@ -168,6 +190,20 @@
             width: '100%',
             dropdownParent: $('body')
         });
+
+        function toggleOrganizationFields() {
+            var type = $('#organization_type').val();
+            if (type === 'external') {
+                $('#internal_entity_container').hide();
+                $('#external_authority_container').show();
+            } else {
+                $('#internal_entity_container').show();
+                $('#external_authority_container').hide();
+            }
+        }
+
+        $('#organization_type').on('change', toggleOrganizationFields);
+        toggleOrganizationFields();
     });
     </script>
 @endsection

@@ -5,31 +5,57 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="mb-0 text-primary fw-bold">مراحل المراجعة والاعتماد</h4>
-            <small class="text-muted">إدارة مراحل الموافقات لكل جهة داخلية والمسؤولين عنها</small>
+            <small class="text-muted">إدارة مراحل الموافقات والمسارات</small>
         </div>
-        <a href="{{ route('admin.entity-stages.create') }}" class="btn btn-primary shadow-sm">
-            <i class="fas fa-plus me-1"></i> إضافة مراحل لجهة
+        <a href="{{ route('admin.entity-stages.create', ['tab' => $tab]) }}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-plus me-1"></i> إضافة إعدادات جديدة
         </a>
     </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4 border-bottom border-primary">
+        <li class="nav-item">
+            <a class="nav-link {{ $tab === 'internal' ? 'active fw-bold border-primary border-bottom-0' : 'text-muted' }}" href="{{ route('admin.entity-stages.index', ['tab' => 'internal']) }}">
+                الجهات الداخلية
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ $tab === 'external' ? 'active fw-bold border-primary border-bottom-0' : 'text-muted' }}" href="{{ route('admin.entity-stages.index', ['tab' => 'external']) }}">
+                الجهات الخارجية والمسارات
+            </a>
+        </li>
+    </ul>
 
     <!-- Filter Form -->
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-4">
             <form method="GET" action="{{ route('admin.entity-stages.index') }}" class="row g-3 align-items-end">
+                <input type="hidden" name="tab" value="{{ $tab }}">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">فلترة بالجهة</label>
+                    @if($tab === 'internal')
                     <select name="entity_id" class="form-select select2-search" onchange="this.form.submit()">
-                        <option value="">جميع الجهات</option>
+                        <option value="">جميع الجهات الداخلية</option>
                         @foreach($entities as $entity)
                             <option value="{{ $entity->id }}" @selected(request('entity_id') == $entity->id)>
                                 {{ $entity->name }}
                             </option>
                         @endforeach
                     </select>
+                    @else
+                    <select name="authority_id" class="form-select select2-search" onchange="this.form.submit()">
+                        <option value="">جميع الجهات الخارجية</option>
+                        @foreach($authorities as $authority)
+                            <option value="{{ $authority->id }}" @selected(request('authority_id') == $authority->id)>
+                                {{ $authority->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @endif
                 </div>
                 <div class="col-md-2">
-                    @if(request('entity_id'))
-                        <a href="{{ route('admin.entity-stages.index') }}" class="btn btn-outline-secondary w-100">إلغاء الفلتر</a>
+                    @if(request('entity_id') || request('authority_id'))
+                        <a href="{{ route('admin.entity-stages.index', ['tab' => $tab]) }}" class="btn btn-outline-secondary w-100">إلغاء الفلتر</a>
                     @endif
                 </div>
             </form>
@@ -64,7 +90,7 @@
                     <tbody>
                         @forelse($stages as $stage)
                             <tr>
-                                <td class="px-4 fw-semibold">{{ $stage->entity->name }}</td>
+                                <td class="px-4 fw-semibold">{{ $tab === 'internal' ? $stage->entity->name : $stage->authority->name }}</td>
                                 <td class="px-4">
                                     <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">
                                         {{ $stage->stageEnum()?->label() ?? $stage->stage }}
@@ -88,7 +114,7 @@
                                     @endif
                                 </td>
                                 <td class="px-4 text-center">
-                                    <form action="{{ route('admin.entity-stages.toggle', $stage->id) }}" method="POST" class="d-inline">
+                                    <form action="{{ route('admin.entity-stages.toggle', ['stage' => $stage->id, 'tab' => $tab]) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('PATCH')
                                         <div class="form-check form-switch d-flex justify-content-center m-0">
@@ -98,10 +124,10 @@
                                 </td>
                                 <td class="px-4 text-center">
                                     <div class="d-flex justify-content-center gap-2">
-                                        <a href="{{ route('admin.entity-stages.edit', $stage->entity_id) }}" class="btn btn-sm btn-outline-primary" title="تعديل مراحل الجهة">
+                                        <a href="{{ route('admin.entity-stages.edit', ['entity' => $tab === 'internal' ? $stage->entity_id : $stage->authority_id, 'tab' => $tab]) }}" class="btn btn-sm btn-outline-primary" title="تعديل الإعدادات">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <form action="{{ route('admin.entity-stages.destroy', $stage->id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذه المرحلة؟');">
+                                        <form action="{{ route('admin.entity-stages.destroy', ['entity' => $stage->id, 'tab' => $tab]) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذه المرحلة؟');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف المرحلة">
@@ -131,6 +157,46 @@
             @endif
         </div>
     </div>
+
+    @if($tab === 'external')
+    <h5 class="mt-5 mb-3 fw-bold text-primary">المسارات المعدة للجهات الخارجية</h5>
+    <div class="card border-0 shadow-sm rounded-4 mb-5">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="py-3 px-4">الجهة الخارجية</th>
+                            <th class="py-3 px-4">يوجه إلى</th>
+                            <th class="py-3 px-4">الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($routes ?? [] as $route)
+                            <tr>
+                                <td class="px-4 fw-semibold">{{ $route->authority->name }}</td>
+                                <td class="px-4">
+                                    @if($route->destination_type === 'ministry')
+                                        <span class="badge bg-info text-dark"><i class="fas fa-building"></i> الوزارة (Ministry Root)</span>
+                                    @else
+                                        <span class="badge bg-secondary"><i class="fas fa-arrow-left"></i> جهة خارجية: {{ $route->destinationAuthority?->name }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-4">
+                                    {!! $route->is_active ? '<span class="text-success"><i class="fas fa-check-circle"></i> مفعل</span>' : '<span class="text-danger"><i class="fas fa-times-circle"></i> متوقف</span>' !!}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-muted">لا توجد مسارات مضافة.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @endif
 </div>
 @endsection
 

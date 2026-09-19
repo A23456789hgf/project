@@ -349,7 +349,7 @@ class DomainScope implements Scope
             $query->orWhereHas($relation, function ($q) use ($internalIds, $authorityIds) {
                 $q->where(function ($sub) use ($internalIds, $authorityIds) {
                     if (! empty($internalIds)) {
-                        $sub->whereIn('authority_id', $internalIds);
+                        $sub->whereIn('internal_entity_id', $internalIds);
                     }
                     if (! empty($authorityIds)) {
                         $sub->orWhereIn('authority_id', $authorityIds);
@@ -432,7 +432,7 @@ class DomainScope implements Scope
                 if (! $entityId) {
                     $query->whereRaw('0=1');
                 } else {
-                    $this->applyEntityFilter($query, $entityId);
+                    $this->applyEntityFilter($query, $entityId, $user->isExternal());
                 }
                 break;
 
@@ -441,7 +441,7 @@ class DomainScope implements Scope
                 if (empty($entityIds)) {
                     $query->whereRaw('0=1');
                 } else {
-                    $this->applyEntityFilter($query, $entityIds);
+                    $this->applyEntityFilter($query, $entityIds, $user->isExternal());
                 }
                 break;
 
@@ -458,18 +458,25 @@ class DomainScope implements Scope
     /**
      * فلترة المشاريع بناءً على معرفات الجهات (داخلية أو خارجية)
      */
-    protected function applyEntityFilter(Builder $query, $entityIds): void
+    protected function applyEntityFilter(Builder $query, $entityIds, $isExternal = false): void
     {
         $idsArray = is_array($entityIds) ? $entityIds : [$entityIds];
 
-        $query->where(function ($q) use ($idsArray) {
-            $q->whereIn('projects.creator_entity_id', $idsArray)
-                ->orWhereIn('projects.internal_entity_id', $idsArray)
-                ->orWhereIn('projects.authority_id', $idsArray)
-                ->orWhereHas('implementingEntities', fn ($r) => $r->whereIn('authority_id', $idsArray))
-                ->orWhereHas('supervisingAuthorities', fn ($r) => $r->whereIn('authority_id', $idsArray))
-                ->orWhereHas('participatingEntities', fn ($r) => $r->whereIn('authority_id', $idsArray))
-                ->orWhereHas('beneficiaryEntities', fn ($r) => $r->whereIn('authority_id', $idsArray));
+        $query->where(function ($q) use ($idsArray, $isExternal) {
+            if ($isExternal) {
+                $q->whereIn('projects.authority_id', $idsArray)
+                    ->orWhereHas('implementingEntities', fn ($r) => $r->whereIn('authority_id', $idsArray))
+                    ->orWhereHas('supervisingAuthorities', fn ($r) => $r->whereIn('authority_id', $idsArray))
+                    ->orWhereHas('participatingEntities', fn ($r) => $r->whereIn('authority_id', $idsArray))
+                    ->orWhereHas('beneficiaryEntities', fn ($r) => $r->whereIn('authority_id', $idsArray));
+            } else {
+                $q->whereIn('projects.creator_entity_id', $idsArray)
+                    ->orWhereIn('projects.internal_entity_id', $idsArray)
+                    ->orWhereHas('implementingEntities', fn ($r) => $r->whereIn('internal_entity_id', $idsArray))
+                    ->orWhereHas('supervisingAuthorities', fn ($r) => $r->whereIn('internal_entity_id', $idsArray))
+                    ->orWhereHas('participatingEntities', fn ($r) => $r->whereIn('internal_entity_id', $idsArray))
+                    ->orWhereHas('beneficiaryEntities', fn ($r) => $r->whereIn('internal_entity_id', $idsArray));
+            }
         });
     }
 

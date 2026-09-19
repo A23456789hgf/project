@@ -4,7 +4,7 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-0 text-primary fw-bold">تعديل مراحل الجهة: {{ $entity->name }}</h4>
+            <h4 class="mb-0 text-primary fw-bold">تعديل مراحل الجهة: {{ $tab === 'internal' ? $entity->name : $authority->name }}</h4>
             <small class="text-muted">تفعيل أو تعطيل مراحل الموافقات وتعيين المسؤولين</small>
         </div>
         <a href="{{ route('admin.entity-stages.index') }}" class="btn btn-outline-secondary shadow-sm">
@@ -27,17 +27,22 @@
 
     <div class="card border-0 shadow-sm rounded-4">
         <div class="card-body p-5">
-            <form action="{{ route('admin.entity-stages.update', $entity->id) }}" method="POST">
+            <form action="{{ route('admin.entity-stages.update', $tab === 'internal' ? $entity->id : $authority->id) }}" method="POST">
                 @csrf
                 @method('PUT')
+                <input type="hidden" name="tab" value="{{ $tab }}">
                 
                 <h5 class="fw-bold mb-4">المراحل المتاحة للجهة</h5>
                 
                 <div class="row g-4">
                     @foreach($stageTypes as $stageType)
                         @php
-                            $stageConfig = $entity->approvalStages->firstWhere('stage', $stageType->value);
-                            $isEnabled = $stageConfig !== null;
+                            if ($tab === 'internal') {
+                                $stageConfig = $entity->approvalStages->firstWhere('stage', $stageType->value);
+                            } else {
+                                $stageConfig = $stages->firstWhere('stage', $stageType->value);
+                            }
+                            $isEnabled = $stageConfig !== null && $stageConfig->is_active;
                             $assignedUserId = $stageConfig?->responsible_user_id;
                         @endphp
                         
@@ -73,7 +78,7 @@
                                                 <label class="form-label fw-semibold text-muted small">المسؤول عن هذه المرحلة</label>
                                                 <select name="stages[{{ $stageType->value }}][responsible_user_id]" 
                                                         class="form-select user-select" 
-                                                        data-entity="{{ $entity->id }}"
+                                                        data-id="{{ $tab === 'internal' ? $entity->id : $authority->id }}"
                                                         data-stage="{{ $stageType->value }}">
                                                     
                                                     <option value="">-- يتم تحديده تلقائياً من المستخدمين إن وجد / أو اختر يدوياً --</option>
@@ -93,6 +98,31 @@
                         </div>
                     @endforeach
                 </div>
+
+                @if($tab === 'external')
+                <hr class="my-5 border-light">
+                <h5 class="fw-bold mb-4">إعداد المسار (الوجهة التالية)</h5>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">الوجهة التالية في المسار <span class="text-danger">*</span></label>
+                        <select name="route_destination_type" id="route_destination_type" class="form-select" required>
+                            <option value="ministry" @selected(old('route_destination_type', $route?->destination_type) == 'ministry')>الوزارة كجهة نهائية (Ministry Root)</option>
+                            <option value="authority" @selected(old('route_destination_type', $route?->destination_type) == 'authority')>جهة خارجية أخرى</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6" id="destination_authority_container" style="display: {{ old('route_destination_type', $route?->destination_type) == 'authority' ? 'block' : 'none' }};">
+                        <label class="form-label fw-bold">الجهة الخارجية الوجهة <span class="text-danger">*</span></label>
+                        <select name="destination_authority_id" class="form-select select2-search">
+                            <option value="">-- اختر الجهة الخارجية الوجهة --</option>
+                            @foreach($authorities as $auth)
+                                <option value="{{ $auth->id }}" @selected(old('destination_authority_id', $route?->destination_authority_id) == $auth->id)>
+                                    {{ $auth->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                @endif
 
                 <div class="d-flex justify-content-end gap-3 mt-5 border-top pt-4">
                     <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold shadow-sm">
@@ -151,13 +181,22 @@
         });
 
         function loadEligibleUsers(selectElement) {
-            const entityId = selectElement.data('entity');
+            const idValue = selectElement.data('id');
             const stage = selectElement.data('stage');
             const currentValue = selectElement.val(); // Keep current selection
+            
+            const params = { stage: stage };
+            @if($tab === 'internal')
+                params.entity_id = idValue;
+                params.tab = 'internal';
+            @else
+                params.authority_id = idValue;
+                params.tab = 'external';
+            @endif
 
             $.ajax({
                 url: "{{ route('admin.entity-stages.eligible-users') }}",
-                data: { entity_id: entityId, stage: stage },
+                data: params,
                 success: function(users) {
                     // Store current option text if it exists so we don't lose it if it's not in the list (though it should be)
                     const currentText = selectElement.find('option:selected').text();
@@ -187,6 +226,16 @@
                 }
             });
         }
+        
+        $('#route_destination_type').on('change', function() {
+            if ($(this).val() === 'authority') {
+                $('#destination_authority_container').show();
+                $('#destination_authority_container select').prop('required', true);
+            } else {
+                $('#destination_authority_container').hide();
+                $('#destination_authority_container select').prop('required', false).val('').trigger('change');
+            }
+        });
     });
 </script>
 @endsection

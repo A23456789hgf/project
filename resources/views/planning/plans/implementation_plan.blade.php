@@ -17,11 +17,11 @@
                         <p class="small text-white-50 mb-0 mt-1">إدارة واعتماد الأنشطة لجميع مشاريع الخطة التشغيلية</p>
                     </div>
                     <div class="d-flex gap-2">
-                        @can('plans.print-implementation', $plan)
+                        @canany(['plans.print-implementation', 'plans.implementation.print', 'plans.print'], $plan)
                         <a href="{{ route('plans.implementation.print', $plan->id) }}" target="_blank" class="btn btn-sm btn-info rounded-pill px-3 text-white">
                             <i class="fas fa-print me-1"></i> طباعة الخطة
                         </a>
-                        @endcan
+                        @endcanany
                         <a href="{{ route('plans.show', $plan->id) }}" class="btn btn-sm btn-outline-light rounded-pill px-3">
                             <i class="fas fa-eye me-1"></i> الخطة الأصلية
                         </a>

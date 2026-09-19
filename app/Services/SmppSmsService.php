@@ -63,24 +63,25 @@ class SmppSmsService
 
     public function sendSMS($userId, $mobileNo, $message, $eventName = null)
     {
-        SendSmsJob::dispatch($userId, $mobileNo, $message, $eventName, Auth::id());
+        $sentByUserId = Auth::id();
+        SendSmsJob::dispatch($userId, $mobileNo, $message, $eventName, $sentByUserId);
 
         return ['status' => 'queued', 'phone' => $mobileNo, 'error' => null, 'response' => null];
     }
 
-    public function sendSmsSync($userId, $mobileNo, $message, $eventName = null)
+    public function sendSmsSync($userId, $mobileNo, $message, $eventName = null, $sentByUserId = null)
     {
         // Sanitize the phone number to remove any hidden characters or spaces
         $mobileNo = preg_replace('/[^0-9+]/', '', $mobileNo);
 
         if (empty($mobileNo)) {
-            return $this->logSms($userId, $mobileNo, $message, 'failed', null, 'Phone number is empty', $eventName);
+            return $this->logSms($userId, $mobileNo, $message, 'failed', null, 'Phone number is empty', $eventName, $sentByUserId);
         }
 
         $token = $this->login();
 
         if (! $token) {
-            return $this->logSms($userId, $mobileNo, $message, 'failed', null, 'Token not found', $eventName);
+            return $this->logSms($userId, $mobileNo, $message, 'failed', null, 'Token not found', $eventName, $sentByUserId);
         }
 
         try {
@@ -123,13 +124,13 @@ class SmppSmsService
                     ]);
 
                     $responseData = json_decode($response->getBody()->getContents(), true);
-                    $lastResponse = $this->logSms($userId, $mobileNo, $chunkText, 'sent', $responseData, null, $eventName);
+                    $lastResponse = $this->logSms($userId, $mobileNo, $chunkText, 'sent', $responseData, null, $eventName, $sentByUserId);
                 } catch (\Exception $e) {
                     $errorData = ($e instanceof RequestException && $e->hasResponse())
                         ? json_decode($e->getResponse()->getBody()->getContents(), true)
                         : $e->getMessage();
 
-                    $this->logSms($userId, $mobileNo, $chunkText, 'failed', $errorData, $e->getMessage(), $eventName);
+                    $this->logSms($userId, $mobileNo, $chunkText, 'failed', $errorData, $e->getMessage(), $eventName, $sentByUserId);
                 }
 
                 // تأخير لتجنب الحظر من البوابة عند إرسال أجزاء متتالية لنفس الرقم
@@ -141,7 +142,7 @@ class SmppSmsService
             return $lastResponse;
 
         } catch (\Exception $e) {
-            $this->logSms($userId, $mobileNo, $message, 'failed', null, $e->getMessage(), $eventName);
+            $this->logSms($userId, $mobileNo, $message, 'failed', null, $e->getMessage(), $eventName, $sentByUserId);
 
             return null;
         }
@@ -158,18 +159,20 @@ class SmppSmsService
     public function sendToMultiple($users, $message, $eventName = null)
     {
         $results = [];
+        $sentByUserId = Auth::id();
+        
         foreach ($users as $user) {
             if ($user && ! empty($user->phone)) {
                 $results[] = $this->sendSMS($user->id, $user->phone, $message, $eventName);
             } else {
-                $results[] = $this->logSms($user->id ?? null, null, $message, 'failed', null, 'User has no phone number', $eventName);
+                $results[] = $this->logSms($user->id ?? null, null, $message, 'failed', null, 'User has no phone number', $eventName, $sentByUserId);
             }
         }
 
         return $results;
     }
 
-    protected function logSms($recipientId, $phone, $message, $status, $apiResponse, $errorMessage, $eventName)
+    protected function logSms($recipientId, $phone, $message, $status, $apiResponse, $errorMessage, $eventName, $sentByUserId = null)
     {
         SmsLog::create([
             'recipient_user_id' => $recipientId,
@@ -178,7 +181,7 @@ class SmppSmsService
             'status' => $status,
             'api_response' => $apiResponse ? json_encode($apiResponse, JSON_UNESCAPED_UNICODE) : null,
             'error_message' => $errorMessage,
-            'sent_by_user_id' => Auth::id(),
+            'sent_by_user_id' => $sentByUserId,
             'event_name' => $eventName,
         ]);
 

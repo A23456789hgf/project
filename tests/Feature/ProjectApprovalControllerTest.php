@@ -144,6 +144,7 @@ class ProjectApprovalControllerTest extends TestCase
             'entity_id' => $this->childEntity->id,
             'role_id' => $reviewerRole->id,
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         $this->childReviewer = User::withoutGlobalScopes()->create([
@@ -157,6 +158,7 @@ class ProjectApprovalControllerTest extends TestCase
             'role_id' => $reviewerRole->id,
             'signature_path' => 'signatures/test_signature.png',
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         $this->parentReviewer = User::withoutGlobalScopes()->create([
@@ -170,6 +172,7 @@ class ProjectApprovalControllerTest extends TestCase
             'role_id' => $reviewerRole->id,
             'signature_path' => 'signatures/test_signature.png',
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         $this->outsiderUser = User::withoutGlobalScopes()->create([
@@ -183,6 +186,7 @@ class ProjectApprovalControllerTest extends TestCase
             'role_id' => $reviewerRole->id,
             'signature_path' => 'signatures/test_signature.png',
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         $this->adminUser = User::withoutGlobalScopes()->create([
@@ -195,6 +199,7 @@ class ProjectApprovalControllerTest extends TestCase
             'role_id' => $adminRole->id,
             'signature_path' => 'signatures/test_signature.png',
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         // Entity Approval Stages Configuration

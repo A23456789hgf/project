@@ -594,6 +594,31 @@ class ProjectService
 
         if ($user?->isAdmin()) {
             // المدير يرى الكل — لا فلترة
+        } elseif ($user?->organization_type === 'external' && $user->authority_id) {
+            // ─── المستخدم الخارجي (External Authority) ────────────────────────
+            // الرؤية مبنية على: الجهة الخارجية (authority_id) + مسؤولية المستخدم.
+            // - إذا كان لديه مسؤولية رسمية في دورة الاعتماد (responsibility != null) → يرى كل مشاريع جهته.
+            // - غير ذلك → يرى مشاريعه الشخصية فقط.
+            $userAuthorityId = $user->authority_id;
+            $hasWorkflowResponsibility = ! empty($user->responsibility);
+
+            $query->where(function ($q) use ($user, $userAuthorityId, $hasWorkflowResponsibility) {
+                // دائماً يرى مشاريعه الشخصية
+                $q->where('created_by_user_id', $user->id);
+
+                if ($hasWorkflowResponsibility) {
+                    // صاحب مسؤولية رسمية يرى جميع مشاريع الجهة الخارجية
+                    $q->orWhere('authority_id', $userAuthorityId);
+                } else {
+                    // المستخدم بلا مسؤولية يرى مشاريعه الشخصية فقط.
+                    // أضف created_by_entity كـ fallback للمشاريع التي سُجِّلت بالاسم قبل هذا الإصلاح.
+                    $authorityName = DB::table('authorities')->where('id', $userAuthorityId)->value('agency_name');
+                    if ($authorityName) {
+                        $q->orWhere('created_by_entity', trim($authorityName));
+                    }
+                }
+            });
+
         } elseif (! empty($entityIds)) {
             // فلترة على creator_entity_id أو internal_entity_id أو اسم الكيان أو المستخدم نفسه
             $entityNames = DB::table('internal_entities')->whereIn('id', $entityIds)->pluck('name')->filter()->toArray();

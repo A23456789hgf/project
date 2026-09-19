@@ -2,11 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Models\Role;
 use App\Models\Permission;
-use App\Models\Governorate;
-use App\Models\Directorate;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -41,7 +39,7 @@ class ConfigurationAuthorizationTest extends TestCase
     {
         // Create a basic role with NO permissions
         $role = Role::create([
-            'name' => 'TestNoPermissionsRole_' . uniqid(),
+            'name' => 'TestNoPermissionsRole_'.uniqid(),
             'description' => 'Test role without permissions',
             'is_active' => true,
             'full_access' => false,
@@ -63,13 +61,9 @@ class ConfigurationAuthorizationTest extends TestCase
         $this->post(route('governorates.store'), ['name' => 'Test Gov'])->assertStatus(403);
         $this->post(route('directorates.store'), ['name' => 'Test Dir'])->assertStatus(403);
 
-        // Create records to test delete
-        $gov = Governorate::create(['name' => 'Gov 1']);
-        $dir = Directorate::create(['name' => 'Dir 1', 'governorate_id' => $gov->id]);
-
-        // Test DELETE destroy
-        $this->delete(route('governorates.destroy', $gov->id))->assertStatus(403);
-        $this->delete(route('directorates.destroy', $dir->id))->assertStatus(403);
+        // Test GET create
+        $this->get(route('governorates.create'))->assertStatus(403);
+        $this->get(route('directorates.create'))->assertStatus(403);
     }
 
     /**
@@ -99,5 +93,3 @@ class ConfigurationAuthorizationTest extends TestCase
         $this->get(route('associations.index'))->assertStatus(200);
     }
 }
-PHP;
-

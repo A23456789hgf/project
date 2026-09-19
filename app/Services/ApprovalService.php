@@ -51,23 +51,35 @@ class ApprovalService
             throw new InvalidWorkflowTransitionException('المشروع ليس في حالة مسودة ليتم إغلاقها.');
         }
 
-        // 2. Validate user belongs to creator entity or is creator or admin
+        // 2. Validate user belongs to creator entity/authority or is the creator or admin.
+        $projectOriginType = $project->getOriginType();
         $originEntityId = $project->getOriginEntityId() ?? $user->entity_id;
+        $originAuthorityId = $project->getOriginAuthorityId() ?? $user->authority_id;
+
         if (! $user->isAdmin()) {
-            $userEntityId = $user->entity_id;
-            $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
-
             $isCreatorUser = ($project->created_by_user_id === $user->id);
-            $belongsToOrigin = ($originEntityId && in_array((int) $originEntityId, $allowedEntityIds, true));
 
-            if (! $isCreatorUser && ! $belongsToOrigin) {
-                throw new UnauthorizedWorkflowActionException('فقط أعضاء الجهة المنشئة للمشروع يمكنهم إغلاق المسودة وتقديم المشروع للاعتماد.');
+            if ($projectOriginType === 'external') {
+                // External project: user must be the creator OR belong to the same authority.
+                $belongsToOriginAuthority = ($originAuthorityId && $user->authority_id === $originAuthorityId);
+
+                if (! $isCreatorUser && ! $belongsToOriginAuthority) {
+                    throw new UnauthorizedWorkflowActionException('فقط أعضاء الجهة الخارجية المنشئة للمشروع يمكنهم إغلاق المسودة وتقديم المشروع للاعتماد.');
+                }
+            } else {
+                // Internal project: user must be the creator OR their allowed entities include the origin entity.
+                $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+                $belongsToOrigin = ($originEntityId && in_array((int) $originEntityId, $allowedEntityIds, true));
+
+                if (! $isCreatorUser && ! $belongsToOrigin) {
+                    throw new UnauthorizedWorkflowActionException('فقط أعضاء الجهة المنشئة للمشروع يمكنهم إغلاق المسودة وتقديم المشروع للاعتماد.');
+                }
             }
         }
 
-        return DB::transaction(function () use ($project, $user, $originEntityId) {
+        return DB::transaction(function () use ($project, $user, $projectOriginType, $originEntityId) {
             // 3. Resolve dynamic stages hierarchy
-            $stages = $this->entityHierarchyService->generateApprovalStagesFromSelectedEntity((int) $originEntityId);
+            $stages = app(ApprovalChainBuilder::class)->buildChainForProject($project);
 
             if (empty($stages)) {
                 throw new InvalidWorkflowTransitionException('تعذر توليد مسار الاعتمادات للجهة المنشئة. يرجى التحقق من شجرة الجهات.');
@@ -87,7 +99,9 @@ class ApprovalService
 
                 $approval = ProjectApproval::create([
                     'project_id' => $project->id,
-                    'entity_id' => $stageData['entity_id'],
+                    'entity_id' => $stageData['entity_id'] ?? null,
+                    'authority_id' => $stageData['authority_id'] ?? null,
+                    'approver_scope' => $stageData['approver_scope'] ?? 'internal',
                     'drop' => $stageData['code'],
                     'phase' => $stageData['phase'] ?? null,
                     'step_order' => $stageData['order'],
@@ -106,15 +120,22 @@ class ApprovalService
                 $createdApprovals->push($approval);
             }
 
-            // 6. Update project state
-            $project->update([
+            // 6. Update project state — maintain semantic separation between entity and authority.
+            $projectUpdate = [
                 'status' => ProjectStatus::PendingApproval->value,
                 'approval_status' => 'pending',
                 'current_stage' => $firstStage['code'],
                 'current_stage_order' => 1,
-                'creator_entity_id' => $originEntityId,
                 'finalized_at' => Carbon::now(),
-            ]);
+            ];
+
+            if ($projectOriginType === 'internal' && $originEntityId) {
+                // Only stamp creator_entity_id for internal projects.
+                // authority_id was already set during createProjectFromStep1 for external.
+                $projectUpdate['creator_entity_id'] = $originEntityId;
+            }
+
+            $project->update($projectUpdate);
 
             // 7. Log in activity history
             $this->logActivity($project, 'finalized', [
@@ -128,6 +149,7 @@ class ApprovalService
 
             Log::info('Approval chain generated for project', [
                 'project_id' => $project->id,
+                'origin_type' => $projectOriginType,
                 'origin_entity_id' => $originEntityId,
                 'total_steps' => count($stages),
                 'first_stage' => $firstStage['code'],
@@ -160,13 +182,27 @@ class ApprovalService
      */
     public function canUserActOnStep(User $user, ProjectApproval $step): bool
     {
-        // Must match step's entity
+        // 1. Verify Scope and Organization Type matching
+        if ($step->approver_scope === 'external') {
+            if ($user->organization_type !== 'external') {
+                return false;
+            }
+            if ($step->authority_id && (int) $user->authority_id !== (int) $step->authority_id) {
+                return false;
+            }
+        } else {
+            if ($user->organization_type !== 'internal') {
+                return false;
+            }
+            if ($step->entity_id && (int) $user->entity_id !== (int) $step->entity_id) {
+                return false;
+            }
+        }
+
         $userEntityId = (int) $user->entity_id;
         $stepEntityId = (int) $step->entity_id;
-
-        if ($stepEntityId && ($userEntityId !== $stepEntityId)) {
-            return false;
-        }
+        $userAuthorityId = (int) $user->authority_id;
+        $stepAuthorityId = (int) $step->authority_id;
 
         // Check phase-specific permission if permissions table is populated
         $phaseEnum = $step->getPhaseEnum();
@@ -202,8 +238,14 @@ class ApprovalService
                     return false;
                 }
             } else {
-                if ($userEntityId !== $stepEntityId) {
-                    return false;
+                if ($step->approver_scope === 'external') {
+                    if ($userAuthorityId !== $stepAuthorityId) {
+                        return false;
+                    }
+                } else {
+                    if ($userEntityId !== $stepEntityId) {
+                        return false;
+                    }
                 }
             }
         } elseif ($step->phase === 'financial_review') {
@@ -213,8 +255,14 @@ class ApprovalService
                     return false;
                 }
             } else {
-                if ($userEntityId !== $stepEntityId) {
-                    return false;
+                if ($step->approver_scope === 'external') {
+                    if ($userAuthorityId !== $stepAuthorityId) {
+                        return false;
+                    }
+                } else {
+                    if ($userEntityId !== $stepEntityId) {
+                        return false;
+                    }
                 }
             }
         } else {
@@ -225,8 +273,14 @@ class ApprovalService
                     return false;
                 }
             } else {
-                if ($userEntityId !== $stepEntityId) {
-                    return false;
+                if ($step->approver_scope === 'external') {
+                    if ($userAuthorityId !== $stepAuthorityId) {
+                        return false;
+                    }
+                } else {
+                    if ($userEntityId !== $stepEntityId) {
+                        return false;
+                    }
                 }
             }
         }
@@ -313,33 +367,45 @@ class ApprovalService
             }
 
             // 3. No next step -> Root Stage Approval completed -> FINAL APPROVAL!
-            $project->update([
-                'status' => ProjectStatus::InExecution->value,
-                'current_stage' => null,
-                'current_stage_order' => null,
-                'completed_at' => $timestamp,
-            ]);
 
-            $this->logActivity($project, 'approved_to_implementation', [
-                'user_id' => $user->id,
-                'from_stage_name' => $fromStageName,
-                'from_stage_order' => $fromStageOrder,
-                'to_stage_name' => 'مرحلة التنفيذ (In Execution)',
-                'to_stage_order' => $fromStageOrder + 1,
-                'notes' => 'اكتملت جميع مراحل الاعتماد بنجاح — تم نقل المشروع لمرحلة التنفيذ.',
-            ]);
+            // Validate constraint #10 before moving to in_execution
+            $isInternal = $activeStep->approver_scope === 'internal';
+            $isMinistryRoot = $activeStep->entity && ($activeStep->entity->is_ministry_root || (bool) $activeStep->is_ministry_root);
+            $isApprovalPhase = $activeStep->phase === 'stage_approval' || $activeStep->phase === 'APPROVAL';
 
-            // Safely trigger sync
-            $this->safelySyncProjectOnExecution($project);
+            if ($isInternal && $isMinistryRoot && $isApprovalPhase) {
+                $project->update([
+                    'status' => ProjectStatus::InExecution->value,
+                    'approval_status' => 'approved',
+                    'current_stage' => null,
+                    'current_stage_order' => null,
+                    'completed_at' => $timestamp,
+                ]);
 
-            return [
-                'success' => true,
-                'is_final' => true,
-                'approved_step' => $activeStep,
-                'next_step' => null,
-                'project_status' => ProjectStatus::InExecution->value,
-                'message' => 'تم اكتمال دورة الاعتمادات بالكامل ونقل المشروع إلى مرحلة التنفيذ.',
-            ];
+                $this->logActivity($project, 'approved_to_implementation', [
+                    'user_id' => $user->id,
+                    'from_stage_name' => $fromStageName,
+                    'from_stage_order' => $fromStageOrder,
+                    'to_stage_name' => 'مرحلة التنفيذ (In Execution)',
+                    'to_stage_order' => $fromStageOrder + 1,
+                    'notes' => 'اكتملت جميع مراحل الاعتماد بنجاح — تم نقل المشروع لمرحلة التنفيذ.',
+                ]);
+
+                // Safely trigger sync
+                $this->safelySyncProjectOnExecution($project);
+
+                return [
+                    'success' => true,
+                    'is_final' => true,
+                    'approved_step' => $activeStep,
+                    'next_step' => null,
+                    'project_status' => ProjectStatus::InExecution->value,
+                    'message' => 'تم اكتمال دورة الاعتمادات بالكامل ونقل المشروع إلى مرحلة التنفيذ.',
+                ];
+            } else {
+                // If it doesn't meet the conditions, it's a configuration error since there are no more steps.
+                throw new InvalidWorkflowTransitionException('فشل النقل لمرحلة التنفيذ: يجب أن تنتهي سلسلة الاعتمادات بمرحلة اعتماد نهائية (APPROVAL) من قبل وزارة جذرية (Ministry Root) تابعة للجهات الداخلية.');
+            }
         });
     }
 

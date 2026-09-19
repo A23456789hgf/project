@@ -34,10 +34,12 @@ class InternalEntity extends Model
         'erpnext_id',
         'erpnext_type',
         'erpnext_parent_id',
+        'is_ministry_root',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_ministry_root' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -112,7 +114,7 @@ class InternalEntity extends Model
         }
 
         $toProcess = [(int) $parentId];
-        $allDescendants = [];
+        $allDescendants = [(int) $parentId];
         $visited = [(int) $parentId => true];
 
         while (! empty($toProcess)) {
@@ -193,8 +195,12 @@ class InternalEntity extends Model
         }
 
         return $govCache[$cacheKey] = DB::table('internal_entities')
-            ->where('governorate_id', $governorateId)
-            ->pluck('id')
+            ->leftJoin('authorities', 'internal_entities.authority_id', '=', 'authorities.id')
+            ->where(function ($query) use ($governorateId) {
+                $query->where('internal_entities.governorate_id', $governorateId)
+                    ->orWhere('authorities.governorate_id', $governorateId);
+            })
+            ->pluck('internal_entities.id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
     }
@@ -212,8 +218,12 @@ class InternalEntity extends Model
         }
 
         return $dirCache[$cacheKey] = DB::table('internal_entities')
-            ->where('directorate_id', $directorateId)
-            ->pluck('id')
+            ->leftJoin('authorities', 'internal_entities.authority_id', '=', 'authorities.id')
+            ->where(function ($query) use ($directorateId) {
+                $query->where('internal_entities.directorate_id', $directorateId)
+                    ->orWhere('authorities.directorate_id', $directorateId);
+            })
+            ->pluck('internal_entities.id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
     }
@@ -249,6 +259,16 @@ class InternalEntity extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeIsMinistryRoot($query)
+    {
+        return $query->where('is_ministry_root', true);
+    }
+
+    public static function getMinistryRoot(): ?self
+    {
+        return self::isMinistryRoot()->first();
     }
 
     public function scopeParents($query)

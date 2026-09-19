@@ -28,6 +28,8 @@ class PlanController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Plan::class);
+
         $user = auth()->user();
 
         $query = Plan::with(['priority', 'submittingEntity', 'creator']);
@@ -95,6 +97,8 @@ class PlanController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Plan::class);
+
         $priorities = Priority::where('is_enabled', true)->get();
         $entities = InternalEntity::where('is_active', true)->get();
         $fundingSources = FundingSource::all();
@@ -107,6 +111,8 @@ class PlanController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Plan::class);
+
         Log::info('بدء عملية حفظ خطة جديدة', ['user_id' => Auth::id(), 'request_data' => $request->all()]);
 
         // ✅ تعديل: أخذ priority_id من أول مشروع إذا لم يكن موجوداً في الجذر
@@ -135,7 +141,7 @@ class PlanController extends Controller
             // ✅ تعديل: إضافة الحقول الجديدة (التواريخ)
             $plan = Plan::create([
                 'priority_id' => $priorityId,
-                'submitting_entity_id' => Auth::user()->entity_id,
+                'submitting_entity_id' => Auth::user()->getUserEntityId(),
                 'created_by' => Auth::id(),
                 'start_date_g' => $request->start_date_g ?? null,
                 'end_date_g' => $request->end_date_g ?? null,
@@ -259,6 +265,8 @@ class PlanController extends Controller
 
     public function show(Plan $plan)
     {
+        $this->authorize('view', $plan);
+
         $plan->load(['projects.priority', 'projects.participatingEntity', 'projects.fundingSource', 'projects.activities.actions', 'submittingEntity', 'priority', 'creator']);
 
         $qrCodeData = '';
@@ -277,6 +285,8 @@ class PlanController extends Controller
 
     public function print(Plan $plan)
     {
+        $this->authorize('print', $plan);
+
         $plan->load(['projects.priority', 'projects.participatingEntity', 'projects.fundingSource', 'projects.activities.actions', 'submittingEntity', 'priority', 'creator']);
 
         $qrCodeData = '';
@@ -297,6 +307,8 @@ class PlanController extends Controller
 
     public function printImplementation(Plan $plan)
     {
+        $this->authorize('printImplementation', $plan);
+
         $plan->load(['projects.priority', 'projects.participatingEntity', 'projects.fundingSource', 'projects.activities.actions', 'submittingEntity', 'priority', 'creator']);
 
         $qrCodeData = '';
@@ -317,6 +329,8 @@ class PlanController extends Controller
 
     public function edit(Plan $plan)
     {
+        $this->authorize('update', $plan);
+
         $plan->load('projects.activities.actions');
         $priorities = Priority::where('is_enabled', true)->get();
         $entities = InternalEntity::where('is_active', true)->get();
@@ -327,6 +341,8 @@ class PlanController extends Controller
 
     public function update(Request $request, Plan $plan)
     {
+        $this->authorize('update', $plan);
+
         Log::info('بدء عملية تحديث خطة', ['plan_id' => $plan->id, 'user_id' => Auth::id()]);
 
         $priorityId = $request->priority_id ?? ($request->projects[0]['priority_id'] ?? null);
@@ -480,6 +496,8 @@ class PlanController extends Controller
 
     public function destroy(Plan $plan)
     {
+        $this->authorize('delete', $plan);
+
         try {
             foreach ($plan->projects as $project) {
                 foreach ($project->activities as $activity) {
@@ -500,6 +518,8 @@ class PlanController extends Controller
 
     public function implementation(Plan $plan)
     {
+        $this->authorize('implementation', $plan);
+
         $plan->load(['projects.priority', 'projects.activities.actions', 'projects.participatingEntity', 'projects.fundingSource', 'submittingEntity', 'priority']);
         $fundingSources = FundingSource::all();
         $priorities = Priority::where('is_enabled', true)->get();
@@ -510,6 +530,8 @@ class PlanController extends Controller
 
     public function updateImplementation(Request $request, Plan $plan)
     {
+        $this->authorize('implementation', $plan);
+
         Log::info('بدء تحديث الخطة التنفيذية', ['plan_id' => $plan->id]);
 
         $request->validate([
@@ -614,6 +636,8 @@ class PlanController extends Controller
 
     public function batchPrint(Request $request)
     {
+        $this->authorize('batchPrint', Plan::class);
+
         $query = Plan::with([
             'projects.priority',
             'projects.participatingEntity',
@@ -646,6 +670,8 @@ class PlanController extends Controller
 
     public function comprehensiveBatchPrint(Request $request)
     {
+        $this->authorize('comprehensiveBatchPrint', Plan::class);
+
         $query = Plan::with([
             'projects.priority',
             'projects.participatingEntity',
@@ -678,6 +704,8 @@ class PlanController extends Controller
 
     public function exportExcel(Request $request)
     {
+        $this->authorize('export', Plan::class);
+
         $search = $request->get('search');
         $planId = $request->get('plan_id');
         $filename = 'المصفوفة_التشغيلية_'.now()->format('Y-m-d').'.xlsx';
@@ -689,11 +717,15 @@ class PlanController extends Controller
 
     public function showImport()
     {
+        $this->authorize('import', Plan::class);
+
         return view('planning.plans.import');
     }
 
     public function processImport(Request $request)
     {
+        $this->authorize('import', Plan::class);
+
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv',
             'import_mode' => 'required|in:add,update',

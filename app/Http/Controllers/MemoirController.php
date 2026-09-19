@@ -199,7 +199,7 @@ class MemoirController extends Controller
 
         try {
             DB::beginTransaction();
-            $validated['entity_id'] = auth()->user()->entity_id;
+            $validated['entity_id'] = auth()->user()->getUserEntityId();
             $validated['created_by'] = auth()->id();
             $memoir = Memoir::create($validated);
             DB::commit();

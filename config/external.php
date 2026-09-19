@@ -7,6 +7,8 @@ return [
         'auth' => env('ERP_AUTH_TYPE', 'basic'), // token | basic
         'user' => env('ERP_USER', env('FRAPPE_API_KEY')),
         'pass' => env('ERP_PASS', env('FRAPPE_API_SECRET')),
+        'api_key' => env('FRAPPE_API_KEY'),
+        'api_secret' => env('FRAPPE_API_SECRET'),
         'timeout' => 30,
     ],
 

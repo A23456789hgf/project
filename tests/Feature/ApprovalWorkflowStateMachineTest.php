@@ -48,6 +48,7 @@ class ApprovalWorkflowStateMachineTest extends TestCase
         $this->parentEntity = InternalEntity::withoutGlobalScopes()->create([
             'name' => 'الاتحاد العام / الجهة الأب (Root Entity)',
             'is_active' => true,
+            'is_ministry_root' => true,
         ]);
 
         $this->childEntity = InternalEntity::withoutGlobalScopes()->create([
@@ -66,6 +67,7 @@ class ApprovalWorkflowStateMachineTest extends TestCase
             'password' => bcrypt('password'),
             'entity_id' => $this->childEntity->id,
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         $this->childReviewer = User::withoutGlobalScopes()->create([
@@ -77,6 +79,7 @@ class ApprovalWorkflowStateMachineTest extends TestCase
             'password' => bcrypt('password'),
             'entity_id' => $this->childEntity->id,
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         $this->parentReviewer = User::withoutGlobalScopes()->create([
@@ -88,6 +91,7 @@ class ApprovalWorkflowStateMachineTest extends TestCase
             'password' => bcrypt('password'),
             'entity_id' => $this->parentEntity->id,
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         $unrelatedEntity = InternalEntity::withoutGlobalScopes()->create([
@@ -104,6 +108,7 @@ class ApprovalWorkflowStateMachineTest extends TestCase
             'password' => bcrypt('password'),
             'entity_id' => $unrelatedEntity->id,
             'status' => 'Active',
+            'organization_type' => 'internal',
         ]);
 
         // Entity Approval Stages Configuration

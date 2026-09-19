@@ -590,7 +590,7 @@ class CorrespondenceController extends Controller
         $this->authorize('create', Correspondence::class);
         Log::info('بدء عملية إنشاء مراسلة جديدة', [
             'user_id' => Auth::id(),
-            'sender_entity_id' => Auth::user()->entity_id,
+            'sender_entity_id' => Auth::user()->getUserEntityId(),
             'recipient_entity_id' => $request->recipient_entity_id,
             'subject' => $request->subject,
         ]);

@@ -163,7 +163,14 @@ class InternalEntityController extends Controller
             'parent_id' => 'nullable|sometimes|exists:internal_entities,id',
             'authority_id' => 'nullable|sometimes|exists:authorities,id',
             'is_active' => 'boolean',
+            'is_ministry_root' => 'boolean',
         ]);
+
+        if ($request->boolean('is_ministry_root')) {
+            if (InternalEntity::where('is_ministry_root', true)->exists()) {
+                return back()->withErrors(['is_ministry_root' => 'لا يمكن تعيين أكثر من وزارة كجذر للنظام. يرجى إلغاء تعيين الوزارة الحالية أولاً.'])->withInput();
+            }
+        }
 
         // معالجة parent_id ليكون null إذا كان فارغًا
         if (empty($validated['parent_id'])) {
@@ -261,7 +268,14 @@ class InternalEntityController extends Controller
             'parent_id' => 'nullable|sometimes|exists:internal_entities,id',
             'authority_id' => 'nullable|sometimes|exists:authorities,id',
             'is_active' => 'boolean',
+            'is_ministry_root' => 'boolean',
         ]);
+
+        if ($request->boolean('is_ministry_root')) {
+            if (InternalEntity::where('is_ministry_root', true)->where('id', '!=', $internalEntity->id)->exists()) {
+                return back()->withErrors(['is_ministry_root' => 'لا يمكن تعيين أكثر من وزارة كجذر للنظام. يرجى إلغاء تعيين الوزارة الحالية أولاً.'])->withInput();
+            }
+        }
 
         // معالجة parent_id ليكون null إذا كان فارغًا
         if (empty($validated['parent_id'])) {

@@ -37,9 +37,53 @@
                             <span class="badge bg-primary px-3">{{ $user->role->name ?? 'غير محدد' }}</span>
                         </div>
                     </div>
-                    <div class="mb-0">
+                    <div class="mb-3">
                         <label class="form-label text-muted small mb-1">الجهة / القسم</label>
                         <div class="form-control-plaintext border-bottom pb-2 fw-bold">{{ $user->entity->name ?? 'غير محدد' }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">نوع المستخدم</label>
+                        <div class="form-control-plaintext border-bottom pb-2 fw-bold">
+                            {{ $user->organization_type === 'external' ? 'خارجي (جهة خارجية)' : 'داخلي (الوزارة / الجهات التابعة)' }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">مسؤولية الموافقات</label>
+                        <div class="form-control-plaintext border-bottom pb-2 fw-bold">
+                            {{ $user->responsibility?->label() ?? 'بدون مسؤولية' }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">النطاق الإداري</label>
+                        <div class="form-control-plaintext border-bottom pb-2 fw-bold">
+                            {{ $user->internalEntity?->name ?? 'غير محدد' }}
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label text-muted small mb-1">النطاق الجغرافي</label>
+                        <div class="form-control-plaintext border-bottom pb-2 fw-bold">
+                            @php
+                                $totalGovs = \App\Models\Governorate::where('is_active', 1)->count();
+                            @endphp
+                            @if($user->geographicScopes && $user->geographicScopes->count() > 0)
+                                @if($user->geographicScopes->contains('governorate_id', 'all') || $user->geographicScopes->count() >= 15 || $user->geographicScopes->count() == $totalGovs)
+                                    <span>كافة المحافظات</span>
+                                @else
+                                    <ul class="list-unstyled mb-0">
+                                    @foreach($user->geographicScopes as $scope)
+                                        <li>
+                                            {{ $scope->governorate?->name ?? 'غير محدد' }}
+                                            @if($scope->directorate_id && $scope->directorate_id !== 'all')
+                                                - {{ $scope->directorate?->name }}
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                    </ul>
+                                @endif
+                            @else
+                                <span class="text-muted">غير محدد</span>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>

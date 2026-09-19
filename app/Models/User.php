@@ -38,7 +38,9 @@ class User extends Authenticatable
         'password',
         'phone',
         'department',
+        'organization_type',
         'entity_id',
+        'authority_id',
         'governorate_id',
         'directorate_id',
         'geographic_scope_id',
@@ -137,6 +139,21 @@ class User extends Authenticatable
     public function entity()
     {
         return $this->belongsTo(InternalEntity::class, 'entity_id');
+    }
+
+    public function authority()
+    {
+        return $this->belongsTo(Authority::class, 'authority_id');
+    }
+
+    public function isInternal(): bool
+    {
+        return $this->organization_type === 'internal';
+    }
+
+    public function isExternal(): bool
+    {
+        return $this->organization_type === 'external';
     }
 
     public function geographicScope()
@@ -840,6 +857,10 @@ class User extends Authenticatable
      */
     public function getUserEntityId(): ?int
     {
+        if ($this->isExternal()) {
+            return $this->authority_id ? (int) $this->authority_id : null;
+        }
+
         return $this->entity_id ? (int) $this->entity_id : null;
     }
 
@@ -851,6 +872,10 @@ class User extends Authenticatable
     {
         if ($this->administrative_scope_id) {
             return $this->getDescendantEntityIds((int) $this->administrative_scope_id);
+        }
+
+        if ($this->isExternal()) {
+            return $this->authority_id ? [(int) $this->authority_id] : [];
         }
 
         // If geographically restricted, do not grant broad central administrative access

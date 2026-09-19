@@ -1,0 +1,400 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Builder;
+
+class LookupController extends Controller
+{
+    /**
+     * General search method for various entities
+     */
+    public function search(Request $request)
+    {
+        $type = $request->get('type');
+        $search = $request->get('q');
+        $limit = $request->get('limit', 20);
+        $user = auth()->user();
+        $geographicScope = $this->getUserGeographicScope(); // ['governorate_id', 'directorate_id']
+
+        // 1. بناء الاستعلام الأساسي وإعدادات الحقول حسب type
+        $query = null;
+        $idField = 'id';
+        $textField = 'name';
+
+        switch ($type) {
+            case 'authority':
+                // Bypass global scope to avoid recursive scope loops,
+                // then apply explicit geographic filtering below.
+                $query = \App\Models\Authority::withoutGlobalScope('entity_display_filtering')
+                    ->with('parent');
+                $textField = 'agency_name';
+                $idField = 'id';
+                $this->applyAuthorityScopeFilter($query, auth()->user());
+                break;
+
+            case 'internal_entity':
+                // Bypass global scope to avoid recursive scope loops,
+                // then apply explicit geographic filtering below.
+                $query = \App\Models\InternalEntity::withoutGlobalScope('entity_display_filtering')
+                    ->with('parent');
+                $textField = 'name';
+                $idField = 'id';
+                $this->applyInternalEntityScopeFilter($query, auth()->user());
+                break;
+
+                break;
+                break;
+            case 'program':
+                $query = \App\Models\Program::query();
+                break;
+
+            case 'domain':
+                $query = \App\Models\Domain::query();
+                break;
+
+            case 'subdomain':
+                $query = \App\Models\Subdomain::query();
+                if ($request->has('domain_id')) {
+                    $query->where('domain_id', $request->get('domain_id'));
+                }
+                break;
+
+            case 'intervention':
+                $query = \App\Models\Intervention::query();
+                if ($request->has('subdomain_id')) {
+                    $query->where('subdomain_id', $request->get('subdomain_id'));
+                }
+                break;
+
+            case 'financial_item':
+                $query = \App\Models\FinancialItem::query();
+                break;
+
+            case 'unit':
+                $query = \App\Models\Unit::query();
+                $textField = 'unit_name';
+                break;
+
+            case 'funding_source':
+                $query = \App\Models\FundingSource::query();
+                break;
+
+            case 'financing_type':
+                $query = \App\Models\FinancingType::query();
+                break;
+
+            case 'financing_form':
+                $query = \App\Models\FinancingForm::query();
+                break;
+
+            case 'sub_financing_form':
+                $query = \App\Models\SubFinancingForm::query();
+                if ($request->has('financing_form_id')) {
+                    $query->where('financing_form_id', $request->get('financing_form_id'));
+                }
+                break;
+
+            case 'priority':
+                $query = \App\Models\Priority::query();
+                $textField = 'priority';
+                break;
+
+            case 'main_router':
+                $query = \App\Models\MainRouter::query();
+                $textField = 'main_router';
+                break;
+
+            case 'sub_router':
+                $query = \App\Models\SubRouter::query();
+                $textField = 'sub_router';
+                if ($request->has('main_router_id')) {
+                    $query->where('main_router_id', $request->get('main_router_id'));
+                }
+                break;
+
+            case 'governorate':
+
+                $query = \App\Models\Governorate::query();
+
+                /*
+                |--------------------------------------------------------------------------
+                | إذا كان المستخدم إداري فقط
+                | وغير مرتبط بأي نطاق جغرافي
+                | يتم عرض جميع المحافظات
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    !(
+                        $user->administrative_scope_id
+                        && empty($geographicScope['governorate_id'])
+                        && empty($geographicScope['directorate_id'])
+                    )
+                ) {
+
+                    $this->applyGeographicScope(
+                        $query,
+                        $type,
+                        $geographicScope
+                    );
+                }
+
+                break;
+
+            case 'directorate':
+
+                $query = \App\Models\Directorate::query();
+
+                /*
+                |--------------------------------------------------------------------------
+                | إذا كان المستخدم إداري فقط
+                | وغير مرتبط بأي نطاق جغرافي
+                | يتم عرض جميع المديريات
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    !(
+                        $user->administrative_scope_id
+                        && empty($geographicScope['governorate_id'])
+                        && empty($geographicScope['directorate_id'])
+                    )
+                ) {
+
+                    $this->applyGeographicScope(
+                        $query,
+                        $type,
+                        $geographicScope
+                    );
+
+                    // إضافة فلترة إضافية خاصة بالمديرية
+
+                    if ($directorateId = $geographicScope['directorate_id']) {
+
+                        $query->where(function ($q) use ($directorateId, $geographicScope) {
+
+                            $q->where('id', $directorateId)
+                                ->orWhere(
+                                    'governorate_id',
+                                    $geographicScope['governorate_id']
+                                );
+                        });
+
+                    } elseif ($governorateId = $geographicScope['governorate_id']) {
+
+                        $query->where(
+                            'governorate_id',
+                            $governorateId
+                        );
+                    }
+                }
+
+                break;
+
+            case 'sub_area':
+                $query = \App\Models\SubArea::query();
+                $this->applyGeographicScope($query, $type, $geographicScope);
+                // فلترة إضافية بناءً على request
+                if ($request->filled('directorate_id') && $request->get('directorate_id') != '0') {
+                    if (!$geographicScope['directorate_id']) {
+                        $query->where('directorate_id', $request->get('directorate_id'));
+                    }
+                }
+                break;
+
+            case 'village':
+                $query = \App\Models\Village::query();
+                $this->applyGeographicScope($query, $type, $geographicScope);
+                if ($request->filled('sub_area_id') && $request->get('sub_area_id') != '0') {
+                    if (!$geographicScope['directorate_id']) {
+                        $query->where('sub_area_id', $request->get('sub_area_id'));
+                    }
+                }
+                break;
+
+            case 'target_category':
+                $query = \App\Models\TargetCategory::query();
+                break;
+
+            case 'beneficiary_group':
+                $query = \App\Models\BeneficiaryGroup::query();
+                break;
+
+            default:
+                return response()->json(['error' => 'Invalid lookup type'], 400);
+        }
+
+        // 2. تصفية active إذا كان العمود موجودًا
+        if ($query && \Schema::hasColumn($query->getModel()->getTable(), 'is_active')) {
+            $query->where('is_active', true);
+        }
+
+        // 3. البحث النصي
+        if (!empty($search)) {
+            $query->where($textField, 'like', "%{$search}%");
+        }
+
+        // 4. تحديد الأعمدة المطلوبة
+        $columns = [$idField, $textField];
+        if (in_array($type, ['authority', 'internal_entity'])) {
+            $columns[] = 'parent_id';
+        }
+
+        // 5. تنفيذ الاستعلام
+        $results = $query->limit($limit)->get($columns);
+
+        // 6. تنسيق النتائج لـ Select2
+        $formattedResults = $results->map(function ($item) use ($idField, $textField, $type) {
+            $data = [
+                'id' => $item->$idField,
+                'text' => $item->$textField,
+            ];
+            if ($type === 'authority') {
+                $data['parent_id'] = $item->parent_id;
+                $data['parent_name'] = $item->parent?->agency_name ?? 'لا توجد جهة أب';
+            }
+            if ($type === 'internal_entity') {
+                $data['parent_id'] = $item->parent_id;
+                $data['parent_name'] = $item->parent?->name ?? 'لا توجد جهة أب';
+            }
+            return $data;
+        });
+
+        // 7. إضافة خيار "الكل" للأنواع الجغرافية (إلا إذا كان هناك نتيجة واحدة فقط)
+        if (in_array($type, ['governorate', 'directorate', 'sub_area', 'village']) && $formattedResults->count() !== 1) {
+            $allText = match ($type) {
+                'governorate' => 'جميع المحافظات',
+                'directorate' => 'جميع المديريات',
+                'sub_area' => 'جميع المناطق الفرعية',
+                'village' => 'جميع القرى والحارات',
+            };
+            $formattedResults->prepend(['id' => '0', 'text' => $allText]);
+        }
+
+        return response()->json(['results' => $formattedResults]);
+    }
+
+    // ===============================
+    // 🔹 دوال مساعدة لإزالة التكرار
+    // ===============================
+
+    /**
+     * تطبيق فلترة الصلاحيات على جهات Authority
+     */
+    private function applyAuthorityFilter(Builder $query, $user): void
+    {
+        if (!$user)
+            return;
+
+        $entityIdsByEnt = \App\Models\InternalEntity::getAllChildrenIds($user->administrative_scope_id) ?? [];
+        $entityIdsByGeo = [];
+
+        foreach ($user->geographicScopes as $scope) {
+            if (!empty($scope->governorate_id) && empty($scope->directorate_id)) {
+                $ids = \App\Models\InternalEntity::getAllByGovernorate($scope->governorate_id);
+            } elseif (!empty($scope->directorate_id)) {
+                $ids = \App\Models\InternalEntity::getAllByDirectorate($scope->directorate_id);
+            } else {
+                $ids = [];
+            }
+            if (!empty($ids))
+                $entityIdsByGeo[] = $ids;
+        }
+
+        if (!empty($entityIdsByGeo)) {
+            $entityIdsByGeo = array_merge(...$entityIdsByGeo);
+        }
+        $entityIds = array_unique(array_merge($entityIdsByEnt, $entityIdsByGeo));
+
+        if (!empty($entityIds)) {
+            $query->whereIn('creator_entity_id', $entityIds);
+        }
+    }
+
+    /**
+     * تطبيق فلترة الصلاحيات على الكيانات الداخلية InternalEntity
+     */
+    private function applyInternalEntityFilter(Builder $query, $user): void
+    {
+        if (!$user || $user->geographicScopes->isEmpty()) {
+            return; // مركزي - لا فلتر
+        }
+
+        $entityIds = [];
+        foreach ($user->geographicScopes as $scope) {
+            if (!empty($scope->governorate_id) && empty($scope->directorate_id)) {
+                $ids = \App\Models\InternalEntity::getAllByGovernorate($scope->governorate_id);
+            } elseif (!empty($scope->directorate_id)) {
+                $ids = \App\Models\InternalEntity::getAllByDirectorate($scope->directorate_id);
+            } else {
+                $ids = [];
+            }
+            if (!empty($ids))
+                $entityIds[] = $ids;
+        }
+
+        if (!empty($entityIds)) {
+            $entityIds = array_unique(array_merge(...$entityIds));
+            $query->whereIn('id', $entityIds);
+        }
+    }
+
+    /**
+     * تطبيق النطاق الجغرافي على استعلامات المحافظات/المديريات/المناطق/القرى
+     */
+    private function applyGeographicScope(Builder $query, string $type, array $scope): void
+    {
+        $govId = $scope['governorate_id'];
+        $dirId = $scope['directorate_id'];
+
+        switch ($type) {
+            case 'governorate':
+                if ($govId && !$dirId) {
+                    $query->where('id', $govId);
+                }
+                break;
+
+            case 'directorate':
+                if ($dirId) {
+                    $query->where('id', $dirId);
+                } elseif ($govId) {
+                    $query->where('governorate_id', $govId);
+                }
+                break;
+
+            case 'sub_area':
+                if ($dirId) {
+                    $query->where('directorate_id', $dirId);
+                } elseif ($govId) {
+                    $query->whereHas('directorate', fn($q) => $q->where('governorate_id', $govId));
+                }
+                break;
+
+            case 'village':
+                if ($dirId) {
+                    $query->whereHas('subArea', fn($q) => $q->where('directorate_id', $dirId));
+                } elseif ($govId) {
+                    $query->whereHas('subArea.directorate', fn($q) => $q->where('governorate_id', $govId));
+                }
+                break;
+        }
+    }
+
+    /**
+     * الحصول على النطاق الجغرافي للمستخدم الحالي
+     */
+    private function getUserGeographicScope(): array
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return ['governorate_id' => null, 'directorate_id' => null];
+        }
+        return [
+            'governorate_id' => $user->getAssignedGovernorateId(),
+            'directorate_id' => $user->getAssignedDirectorateId(),
+        ];
+    }
+}

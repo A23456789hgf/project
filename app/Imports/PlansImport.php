@@ -150,7 +150,7 @@ class PlansImport implements WithMultipleSheets
             $plan = Plan::create([
                 'plan_number' => $planNumber,
                 'priority_id' => $priority ? $priority->id : null,
-                'submitting_entity_id' => $entity ? $entity->id : Auth::user()->entity_id,
+                'submitting_entity_id' => $entity ? $entity->id : Auth::user()->getUserEntityId(),
                 'created_by' => Auth::id(),
             ]);
             $this->importedPlans++;

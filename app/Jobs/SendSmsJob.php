@@ -8,7 +8,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Auth;
 
 class SendSmsJob implements ShouldQueue
 {
@@ -22,18 +21,18 @@ class SendSmsJob implements ShouldQueue
 
     public $eventName;
 
-    public $authUserId;
+    public $sentByUserId;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($userId, $mobileNo, $message, $eventName = null, $authUserId = null)
+    public function __construct($userId, $mobileNo, $message, $eventName = null, $sentByUserId = null)
     {
         $this->userId = $userId;
         $this->mobileNo = $mobileNo;
         $this->message = $message;
         $this->eventName = $eventName;
-        $this->authUserId = $authUserId;
+        $this->sentByUserId = $sentByUserId;
     }
 
     /**
@@ -41,9 +40,6 @@ class SendSmsJob implements ShouldQueue
      */
     public function handle(SmppSmsService $smsService): void
     {
-        if ($this->authUserId) {
-            Auth::loginUsingId($this->authUserId);
-        }
-        $smsService->sendSmsSync($this->userId, $this->mobileNo, $this->message, $this->eventName);
+        $smsService->sendSmsSync($this->userId, $this->mobileNo, $this->message, $this->eventName, $this->sentByUserId);
     }
 }

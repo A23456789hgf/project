@@ -92,7 +92,7 @@ class TaskMemoController extends Controller
                 'message_body' => $validated['content'],
                 'correspondence_type' => 'memo',
                 'sender_user_id' => auth()->id(),
-                'sender_entity_id' => auth()->user()->entity_id,
+                'sender_entity_id' => auth()->user()->getUserEntityId(),
                 'recipient_entity_id' => $validated['recipient_entity_id'],
                 'priority' => $validated['priority'] ?? 'normal',
                 'confidential' => $request->boolean('confidential'),

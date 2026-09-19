@@ -205,14 +205,25 @@ class ProjectPolicy
             return true;
         }
 
-        $originEntityId = $project->getOriginEntityId() ?? $project->creator_entity_id ?? $project->internal_entity_id;
-        $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
-
         $isCreator = ($project->created_by_user_id === $user->id);
-        $belongsToOrigin = ($originEntityId && (in_array((int) $originEntityId, $allowedEntityIds, true) || in_array('all', $allowedEntityIds, true)));
 
-        if (! $isCreator && ! $belongsToOrigin) {
-            return false;
+        if ($project->getOriginType() === 'external') {
+            // External project: creator or member of the same authority.
+            $originAuthorityId = $project->getOriginAuthorityId();
+            $belongsToOriginAuthority = ($originAuthorityId && $user->authority_id === $originAuthorityId);
+
+            if (! $isCreator && ! $belongsToOriginAuthority) {
+                return false;
+            }
+        } else {
+            // Internal project: creator or member of the origin entity's hierarchy.
+            $originEntityId = $project->getOriginEntityId() ?? $project->creator_entity_id ?? $project->internal_entity_id;
+            $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+            $belongsToOrigin = ($originEntityId && (in_array((int) $originEntityId, $allowedEntityIds, true) || in_array('all', $allowedEntityIds, true)));
+
+            if (! $isCreator && ! $belongsToOrigin) {
+                return false;
+            }
         }
 
         return $user->hasPermission('projects.submit', $project) ||
@@ -383,14 +394,23 @@ class ProjectPolicy
             return true;
         }
 
-        $originEntityId = $project->getOriginEntityId() ?? $project->creator_entity_id ?? $project->internal_entity_id;
-        $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
-
         $isCreator = ($project->created_by_user_id === $user->id);
-        $belongsToOrigin = ($originEntityId && (in_array((int) $originEntityId, $allowedEntityIds, true) || in_array('all', $allowedEntityIds, true)));
 
-        if (! $isCreator && ! $belongsToOrigin) {
-            return false;
+        if ($project->getOriginType() === 'external') {
+            $originAuthorityId = $project->getOriginAuthorityId();
+            $belongsToOriginAuthority = ($originAuthorityId && $user->authority_id === $originAuthorityId);
+
+            if (! $isCreator && ! $belongsToOriginAuthority) {
+                return false;
+            }
+        } else {
+            $originEntityId = $project->getOriginEntityId() ?? $project->creator_entity_id ?? $project->internal_entity_id;
+            $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+            $belongsToOrigin = ($originEntityId && (in_array((int) $originEntityId, $allowedEntityIds, true) || in_array('all', $allowedEntityIds, true)));
+
+            if (! $isCreator && ! $belongsToOrigin) {
+                return false;
+            }
         }
 
         return $user->hasPermission('projects.create', $project) ||
@@ -547,12 +567,18 @@ class ProjectPolicy
             return true;
         }
 
-        $originEntityId = $project->getOriginEntityId();
-        $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
-
         if ($project->created_by_user_id !== $user->id) {
-            if ($originEntityId && ! in_array((int) $originEntityId, $allowedEntityIds, true) && ! in_array('all', $allowedEntityIds, true)) {
-                return false;
+            if ($project->getOriginType() === 'external') {
+                $originAuthorityId = $project->getOriginAuthorityId();
+                if ($originAuthorityId && $user->authority_id !== $originAuthorityId) {
+                    return false;
+                }
+            } else {
+                $originEntityId = $project->getOriginEntityId();
+                $allowedEntityIds = $project->getProjectAllowedEntityIds($user);
+                if ($originEntityId && ! in_array((int) $originEntityId, $allowedEntityIds, true) && ! in_array('all', $allowedEntityIds, true)) {
+                    return false;
+                }
             }
         }
 

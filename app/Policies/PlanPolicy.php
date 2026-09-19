@@ -36,7 +36,15 @@ class PlanPolicy
      */
     public function update(User $user, Plan $plan): bool
     {
-        return $user->hasPermission('plans.edit', $plan);
+        return $user->hasPermission('plans.update', $plan) || $user->hasPermission('plans.edit', $plan);
+    }
+
+    /**
+     * Alias for update method.
+     */
+    public function edit(User $user, Plan $plan): bool
+    {
+        return $this->update($user, $plan);
     }
 
     /**
@@ -65,10 +73,10 @@ class PlanPolicy
     public function print(User $user, ?Plan $plan = null): bool
     {
         if ($plan) {
-            return $user->hasPermission('plans.print', $plan);
+            return $user->hasPermission('plans.print', $plan) || $user->hasPermission('plans.view', $plan);
         }
 
-        return $user->hasPermission('plans.print');
+        return $user->hasPermission('plans.print') || $user->hasPermission('plans.view');
     }
 
     public function import(User $user): bool
@@ -78,21 +86,21 @@ class PlanPolicy
 
     public function batchPrint(User $user): bool
     {
-        return $user->hasPermission('plans.batch-print');
+        return $user->hasPermission('plans.batch-print') || $user->hasPermission('plans.print') || $user->hasPermission('plans.view');
     }
 
     public function comprehensiveBatchPrint(User $user): bool
     {
-        return $user->hasPermission('plans.comprehensive-batch-print');
+        return $user->hasPermission('plans.comprehensive-batch-print') || $user->hasPermission('plans.batch-print') || $user->hasPermission('plans.print') || $user->hasPermission('plans.view');
     }
 
     public function implementation(User $user, Plan $plan): bool
     {
-        return $user->hasPermission('plans.implementation', $plan);
+        return $user->hasPermission('plans.implementation', $plan) || $user->hasPermission('plans.update', $plan) || $user->hasPermission('plans.edit', $plan) || $user->hasPermission('plans.view', $plan);
     }
 
     public function printImplementation(User $user, Plan $plan): bool
     {
-        return $user->hasPermission('plans.print-implementation', $plan);
+        return $user->hasPermission('plans.print-implementation', $plan) || $user->hasPermission('plans.implementation.print', $plan) || $user->hasPermission('plans.print', $plan) || $user->hasPermission('plans.view', $plan);
     }
 }

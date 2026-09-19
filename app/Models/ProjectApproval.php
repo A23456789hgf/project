@@ -14,7 +14,9 @@ class ProjectApproval extends Model
 
     protected $fillable = [
         'project_id',
+        'approver_scope',
         'entity_id',
+        'authority_id',
         'assigned_user_id',
         'approval_flow_id',
         'stage_id',
@@ -101,7 +103,7 @@ class ProjectApproval extends Model
 
     public function authority(): BelongsTo
     {
-        return $this->belongsTo(InternalEntity::class, 'entity_id');
+        return $this->belongsTo(Authority::class, 'authority_id');
     }
 
     public function financialReviewer(): BelongsTo

@@ -379,11 +379,11 @@
                                             </a>
                                         @endcan
 
-                                        @can('plans.implementation', $plan)
+                                        @canany(['plans.implementation', 'plans.update', 'plans.edit'], $plan)
                                             <a href="{{ route('plans.implementation', $plan->id) }}" class="btn-action-artistic btn-enable" title="إضافة أنشطة تنفيذية">
                                                 <x-icon name="plus-circle" size="10" />
                                             </a>
-                                        @endcan
+                                        @endcanany
 
                                         @can('plans.print', $plan)
                                             <a href="{{ route('plans.print', $plan->id) }}" target="_blank" class="btn-action-artistic btn-log auth-perm-plans-print" title="طباعة الخطة">
@@ -391,17 +391,17 @@
                                             </a>
                                         @endcan
 
-                                        @can('plans.print-implementation', $plan)
+                                        @canany(['plans.print-implementation', 'plans.implementation.print', 'plans.print'], $plan)
                                             <a href="{{ route('plans.implementation.print', $plan->id) }}" target="_blank" class="btn-action-artistic btn-edit" title="طباعة التنفيذ">
                                                 <x-icon name="file-text" size="10" />
                                             </a>
-                                        @endcan
+                                        @endcanany
 
-                                        @can('plans.edit', $plan)
+                                        @canany(['plans.update', 'plans.edit'], $plan)
                                             <a href="{{ route('plans.edit', $plan->id) }}" class="btn-action-artistic btn-edit auth-perm-plans-edit" title="تعديل الخطة">
                                                 <x-icon name="edit-2" size="10" />
                                             </a>
-                                        @endcan
+                                        @endcanany
 
                                         @can('plans.delete', $plan)
                                             <form action="{{ route('plans.destroy', $plan->id) }}" method="POST" class="d-inline auth-perm-plans-delete">

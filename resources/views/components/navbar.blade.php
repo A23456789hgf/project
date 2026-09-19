@@ -288,23 +288,7 @@
                 </li>
             @endcanany
 
-            @canany(['approvals.view', 'projects.view', 'projects.sidebar'])
-                <li class="nav-item auth-perm-approvals-sidebar" data-sidebar-module="approvals">
-                    <a class="nav-link {{ request()->routeIs('approvals.*') || request()->routeIs('projects.approval.*') ? 'active' : '' }}"
-                        href="{{ route('approvals.index') }}">
-                        <i class="fas fa-clipboard-check me-2"></i> مركز المراجعة والاعتمادات
-                    </a>
-                </li>
-            @endcanany
 
-            @canany(['referrals.view', 'approvals.view', 'projects.view', 'projects.sidebar'])
-                <li class="nav-item auth-perm-referrals-sidebar" data-sidebar-module="consultations">
-                    <a class="nav-link {{ request()->routeIs('consultations.*') || request()->routeIs('project-referrals.*') ? 'active' : '' }}"
-                        href="{{ route('consultations.index') }}">
-                        <i class="fas fa-comments me-2"></i> الاستشارات والإحالات
-                    </a>
-                </li>
-            @endcanany
 
             @can('main_modules.tasks')
                 <li class="nav-item auth-perm-tasks-sidebar" data-sidebar-module="tasks">
@@ -763,12 +747,6 @@
                                     الجهات الداخلية
                                 </a>
                             </li>
-                            <li class="nav-item auth-perm-internal-entities-sidebar">
-                                <a class="nav-link {{ request()->routeIs('admin.entity-stages.*') ? 'active' : '' }}"
-                                    href="{{ route('admin.entity-stages.index') }}">
-                                    مراحل المراجعة والاعتماد
-                                </a>
-                            </li>
                         @endcan
                         @can('authorities.sidebar')
                             <li class="nav-item auth-perm-authorities-sidebar">
@@ -859,7 +837,7 @@
             <li class="nav-item auth-perm-users-sidebar auth-perm-roles-permissions-sidebar auth-perm-audit-logs-sidebar auth-perm-import-logs-sidebar"
                 data-sidebar-module="users">
                 @php
-                    $userManagementRoutes = ['users.*', 'roles.*', 'roles-permissions.*', 'admin.audit-logs.*', 'import-logs.*'];
+                    $userManagementRoutes = ['users.*', 'roles.*', 'roles-permissions.*', 'admin.audit-logs.*', 'import-logs.*', 'admin.entity-stages.*'];
                     $isUserManagementActive = request()->routeIs(...$userManagementRoutes);
                 @endphp
                 <a class="nav-link d-flex justify-content-between align-items-center {{ $isUserManagementActive ? 'active' : '' }}"
@@ -874,6 +852,15 @@
                             <li class="nav-item auth-perm-users-sidebar">
                                 <a class="nav-link {{ request()->routeIs('users.index') ? 'active' : '' }}"
                                     href="{{ route('users.index') }}">قائمة المستخدمين</a>
+                            </li>
+                        @endcan
+
+                        @can('internal-entities.sidebar')
+                            <li class="nav-item auth-perm-internal-entities-sidebar">
+                                <a class="nav-link {{ request()->routeIs('admin.entity-stages.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.entity-stages.index') }}">
+                                    مراحل المراجعة والاعتماد
+                                </a>
                             </li>
                         @endcan
 

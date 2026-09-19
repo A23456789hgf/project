@@ -18,5 +18,3 @@ class Mother extends Model
         'is_active' => 'boolean',
     ];
 }
-PHP;
-

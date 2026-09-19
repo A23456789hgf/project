@@ -69,10 +69,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Add authority_id back
-        Schema::table('project_approvals', function (Blueprint $table) {
-            $table->unsignedBigInteger('authority_id')->nullable()->after('project_id');
-        });
+        // Add authority_id back if not present
+        if (! Schema::hasColumn('project_approvals', 'authority_id')) {
+            Schema::table('project_approvals', function (Blueprint $table) {
+                $table->unsignedBigInteger('authority_id')->nullable()->after('project_id');
+            });
+        }
 
         // Copy entity_id back to authority_id
         DB::statement('UPDATE project_approvals SET authority_id = entity_id WHERE authority_id IS NULL');

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 
 class ErpNextService
 {
+    // This service communicates only with ERPNext/Frappe.
+    // It must never handle SMS operations.
     protected string $baseUrl;
 
     protected string $user;

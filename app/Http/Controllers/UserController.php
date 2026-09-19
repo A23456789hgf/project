@@ -44,6 +44,14 @@ class UserController extends Controller
             $query->where('entity_id', $request->entity_id);
         }
 
+        if ($request->filled('organization_type')) {
+            $query->where('organization_type', $request->organization_type);
+        }
+
+        if ($request->filled('authority_id')) {
+            $query->where('authority_id', $request->authority_id);
+        }
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where('user_id', 'like', "%$search%")
@@ -113,7 +121,9 @@ class UserController extends Controller
 
         $geographicScopes = [];
 
-        return view('user.create', compact('roles', 'statuses', 'entities', 'governorates', 'directorates', 'geographicScopes'));
+        $authorities = Authority::active()->orderBy('agency_name')->get();
+
+        return view('user.create', compact('roles', 'statuses', 'entities', 'governorates', 'directorates', 'geographicScopes', 'authorities'));
     }
 
     public function store(Request $request)
@@ -127,13 +137,21 @@ class UserController extends Controller
             'status' => $request->has('status') ? $request->status : 'Disabled',
         ]);
 
+        if ($request->organization_type === 'internal') {
+            $request->merge(['authority_id' => null]);
+        } elseif ($request->organization_type === 'external') {
+            $request->merge(['entity_id' => null]);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'password' => 'required|string|min:1|max:50',
             'role_id' => 'required|exists:roles,id',
             'status' => 'required|in:Active,Disabled',
             'phone' => 'nullable|string|max:20',
-            'entity_id' => 'nullable|exists:internal_entities,id',
+            'organization_type' => 'required|in:internal,external',
+            'entity_id' => 'nullable|required_if:organization_type,internal|exists:internal_entities,id',
+            'authority_id' => 'nullable|required_if:organization_type,external|exists:authorities,id',
             'administrative_scope_id' => 'nullable|exists:internal_entities,id',
             'work' => 'nullable|string|max:255',
             'responsibility' => ['nullable', Rule::in(array_column(UserResponsibilityType::cases(), 'value'))],
@@ -168,6 +186,8 @@ class UserController extends Controller
                 'status' => $request->status,
                 'phone' => $request->phone,
                 'entity_id' => $request->entity_id,
+                'organization_type' => $request->organization_type,
+                'authority_id' => $request->authority_id,
                 'administrative_scope_id' => $request->administrative_scope_id,
                 'work' => $request->work,
                 'responsibility' => $request->responsibility ?: null,
@@ -242,7 +262,9 @@ class UserController extends Controller
             return ! empty($scope['governorate_id']) || ! empty($scope['directorate_id']);
         })->values()->toArray();
 
-        return view('user.edit', compact('user', 'roles', 'statuses', 'entities', 'governorates', 'directorates', 'geographicScopes'));
+        $authorities = Authority::active()->orderBy('agency_name')->get();
+
+        return view('user.edit', compact('user', 'roles', 'statuses', 'entities', 'governorates', 'directorates', 'geographicScopes', 'authorities'));
     }
 
     public function update(Request $request, User $user)
@@ -255,12 +277,20 @@ class UserController extends Controller
             'status' => $request->has('status') ? $request->status : 'Disabled',
         ]);
 
+        if ($request->organization_type === 'internal') {
+            $request->merge(['authority_id' => null]);
+        } elseif ($request->organization_type === 'external') {
+            $request->merge(['entity_id' => null]);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'role_id' => 'required|exists:roles,id',
             'status' => 'required|in:Active,Disabled',
             'phone' => 'nullable|string|max:20',
-            'entity_id' => 'nullable|exists:internal_entities,id',
+            'organization_type' => 'required|in:internal,external',
+            'entity_id' => 'nullable|required_if:organization_type,internal|exists:internal_entities,id',
+            'authority_id' => 'nullable|required_if:organization_type,external|exists:authorities,id',
             'administrative_scope_id' => 'nullable|exists:internal_entities,id',
             'work' => 'nullable|string|max:255',
             'responsibility' => ['nullable', Rule::in(array_column(UserResponsibilityType::cases(), 'value'))],
@@ -312,7 +342,9 @@ class UserController extends Controller
                 'role_id' => $request->role_id,
                 'status' => $request->status,
                 'phone' => $request->phone,
+                'organization_type' => $request->organization_type,
                 'entity_id' => $request->entity_id,
+                'authority_id' => $request->authority_id,
                 'administrative_scope_id' => $request->administrative_scope_id,
                 'work' => $request->work,
                 'responsibility' => $request->responsibility ?: null,

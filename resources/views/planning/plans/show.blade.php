@@ -16,11 +16,11 @@
                 <i class="fas fa-print me-1"></i> طباعة الخطة التشغيلية
             </a>
             @endcan
-            @can('plans.print-implementation', $plan)
+            @canany(['plans.print-implementation', 'plans.implementation.print', 'plans.print'], $plan)
             <a href="{{ route('plans.implementation.print', $plan->id) }}" target="_blank" class="btn btn-warning">
                 <i class="fas fa-file-pdf me-1"></i> طباعة الخطة التنفيذية
             </a>
-            @endcan
+            @endcanany
         </div>
     </div>
 
