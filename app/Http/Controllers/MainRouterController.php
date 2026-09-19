@@ -10,6 +10,7 @@ class MainRouterController extends Controller
     // عرض جميع السجلات
     public function index()
     {
+        $this->authorize('viewAny', MainRouter::class);
         $routers = MainRouter::all();
 
         return view('configuration.main_routers.index', compact('routers'));
@@ -18,12 +19,15 @@ class MainRouterController extends Controller
     // عرض نموذج الإضافة
     public function create()
     {
+        $this->authorize('create', MainRouter::class);
+
         return view('configuration.main_routers.create');
     }
 
     // حفظ السجل الجديد
     public function store(Request $request)
     {
+        $this->authorize('create', MainRouter::class);
         $request->validate([
             'main_router' => 'required|unique:main_routers|max:255',
         ]);
@@ -40,6 +44,7 @@ class MainRouterController extends Controller
     // عرض نموذج التعديل
     public function edit($id)
     {
+        $this->authorize('update', MainRouter::class);
         $router = MainRouter::findOrFail($id);
 
         return view('configuration.main_routers.edit', compact('router'));
@@ -48,6 +53,7 @@ class MainRouterController extends Controller
     // تحديث السجل
     public function update(Request $request, $id)
     {
+        $this->authorize('update', MainRouter::class);
         $request->validate([
             'main_router' => 'required|unique:main_routers,main_router,'.$id.'|max:255',
         ]);
@@ -65,6 +71,7 @@ class MainRouterController extends Controller
     // حذف السجل
     public function destroy($id)
     {
+        $this->authorize('delete', MainRouter::class);
         $router = MainRouter::findOrFail($id);
         $router->delete();
 

@@ -162,6 +162,7 @@
         {{-- Left / Main Column (8) --}}
         <div class="col-12 col-lg-8">
 
+            @if(isset($isAdmin) && $isAdmin)
             {{-- 1. Dynamic Approval Tracker --}}
             <div class="card tracker-card shadow-sm mb-4">
                 <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
@@ -254,6 +255,22 @@
                     @endif
                 </div>
             </div>
+            @else
+            {{-- Simplified Current Phase Info for non-admins --}}
+            @if($activeStep)
+            <div class="card shadow-sm mb-4 border-primary">
+                <div class="card-body p-4 d-flex align-items-center justify-content-between bg-primary bg-opacity-10 rounded">
+                    <div>
+                        <h5 class="mb-1 fw-bold text-primary">المرحلة الحالية: {{ $activeStep->getPhaseArabicName() }}</h5>
+                        <p class="mb-0 text-dark small fw-semibold">يرجى مراجعة التفاصيل أدناه واتخاذ الإجراء المناسب في لوحة القرار.</p>
+                    </div>
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                        <i class="fas fa-hourglass-half fs-5"></i>
+                    </div>
+                </div>
+            </div>
+            @endif
+            @endif
 
             {{-- 2. Project Information Accordion --}}
             <div class="accordion mb-4 shadow-sm rounded-4 overflow-hidden" id="projectDetailsAccordion">

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\UserResponsibilityType;
 use App\Services\PermissionResolver;
 use App\Services\ProjectAuthorizationService;
 use App\Services\SchemaCache;
@@ -45,6 +46,7 @@ class User extends Authenticatable
         'work',
         'role_id',
         'status',
+        'responsibility',
         'created_by',
         'updated_by',
         'creator_username',
@@ -53,6 +55,7 @@ class User extends Authenticatable
         'module_geo_scopes',
         'must_change_password',
         'signature_path',
+        'is_admin',
     ];
 
     protected $hidden = [
@@ -67,6 +70,8 @@ class User extends Authenticatable
         'module_scopes' => 'array',
         'module_geo_scopes' => 'array',
         'must_change_password' => 'boolean',
+        'is_admin' => 'boolean',
+        'responsibility' => UserResponsibilityType::class,
     ];
 
     protected static function booted()
@@ -179,6 +184,15 @@ class User extends Authenticatable
         return $this->hasMany(ProjectApproval::class, 'created_by');
     }
 
+    /**
+     * The entity_approval_stages rows where this user is the configured responsible.
+     * Used to guard against deactivating/moving a user who is assigned to an active stage.
+     */
+    public function responsibleApprovalStages(): HasMany
+    {
+        return $this->hasMany(EntityApprovalStage::class, 'responsible_user_id');
+    }
+
     public function userRoles(): HasMany
     {
         return $this->hasMany(UserRole::class);
@@ -251,6 +265,10 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
+        if ($this->is_admin) {
+            return true;
+        }
+
         $this->loadMissing('role');
         $roleName = $this->role?->name ?? '';
 

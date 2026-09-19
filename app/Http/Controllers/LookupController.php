@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Authority;
 use App\Models\BeneficiaryGroup;
 use App\Models\Directorate;
 use App\Models\Domain;
@@ -22,261 +23,209 @@ use App\Models\SubRouter;
 use App\Models\Unit;
 use App\Models\Village;
 use App\Scopes\DomainScope;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
 class LookupController extends Controller
 {
     /**
-     * General search method for various entities
+     * General search method for various entities.
+     *
+     * قواعد النطاق:
+     * - المستخدم الجغرافي: لا يرى إلا محافظاته / مديرياته والجهات الواقعة داخلها
+     *   مع الأب المباشر فقط لكل جهة.
+     * - المستخدم الإداري/المركزي (لا يملك نطاقاً جغرافياً): يرى جميع المحافظات
+     *   والمديريات والجهات الحكومية، ويمكنه تضييق النتائج باختيار محافظة/مديرية.
      */
     public function search(Request $request)
     {
         $type = $request->get('type');
         $search = $request->get('q');
-        $limit = $request->get('limit', 20);
-        // When include_pending=1, include both approved (status=1) and pending (status=0) records.
-        // This flag is sent ONLY by project-module views to support draft lookup references.
-        // All other callers should NOT send this flag and will continue to see approved records only.
+        $limit = (int) $request->get('limit', 20);
+
+        // Project module may request pending + approved records.
         $includePending = (bool) $request->get('include_pending', false);
 
         $query = null;
         $idField = 'id';
         $textField = 'name';
 
+        $user = auth()->user();
+
+        if (! $user) {
+            return response()->json(['results' => []], 401);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | النطاق الجغرافي الفعلي للمستخدم
+        |--------------------------------------------------------------------------
+        |
+        | نحتسبه مرة واحدة ونستخدمه في:
+        | الجهات الخارجية - الجهات الداخلية - المحافظات - المديريات.
+        |
+        */
+        $geoBoundary = $this->resolveUserGeographicBoundary($user);
+        $isGeographicUser = $geoBoundary['has_geo'];
+
         switch ($type) {
 
             // ========================================
             // الجهات الخارجية
             // ========================================
-            // الجهات الداخلية
-            // ========================================
-            case 'internal_entity':
+            case 'authority':
 
-                $user = auth()->user();
-
-                $query = InternalEntity::withoutGlobalScope('entity_display_filtering')
+                // نتجاوز DomainScope فقط حتى يستطيع المستخدم الإداري رؤية جميع الجهات،
+                // مع الإبقاء على بقية الـ Global Scopes الخاصة بالنموذج (مثل valid_names).
+                $query = Authority::withoutGlobalScope(DomainScope::class)
                     ->with('parent');
 
-                $entityIds = [];
-
-                // تحميل النطاقات الجغرافية للمستخدم
-                $user->loadMissing('geographicScopes');
-
-                foreach ($user->geographicScopes as $scope) {
-
-                    if (! empty($scope->governorate_id) && empty($scope->directorate_id)) {
-
-                        // محافظة كاملة
-                        $entityIds = array_merge(
-                            $entityIds,
-                            InternalEntity::getAllByGovernorate($scope->governorate_id)
-                        );
-
-                    } elseif (! empty($scope->directorate_id)) {
-
-                        // مديرية محددة
-                        $entityIds = array_merge(
-                            $entityIds,
-                            InternalEntity::getAllByDirectorate($scope->directorate_id)
-                        );
-                    }
-                }
-
-                // احتياطي: إذا كان للمستخدم governorate_id مباشرة
-                if (empty($entityIds) && $user->governorate_id) {
-
-                    $entityIds = InternalEntity::getAllByGovernorate(
-                        $user->governorate_id
-                    );
-                }
-
-                $entityIds = array_unique(array_filter($entityIds));
-
-                /*
-                |--------------------------------------------------------------------------
-                | إضافة الآباء
-                |--------------------------------------------------------------------------
-                |
-                | إذا كانت الجهة داخل النطاق:
-                |
-                | الضالع
-                |   └── مكتب الصحة
-                |        └── إدارة معينة
-                |
-                | فإن المستخدم يرى الجهة + الأب + أب الأب.
-                |
-                | لكن لا يتم إضافة أي جهة من محافظة أخرى.
-                |
-                */
-
-                if (! empty($entityIds)) {
-
-                    $allowedEntityIds = $entityIds;
-
-                    // جلب الجهات المطلوبة مع parent_id
-                    $entities = InternalEntity::withoutGlobalScope('entity_display_filtering')
-                        ->whereIn('id', $entityIds)
-                        ->get(['id', 'parent_id']);
-
-                    $parentIds = $entities
-                        ->pluck('parent_id')
-                        ->filter()
-                        ->unique()
-                        ->values()
-                        ->all();
+                if ($isGeographicUser) {
 
                     /*
-                     * الصعود في شجرة الجهات حتى الوصول إلى الجذر.
-                     */
-                    while (! empty($parentIds)) {
+                    |--------------------------------------------------------------------------
+                    | مستخدم جغرافي
+                    |--------------------------------------------------------------------------
+                    | الجهات داخل نطاقه + الأب المباشر فقط.
+                    */
+                    $allowedIds = $this->getEntityIdsForGeographicBoundary(
+                        Authority::class,
+                        $geoBoundary
+                    );
 
-                        $newParentIds = [];
+                    if (empty($allowedIds)) {
+                        // مهم: لا نحوله إلى مستخدم مركزي عند عدم وجود جهات في النطاق.
+                        $query->whereRaw('1 = 0');
+                    } else {
+                        $query->whereIn('id', $allowedIds);
+                    }
 
-                        $parents = InternalEntity::withoutGlobalScope('entity_display_filtering')
-                            ->whereIn('id', $parentIds)
-                            ->get(['id', 'parent_id']);
+                    // أي فلتر قادم من الواجهة يجب أن يبقى داخل نطاق المستخدم.
+                    if (! $this->requestedLocationIsInsideBoundary($request, $geoBoundary)) {
+                        $query->whereRaw('1 = 0');
+                    } else {
+                        $requestedIds = $this->getEntityIdsForRequestedLocation(
+                            Authority::class,
+                            $request
+                        );
 
-                        foreach ($parents as $parent) {
-
-                            if (! in_array($parent->id, $allowedEntityIds, true)) {
-                                $allowedEntityIds[] = $parent->id;
-                            }
-
-                            if ($parent->parent_id) {
-                                $newParentIds[] = $parent->parent_id;
+                        if ($requestedIds !== null) {
+                            if (empty($requestedIds)) {
+                                $query->whereRaw('1 = 0');
+                            } else {
+                                $query->whereIn('id', $requestedIds);
                             }
                         }
-
-                        $parentIds = array_values(
-                            array_unique(
-                                array_diff($newParentIds, $allowedEntityIds)
-                            )
-                        );
                     }
-
-                    $allowedEntityIds = array_values(
-                        array_unique($allowedEntityIds)
-                    );
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | تطبيق النطاق
-                    |--------------------------------------------------------------------------
-                    |
-                    | لا نضيف هنا كل الجهات المركزية بشكل عام.
-                    | الأب يدخل فقط إذا كان أبًا فعليًا لجهة تقع داخل نطاق المستخدم.
-                    |
-                    */
-
-                    $query->whereIn('id', $allowedEntityIds);
 
                 } else {
 
                     /*
                     |--------------------------------------------------------------------------
-                    | المستخدم المركزي
+                    | مستخدم إداري / مركزي
                     |--------------------------------------------------------------------------
-                    |
-                    | لا يوجد له نطاق جغرافي محدد، لذلك نسمح له بالفلترة
-                    | حسب المحافظة / المديرية المختارة في الطلب.
-                    |
+                    | يرى جميع الجهات، وإذا اختار محافظة أو مديرية نفلتر النتائج
+                    | ونبقي الأب المباشر للجهات الموجودة في الاختيار.
                     */
+                    $requestedIds = $this->getEntityIdsForRequestedLocation(
+                        Authority::class,
+                        $request
+                    );
 
-                    $selectedGovernorateId =
-                        $request->filled('governorate_id') &&
-                        $request->get('governorate_id') != '0'
-                            ? $request->get('governorate_id')
-                            : null;
-
-                    $selectedDirectorateId =
-                        $request->filled('directorate_id') &&
-                        $request->get('directorate_id') != '0'
-                            ? $request->get('directorate_id')
-                            : null;
-
-                    $selectedEntityIds = [];
-
-                    if ($selectedDirectorateId) {
-
-                        $selectedEntityIds = InternalEntity::getAllByDirectorate(
-                            $selectedDirectorateId
-                        );
-
-                    } elseif ($selectedGovernorateId) {
-
-                        $selectedEntityIds = InternalEntity::getAllByGovernorate(
-                            $selectedGovernorateId
-                        );
+                    if ($requestedIds !== null) {
+                        if (empty($requestedIds)) {
+                            $query->whereRaw('1 = 0');
+                        } else {
+                            $query->whereIn('id', $requestedIds);
+                        }
                     }
+                }
+
+                $textField = 'agency_name';
+                $idField = 'id';
+
+                break;
+
+                // ========================================
+                // الجهات الداخلية
+                // ========================================
+            case 'internal_entity':
+
+                /*
+                 * entity_display_filtering و DomainScope قد يضيّقان النتائج قبل أن
+                 * نطبق قاعدة الـ Lookup المطلوبة هنا، لذلك نتجاوزهما ثم نطبق
+                 * النطاق صراحةً أدناه.
+                 */
+                $query = InternalEntity::withoutGlobalScopes([
+                    'entity_display_filtering',
+                    DomainScope::class,
+                ])->with('parent');
+
+                if ($isGeographicUser) {
 
                     /*
                     |--------------------------------------------------------------------------
-                    | إضافة الآباء للنطاق المختار
+                    | مستخدم جغرافي
                     |--------------------------------------------------------------------------
+                    | كل الجهات الواقعة داخل محافظاته/مديرياته + الأب المباشر فقط.
                     */
+                    $allowedIds = $this->getEntityIdsForGeographicBoundary(
+                        InternalEntity::class,
+                        $geoBoundary
+                    );
 
-                    if (! empty($selectedEntityIds)) {
-
-                        $allowedEntityIds = array_values(
-                            array_unique(
-                                array_filter($selectedEntityIds)
-                            )
-                        );
-
-                        $parentIds = InternalEntity::withoutGlobalScope(
-                            'entity_display_filtering'
-                        )
-                            ->whereIn('id', $allowedEntityIds)
-                            ->pluck('parent_id')
-                            ->filter()
-                            ->unique()
-                            ->values()
-                            ->all();
-
-                        while (! empty($parentIds)) {
-
-                            $newParentIds = [];
-
-                            $parents = InternalEntity::withoutGlobalScope(
-                                'entity_display_filtering'
-                            )
-                                ->whereIn('id', $parentIds)
-                                ->get(['id', 'parent_id']);
-
-                            foreach ($parents as $parent) {
-
-                                if (! in_array($parent->id, $allowedEntityIds, true)) {
-                                    $allowedEntityIds[] = $parent->id;
-                                }
-
-                                if ($parent->parent_id) {
-                                    $newParentIds[] = $parent->parent_id;
-                                }
-                            }
-
-                            $parentIds = array_values(
-                                array_unique(
-                                    array_diff($newParentIds, $allowedEntityIds)
-                                )
-                            );
-                        }
-
-                        $query->whereIn(
-                            'id',
-                            array_values(array_unique($allowedEntityIds))
-                        );
+                    if (empty($allowedIds)) {
+                        // لا نسمح بالسقوط إلى "رؤية الجميع" إذا لم توجد نتائج.
+                        $query->whereRaw('1 = 0');
+                    } else {
+                        $query->whereIn('id', $allowedIds);
                     }
 
-                    // إذا لم يحدد المستخدم محافظة أو مديرية:
-                    // يبقى المستخدم المركزي قادرًا على رؤية الجميع.
+                    // حماية من تمرير محافظة/مديرية خارج النطاق يدوياً.
+                    if (! $this->requestedLocationIsInsideBoundary($request, $geoBoundary)) {
+                        $query->whereRaw('1 = 0');
+                    } else {
+                        $requestedIds = $this->getEntityIdsForRequestedLocation(
+                            InternalEntity::class,
+                            $request
+                        );
+
+                        if ($requestedIds !== null) {
+                            if (empty($requestedIds)) {
+                                $query->whereRaw('1 = 0');
+                            } else {
+                                $query->whereIn('id', $requestedIds);
+                            }
+                        }
+                    }
+
+                } else {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | مستخدم إداري / مركزي
+                    |--------------------------------------------------------------------------
+                    | يرى جميع الجهات الداخلية. اختيار المحافظة/المديرية مجرد فلتر.
+                    */
+                    $requestedIds = $this->getEntityIdsForRequestedLocation(
+                        InternalEntity::class,
+                        $request
+                    );
+
+                    if ($requestedIds !== null) {
+                        if (empty($requestedIds)) {
+                            $query->whereRaw('1 = 0');
+                        } else {
+                            $query->whereIn('id', $requestedIds);
+                        }
+                    }
                 }
 
                 $textField = 'name';
                 $idField = 'id';
 
                 break;
+
             case 'program':
                 $query = Program::withoutGlobalScope(DomainScope::class);
                 $textField = 'name';
@@ -359,39 +308,24 @@ class LookupController extends Controller
                 // ========================================
             case 'governorate':
 
-                $user = auth()->user();
-
                 $query = Governorate::withoutGlobalScope(DomainScope::class);
 
-                // تطبيق التصفية حسب النطاق الجغرافي للمستخدم
-                if ($user) {
+                if ($isGeographicUser) {
 
-                    $governorateIds = [];
+                    /*
+                     * المديريات المحددة تتحول أيضاً إلى محافظاتها،
+                     * ولذلك مستخدم مديرية في صنعاء يرى "صنعاء" فقط.
+                     */
+                    $allowedGovernorateIds = $geoBoundary['governorate_ids'];
 
-                    foreach ($user->geographicScopes as $scope) {
-
-                        // نطاق محافظة
-                        if (! empty($scope->governorate_id) && empty($scope->directorate_id)) {
-                            $governorateIds[] = $scope->governorate_id;
-                        }
-
-                        // نطاق مديرية
-                        elseif (! empty($scope->directorate_id)) {
-                            $directorate = Directorate::find($scope->directorate_id);
-
-                            if ($directorate) {
-                                $governorateIds[] = $directorate->governorate_id;
-                            }
-                        }
-                    }
-
-                    $governorateIds = array_unique($governorateIds);
-
-                    if (! empty($governorateIds)) {
-                        $query->whereIn('id', $governorateIds);
+                    if (empty($allowedGovernorateIds)) {
+                        $query->whereRaw('1 = 0');
+                    } else {
+                        $query->whereIn('id', $allowedGovernorateIds);
                     }
                 }
 
+                // الإداري/المركزي: لا نضع whereIn => يرى جميع المحافظات.
                 $textField = 'name';
                 $idField = 'id';
 
@@ -402,20 +336,67 @@ class LookupController extends Controller
                 // ========================================
             case 'directorate':
 
-                $user = auth()->user();
-
                 $query = Directorate::withoutGlobalScope(DomainScope::class);
 
-                // فلترة حسب المحافظة المختارة
+                if ($isGeographicUser) {
+
+                    /*
+                     * إذا كان لديه نطاق محافظة كاملة: كل مديريات المحافظة.
+                     * إذا كان لديه نطاق مديرية: تلك المديرية فقط.
+                     */
+                    $wholeGovernorateIds = $geoBoundary['whole_governorate_ids'];
+                    $specificDirectorateIds = $geoBoundary['directorate_ids'];
+
+                    if (empty($wholeGovernorateIds) && empty($specificDirectorateIds)) {
+
+                        $query->whereRaw('1 = 0');
+
+                    } else {
+
+                        $query->where(function ($q) use (
+                            $wholeGovernorateIds,
+                            $specificDirectorateIds
+                        ) {
+                            $hasCondition = false;
+
+                            if (! empty($wholeGovernorateIds)) {
+                                $q->whereIn('governorate_id', $wholeGovernorateIds);
+                                $hasCondition = true;
+                            }
+
+                            if (! empty($specificDirectorateIds)) {
+                                if ($hasCondition) {
+                                    $q->orWhereIn('id', $specificDirectorateIds);
+                                } else {
+                                    $q->whereIn('id', $specificDirectorateIds);
+                                }
+                            }
+                        });
+                    }
+                }
+
+                /*
+                 * فلترة حسب المحافظة المختارة.
+                 * للمستخدم الجغرافي هذا الفلتر يتقاطع مع نطاقه ولا يستطيع توسيعه.
+                 */
                 if (
                     $request->filled('governorate_id') &&
                     $request->get('governorate_id') != '0'
                 ) {
+                    $selectedGovernorateId = (int) $request->get('governorate_id');
 
-                    $query->where(
-                        'governorate_id',
-                        $request->get('governorate_id')
-                    );
+                    if (
+                        $isGeographicUser &&
+                        ! in_array(
+                            $selectedGovernorateId,
+                            $geoBoundary['governorate_ids'],
+                            true
+                        )
+                    ) {
+                        $query->whereRaw('1 = 0');
+                    } else {
+                        $query->where('governorate_id', $selectedGovernorateId);
+                    }
                 }
 
                 $textField = 'name';
@@ -428,25 +409,18 @@ class LookupController extends Controller
                 // ========================================
             case 'sub_area':
 
-                $user = auth()->user();
-
                 $query = SubArea::query();
 
-                // فلترة حسب المديرية المختارة
                 if (
                     $request->filled('directorate_id') &&
                     $request->get('directorate_id') != '0'
                 ) {
-
                     $query->where(
                         'directorate_id',
                         $request->get('directorate_id')
                     );
-
                 } else {
-
-                    // لا تعرض شيء إذا لم يتم اختيار مديرية
-                    $query->whereRaw('1=0');
+                    $query->whereRaw('1 = 0');
                 }
 
                 $textField = 'name';
@@ -461,27 +435,23 @@ class LookupController extends Controller
 
                 $query = Village::query();
 
-                // فلترة حسب العزلة المختارة
                 if (
                     $request->filled('sub_area_id') &&
                     $request->get('sub_area_id') != '0'
                 ) {
-
                     $query->where(
                         'sub_area_id',
                         $request->get('sub_area_id')
                     );
-
                 } else {
-
-                    // لا تعرض شيء إذا لم يتم اختيار عزلة
-                    $query->whereRaw('1=0');
+                    $query->whereRaw('1 = 0');
                 }
 
                 $textField = 'name';
                 $idField = 'id';
 
                 break;
+
             case 'beneficiary_group':
                 $query = BeneficiaryGroup::query();
                 $textField = 'name';
@@ -491,9 +461,11 @@ class LookupController extends Controller
                 return response()->json(['error' => 'Invalid lookup type'], 400);
         }
 
-        // تطبيق فلتر is_active / status
+        // ========================================
+        // approved / pending / active filters
+        // ========================================
         if ($query && $includePending) {
-            // Project module: include approved AND pending records; exclude rejected.
+
             if (Schema::hasColumn($query->getModel()->getTable(), 'status')) {
                 $query->where(function ($q) {
                     $q->whereIn('status', [0, 1])
@@ -501,9 +473,11 @@ class LookupController extends Controller
                         ->orWhereNull('status');
                 });
             }
-            // Do NOT filter by is_active so pending (is_active=false) records are visible.
+
+            // لا نفلتر is_active هنا حتى تظهر المسودات pending.
+
         } else {
-            // Default behaviour: approved records only.
+
             if ($query && Schema::hasColumn($query->getModel()->getTable(), 'is_active')) {
                 $query->where('is_active', true);
             }
@@ -517,21 +491,31 @@ class LookupController extends Controller
             }
         }
 
-        // تطبيق البحث (إن وجد)
+        // ========================================
+        // البحث النصي
+        // ========================================
         if (! empty($search)) {
             $query->where($textField, 'like', "%{$search}%");
         }
 
-        // تحديد الأعمدة المطلوب جلبها
+        // ========================================
+        // الأعمدة
+        // ========================================
         $columns = [$idField, $textField];
-        if (in_array($type, ['authority', 'internal_entity'])) {
+
+        if (in_array($type, ['authority', 'internal_entity'], true)) {
             $columns[] = 'parent_id';
         }
 
-        $results = $query->limit($limit)->get($columns);
+        $results = $query
+            ->limit(max(1, min($limit, 100)))
+            ->get(array_unique($columns));
 
-        // تحويل النتائج إلى صيغة مناسبة لـ Select2
+        // ========================================
+        // Select2 response
+        // ========================================
         $formattedResults = $results->map(function ($item) use ($idField, $textField, $type) {
+
             $data = [
                 'id' => $item->$idField,
                 'text' => __($item->$textField),
@@ -539,90 +523,447 @@ class LookupController extends Controller
 
             if ($type === 'authority') {
                 $data['parent_id'] = $item->parent_id;
-                $data['parent_name'] = $item->parent ? $item->parent->agency_name : 'لا توجد جهة أب';
+                $data['parent_name'] = $item->parent
+                    ? $item->parent->agency_name
+                    : 'لا توجد جهة أب';
+
             } elseif ($type === 'internal_entity') {
                 $data['parent_id'] = $item->parent_id;
-                $data['parent_name'] = $item->parent ? $item->parent->name : 'لا توجد جهة أب';
+                $data['parent_name'] = $item->parent
+                    ? $item->parent->name
+                    : 'لا توجد جهة أب';
             }
 
             return $data;
         });
 
-        // إدراج خيار "غير ذلك" برمجياً للبيانات المرجعية (بدون تخزينها في قاعدة البيانات)
+        // ========================================
+        // خيار "غير ذلك"
+        // ========================================
         $otherSupportedTypes = [
             'intervention',
-            'authority', 'internal_entity', 'financial_item', 'unit',
-            'financing_type', 'beneficiary_group', 'sub_area',
+            'authority',
+            'internal_entity',
+            'financial_item',
+            'unit',
+            'financing_type',
+            'beneficiary_group',
+            'sub_area',
         ];
 
-        if (in_array($type, $otherSupportedTypes)) {
+        if (in_array($type, $otherSupportedTypes, true)) {
             $formattedResults = $formattedResults->reject(function ($item) {
                 return trim($item['text'] ?? '') === 'غير ذلك';
             });
-            $formattedResults->push(['id' => 'other', 'text' => 'غير ذلك']);
+
+            $formattedResults->push([
+                'id' => 'other',
+                'text' => 'غير ذلك',
+            ]);
         }
 
-        // إضافة خيار "الكل" للكيانات الجغرافية
-        if (in_array($type, ['governorate', 'directorate', 'sub_area', 'village'])) {
+        // ========================================
+        // خيار "الكل" للبيانات الجغرافية
+        // ========================================
+        if (in_array($type, ['governorate', 'directorate', 'sub_area', 'village'], true)) {
+
             $allText = match ($type) {
-                'governorate' => 'جميع المحافظات',
-                'directorate' => 'جميع المديريات',
+                'governorate' => $isGeographicUser
+                    ? 'جميع المحافظات ضمن النطاق'
+                    : 'جميع المحافظات',
+
+                'directorate' => $isGeographicUser
+                    ? 'جميع المديريات ضمن النطاق'
+                    : 'جميع المديريات',
+
                 'sub_area' => 'جميع المناطق الفرعية',
                 'village' => 'جميع القرى والحارات',
                 default => '',
             };
 
-            // لا نضيف خيار "الكل" إذا كان هناك نتيجة واحدة فقط
+            // لا نضيف "الكل" إذا كانت هناك نتيجة واحدة فقط.
             if ($allText && $formattedResults->count() !== 1) {
-                $formattedResults->prepend(['id' => '0', 'text' => $allText]);
+                $formattedResults->prepend([
+                    'id' => '0',
+                    'text' => $allText,
+                ]);
             }
         }
 
-        return response()->json(['results' => $formattedResults]);
+        return response()->json([
+            'results' => $formattedResults,
+        ]);
     }
 
     // -------------------------------------------------------------------------
-    // Helper methods for filtering
+    // Geographic scope helpers
     // -------------------------------------------------------------------------
 
     /**
-     * تطبيق فلترة الجهة الإدارية + الأبناء (شجرة من مستوى واحد أو متعدد)
-     * تحاكي منطق getProjects: الجهة الحالية + كل الجهات التابعة لها.
+     * بناء النطاق الجغرافي الفعلي للمستخدم من جميع المصادر الموجودة في النظام:
      *
-     * @param  Builder  $query
-     * @param  int|null  $entityId
+     * 1) user_geographic_scopes
+     * 2) users.governorate_id / users.directorate_id
+     * 3) الجهة/الـ authority المرتبطة بالمستخدم عبر helpers الموجودة في User
+     *
+     * directorate_id له أولوية على governorate_id في نفس التعيين:
+     * - محافظة بدون مديرية => المحافظة كاملة.
+     * - مديرية => المديرية فقط.
      */
-    private function applyInternalEntitySubtreeFilter($query, $entityId): void
+    private function resolveUserGeographicBoundary($user): array
     {
-        if (! $entityId) {
-            $query->whereRaw('1=0'); // لا نتائج
+        $user->loadMissing('geographicScopes');
 
-            return;
+        $wholeGovernorateIds = [];
+        $directorateIds = [];
+
+        // -------------------------------------------------
+        // 1) النطاقات الإضافية من user_geographic_scopes
+        // -------------------------------------------------
+        foreach ($user->geographicScopes as $scope) {
+
+            if (! empty($scope->directorate_id)) {
+                $directorateIds[] = (int) $scope->directorate_id;
+
+            } elseif (! empty($scope->governorate_id)) {
+                $wholeGovernorateIds[] = (int) $scope->governorate_id;
+            }
         }
 
-        // الحصول على الجهة الحالية وجميع الأحفاد (أي مستوى)
-        // طريقة بسيطة: استخدام CTE إذا كان يدعمها الإصدار، أو جلب جميع المعرفات بشكل متكرر.
-        // هنا نستخدم طريقة recursion على مستوى قاعدة البيانات (مناسب للبيانات غير الضخمة)
+        // -------------------------------------------------
+        // 2) التعيين المباشر على المستخدم
+        // -------------------------------------------------
+        if (! empty($user->directorate_id)) {
+            $directorateIds[] = (int) $user->directorate_id;
 
-        $ids = $this->getInternalEntityIdsWithDescendants($entityId);
-        $query->whereIn('id', $ids);
+        } elseif (! empty($user->governorate_id)) {
+            $wholeGovernorateIds[] = (int) $user->governorate_id;
+        }
+
+        // -------------------------------------------------
+        // 3) الموقع المستنتج من جهة المستخدم / authority
+        // -------------------------------------------------
+        $primaryDirectorateId = (int) ($user->getAssignedDirectorateId() ?? 0);
+        $primaryGovernorateId = (int) ($user->getAssignedGovernorateId() ?? 0);
+
+        if ($primaryDirectorateId > 0) {
+            $directorateIds[] = $primaryDirectorateId;
+
+        } elseif ($primaryGovernorateId > 0) {
+            $wholeGovernorateIds[] = $primaryGovernorateId;
+        }
+
+        $wholeGovernorateIds = array_values(
+            array_unique(
+                array_filter(
+                    array_map('intval', $wholeGovernorateIds)
+                )
+            )
+        );
+
+        $directorateIds = array_values(
+            array_unique(
+                array_filter(
+                    array_map('intval', $directorateIds)
+                )
+            )
+        );
+
+        /*
+         * نحصل على محافظات المديريات المحددة لكي نستخدمها في Dropdown المحافظات
+         * وفي التحقق من governorate_id القادم من الطلب.
+         */
+        $directorateGovernorateIds = [];
+
+        if (! empty($directorateIds)) {
+            $directorateGovernorateIds = Directorate::withoutGlobalScope(DomainScope::class)
+                ->whereIn('id', $directorateIds)
+                ->pluck('governorate_id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        $governorateIds = array_values(
+            array_unique(
+                array_merge(
+                    $wholeGovernorateIds,
+                    $directorateGovernorateIds
+                )
+            )
+        );
+
+        return [
+            'has_geo' => ! empty($wholeGovernorateIds) || ! empty($directorateIds),
+
+            // محافظات يسمح للمستخدم بكل مديرياتها وكل جهاتها.
+            'whole_governorate_ids' => $wholeGovernorateIds,
+
+            // مديريات محددة يسمح للمستخدم بها فقط.
+            'directorate_ids' => $directorateIds,
+
+            // جميع المحافظات التي ينتمي إليها نطاق المستخدم، بما فيها محافظات المديريات المحددة.
+            'governorate_ids' => $governorateIds,
+        ];
     }
 
     /**
-     * الحصول على array بمعرفات الجهة المحددة وجميع أحفادها (بأي عمق)
+     * جلب IDs الجهات الواقعة داخل النطاق الجغرافي + الأب المباشر فقط.
      *
-     * @param  int  $rootId
+     * @param  class-string  $modelClass  Authority::class أو InternalEntity::class
      */
-    private function getInternalEntityIdsWithDescendants($rootId): array
-    {
-        $ids = [$rootId];
-        $children = InternalEntity::where('parent_id', $rootId)->pluck('id')->toArray();
+    private function getEntityIdsForGeographicBoundary(
+        string $modelClass,
+        array $boundary
+    ): array {
+        return $this->getEntityIdsForLocation(
+            $modelClass,
+            $boundary['whole_governorate_ids'] ?? [],
+            $boundary['directorate_ids'] ?? []
+        );
+    }
 
-        while (! empty($children)) {
-            $ids = array_merge($ids, $children);
-            $children = InternalEntity::whereIn('parent_id', $children)->pluck('id')->toArray();
+    /**
+     * جلب IDs الجهات حسب المحافظة/المديرية الموجودة في request + الأب المباشر فقط.
+     *
+     * null = لا يوجد فلتر محافظة ولا مديرية.
+     * []   = يوجد فلتر لكن لا توجد جهات مطابقة.
+     */
+    private function getEntityIdsForRequestedLocation(
+        string $modelClass,
+        Request $request
+    ): ?array {
+        $selectedGovernorateId =
+            $request->filled('governorate_id') &&
+            $request->get('governorate_id') != '0'
+                ? (int) $request->get('governorate_id')
+                : null;
+
+        $selectedDirectorateId =
+            $request->filled('directorate_id') &&
+            $request->get('directorate_id') != '0'
+                ? (int) $request->get('directorate_id')
+                : null;
+
+        if (! $selectedGovernorateId && ! $selectedDirectorateId) {
+            return null;
         }
 
-        return $ids;
+        // المديرية أكثر تحديداً من المحافظة.
+        if ($selectedDirectorateId) {
+            return $this->getEntityIdsForLocation(
+                $modelClass,
+                [],
+                [$selectedDirectorateId]
+            );
+        }
+
+        return $this->getEntityIdsForLocation(
+            $modelClass,
+            [$selectedGovernorateId],
+            []
+        );
+    }
+
+    /**
+     * جلب الجهات المطابقة لموقع معين مع الأب المباشر فقط.
+     *
+     * - wholeGovernorateIds: تشمل كل الجهات التابعة للمحافظة، حتى لو كان
+     *   governorate_id فارغاً في الجهة لكن directorate_id ينتمي للمحافظة.
+     * - directorateIds: تشمل الجهات التابعة للمديريات المحددة فقط.
+     */
+    private function getEntityIdsForLocation(
+        string $modelClass,
+        array $wholeGovernorateIds,
+        array $directorateIds
+    ): array {
+        $wholeGovernorateIds = array_values(
+            array_unique(
+                array_filter(
+                    array_map('intval', $wholeGovernorateIds)
+                )
+            )
+        );
+
+        $directorateIds = array_values(
+            array_unique(
+                array_filter(
+                    array_map('intval', $directorateIds)
+                )
+            )
+        );
+
+        if (empty($wholeGovernorateIds) && empty($directorateIds)) {
+            return [];
+        }
+
+        /*
+         * بعض البيانات قد تحمل directorate_id فقط بدون governorate_id،
+         * لذلك عند نطاق محافظة كاملة نضيف كل مديريات تلك المحافظة.
+         */
+        $directoratesInsideWholeGovernorates = [];
+
+        if (! empty($wholeGovernorateIds)) {
+            $directoratesInsideWholeGovernorates =
+                Directorate::withoutGlobalScope(DomainScope::class)
+                    ->whereIn('governorate_id', $wholeGovernorateIds)
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
+        }
+
+        /*
+         * نستخدم withoutGlobalScopes هنا فقط لحساب المعرفات المسموح بها،
+         * ثم الاستعلام الرئيسي يطبق Global Scopes/active/status المناسبة.
+         */
+        $locationQuery = $modelClass::withoutGlobalScopes();
+
+        $locationQuery->where(function ($q) use (
+            $wholeGovernorateIds,
+            $directorateIds,
+            $directoratesInsideWholeGovernorates
+        ) {
+            $hasCondition = false;
+
+            if (! empty($wholeGovernorateIds)) {
+                $q->whereIn('governorate_id', $wholeGovernorateIds);
+                $hasCondition = true;
+            }
+
+            if (! empty($directoratesInsideWholeGovernorates)) {
+                if ($hasCondition) {
+                    $q->orWhereIn('directorate_id', $directoratesInsideWholeGovernorates);
+                } else {
+                    $q->whereIn('directorate_id', $directoratesInsideWholeGovernorates);
+                }
+
+                $hasCondition = true;
+            }
+
+            if (! empty($directorateIds)) {
+                if ($hasCondition) {
+                    $q->orWhereIn('directorate_id', $directorateIds);
+                } else {
+                    $q->whereIn('directorate_id', $directorateIds);
+                }
+            }
+        });
+
+        $entityIds = $locationQuery
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($entityIds)) {
+            return [];
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | الأب المباشر فقط
+        |--------------------------------------------------------------------------
+        |
+        | لا نصعد حتى الجذر ولا نضيف "أب الأب".
+        | هذا يحقق قاعدة: الجهة داخل النطاق + الأب الخاص بها فقط.
+        |
+        */
+        $parentIds = $modelClass::withoutGlobalScopes()
+            ->whereIn('id', $entityIds)
+            ->pluck('parent_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return array_values(
+            array_unique(
+                array_merge($entityIds, $parentIds)
+            )
+        );
+    }
+
+    /**
+     * منع المستخدم الجغرافي من تمرير governorate_id/directorate_id خارج نطاقه.
+     */
+    private function requestedLocationIsInsideBoundary(
+        Request $request,
+        array $boundary
+    ): bool {
+        $selectedGovernorateId =
+            $request->filled('governorate_id') &&
+            $request->get('governorate_id') != '0'
+                ? (int) $request->get('governorate_id')
+                : null;
+
+        $selectedDirectorateId =
+            $request->filled('directorate_id') &&
+            $request->get('directorate_id') != '0'
+                ? (int) $request->get('directorate_id')
+                : null;
+
+        if (
+            $selectedGovernorateId &&
+            ! in_array(
+                $selectedGovernorateId,
+                $boundary['governorate_ids'] ?? [],
+                true
+            )
+        ) {
+            return false;
+        }
+
+        if ($selectedDirectorateId) {
+
+            // مديرية محددة صراحة ضمن نطاق المستخدم.
+            if (
+                in_array(
+                    $selectedDirectorateId,
+                    $boundary['directorate_ids'] ?? [],
+                    true
+                )
+            ) {
+                return true;
+            }
+
+            /*
+             * أو مديرية تقع داخل محافظة أعطيت للمستخدم كنطاق محافظة كاملة.
+             */
+            $directorateGovernorateId =
+                Directorate::withoutGlobalScope(DomainScope::class)
+                    ->where('id', $selectedDirectorateId)
+                    ->value('governorate_id');
+
+            if (
+                ! $directorateGovernorateId ||
+                ! in_array(
+                    (int) $directorateGovernorateId,
+                    $boundary['whole_governorate_ids'] ?? [],
+                    true
+                )
+            ) {
+                return false;
+            }
+
+            /*
+             * إذا أرسل الطلب المحافظة والمديرية معاً يجب أن تكون المديرية
+             * بالفعل داخل المحافظة المختارة.
+             */
+            if (
+                $selectedGovernorateId &&
+                (int) $directorateGovernorateId !== $selectedGovernorateId
+            ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

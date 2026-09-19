@@ -9,6 +9,7 @@ class TypeEntityController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', TypeEntity::class);
         $types = TypeEntity::latest()->paginate(10);
 
         return view('configuration.type_entity.index', compact('types'));
@@ -16,11 +17,14 @@ class TypeEntityController extends Controller
 
     public function create()
     {
+        $this->authorize('create', TypeEntity::class);
+
         return view('configuration.type_entity.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', TypeEntity::class);
         $request->validate([
             'name' => 'required|unique:type_entities,name',
         ]);
@@ -35,6 +39,7 @@ class TypeEntityController extends Controller
 
     public function edit($id)
     {
+        $this->authorize('update', TypeEntity::class);
         $type = TypeEntity::findOrFail($id);
 
         return view('configuration.type_entity.edit', compact('type'));
@@ -42,6 +47,7 @@ class TypeEntityController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorize('update', TypeEntity::class);
         $type = TypeEntity::findOrFail($id);
 
         $request->validate([
@@ -58,6 +64,7 @@ class TypeEntityController extends Controller
 
     public function destroy($id)
     {
+        $this->authorize('delete', TypeEntity::class);
         TypeEntity::destroy($id);
 
         return back();

@@ -15,6 +15,7 @@ class BeneficiaryGroupController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', BeneficiaryGroup::class);
         $perPage = $request->query('per_page', 20);
         $perPage = in_array($perPage, [20, 100, 500]) ? $perPage : 20;
 
@@ -40,6 +41,8 @@ class BeneficiaryGroupController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', BeneficiaryGroup::class);
+
         return view('configuration.beneficiary_group.create');
     }
 
@@ -48,6 +51,7 @@ class BeneficiaryGroupController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', BeneficiaryGroup::class);
         // التحقق من البيانات
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:beneficiary_groups,name',
@@ -65,6 +69,7 @@ class BeneficiaryGroupController extends Controller
      */
     public function edit($id)
     {
+        $this->authorize('update', BeneficiaryGroup::class);
         $beneficiaryGroup = BeneficiaryGroup::findOrFail($id);
 
         return view('configuration.beneficiary_group.edit', compact('beneficiaryGroup'));
@@ -75,6 +80,7 @@ class BeneficiaryGroupController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->authorize('update', BeneficiaryGroup::class);
         $beneficiaryGroup = BeneficiaryGroup::findOrFail($id);
 
         // التحقق من البيانات
@@ -94,6 +100,7 @@ class BeneficiaryGroupController extends Controller
      */
     public function destroy($id)
     {
+        $this->authorize('delete', BeneficiaryGroup::class);
         $beneficiaryGroup = BeneficiaryGroup::findOrFail($id);
         $beneficiaryGroup->delete();
 
@@ -106,6 +113,7 @@ class BeneficiaryGroupController extends Controller
      */
     public function show($id)
     {
+        $this->authorize('view', BeneficiaryGroup::class);
         $beneficiaryGroup = BeneficiaryGroup::findOrFail($id);
 
         return view('configuration.beneficiary_group.show', compact('beneficiaryGroup'));

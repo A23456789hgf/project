@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -93,6 +94,19 @@ class ProjectReferral extends Model
     public function scopeResponded($query)
     {
         return $query->where('status', 'responded');
+    }
+
+    public function scopeActionableFor(Builder $query, User $user): Builder
+    {
+        return $query->where(function (Builder $query) use ($user) {
+            $query->where(function (Builder $query) use ($user) {
+                $query->where('status', 'pending')
+                    ->where('referred_user_id', $user->id);
+            })->orWhere(function (Builder $query) use ($user) {
+                $query->where('status', 'responded')
+                    ->where('referring_user_id', $user->id);
+            });
+        });
     }
 
     public function scopeForEntity($query, $entityId)

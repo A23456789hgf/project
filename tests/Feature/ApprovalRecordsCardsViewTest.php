@@ -2,8 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\EntityResponsibilityType;
 use App\Enums\ProjectStatus;
-use App\Enums\ReturnTarget;
+use App\Models\EntityApprovalStage;
 use App\Models\InternalEntity;
 use App\Models\Permission;
 use App\Models\Project;
@@ -194,6 +195,27 @@ class ApprovalRecordsCardsViewTest extends TestCase
             'signature_path' => 'signatures/test_signature.png',
             'user_type' => 'admin',
         ]);
+
+        // Entity Approval Stages Configuration
+        foreach ([
+            EntityResponsibilityType::TechnicalReview,
+            EntityResponsibilityType::FinancialReview,
+            EntityResponsibilityType::Approval,
+        ] as $type) {
+            EntityApprovalStage::create([
+                'entity_id' => $this->childEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $this->childReviewerUser->id,
+            ]);
+
+            EntityApprovalStage::create([
+                'entity_id' => $this->parentEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $this->parentUser->id,
+            ]);
+        }
     }
 
     protected function createProjectWithChain(): Project
@@ -217,7 +239,7 @@ class ApprovalRecordsCardsViewTest extends TestCase
     // 1. APPROVAL RECORDS & CARDS VIEW RENDERING
     // =========================================================================
 
-    public function test_approval_records_rendered_as_cards_with_required_fields(): void
+    public function test_approval_records_rendered_as_table_with_required_fields(): void
     {
         $project = $this->createProjectWithChain();
         $activeStep = $project->getActiveApprovalStep();
@@ -235,22 +257,20 @@ class ApprovalRecordsCardsViewTest extends TestCase
         // 3. Approval phase label
         $response->assertSee($activeStep->getPhaseLabel());
 
-        // 4. Step order number
-        $response->assertSee('الخطوة '.$activeStep->step_order);
+        $response->assertSee('<table', false);
+        $response->assertSee('رقم / المشروع');
+        $response->assertSee('الجهة المخصصة');
+        $response->assertDontSee('approval-record-card');
 
-        // 5. Card CSS class
-        $response->assertSee('approval-record-card');
-
-        // 6. Action button [عرض المشروع]
         $response->assertSee(route('approvals.show', $project->id));
-        $response->assertSee('عرض المشروع');
+        $response->assertSee('التفاصيل');
     }
 
     // =========================================================================
     // 2. ACTIVE APPROVAL CARD INDICATORS
     // =========================================================================
 
-    public function test_active_approval_rendered_with_active_indicators(): void
+    public function test_only_active_approval_record_is_rendered(): void
     {
         $project = $this->createProjectWithChain();
         $activeStep = $project->getActiveApprovalStep();
@@ -258,58 +278,26 @@ class ApprovalRecordsCardsViewTest extends TestCase
         $response = $this->actingAs($this->childReviewerUser)->get(route('approvals.index', ['tab' => 'my_action']));
         $response->assertStatus(200);
 
-        // Assert active step badge & card class
-        $response->assertSee('الخطوة النشطة');
-        $response->assertSee('card-active');
+        $records = $response->viewData('approvalRecords');
+        $this->assertCount(1, $records);
+        $this->assertTrue($records->contains('id', $activeStep->id));
     }
 
     // =========================================================================
     // 3. DIFFERENT APPROVAL CARD STATUSES
     // =========================================================================
 
-    public function test_different_approval_card_statuses_rendered_correctly(): void
+    public function test_completed_record_is_replaced_by_the_new_active_step(): void
     {
-        // 1. Pending & Active
-        $project1 = $this->createProjectWithChain();
+        $project = $this->createProjectWithChain();
+        $completedStep = $project->getActiveApprovalStep();
 
-        $response = $this->actingAs($this->childReviewerUser)->get(route('approvals.index', ['tab' => 'my_action']));
-        $response->assertStatus(200);
-        $response->assertSee('الخطوة النشطة');
-
-        // 2. Completed / Approved
-        $this->approvalService->approveActiveStep($project1, $this->childReviewerUser, 'تم الاعتماد');
+        $this->approvalService->approveActiveStep($project, $this->childReviewerUser, 'تم الاعتماد');
         $completedResponse = $this->actingAs($this->childReviewerUser)->get(route('approvals.index', ['tab' => 'completed']));
         $completedResponse->assertStatus(200);
-        $completedResponse->assertSee('معتمد');
-        $completedResponse->assertSee('card-approved');
-
-        // 3. Returned / Need Action
-        $project2 = $this->createProjectWithChain();
-        $this->approvalService->requestCompletion(
-            $project2,
-            $this->childReviewerUser,
-            'يرجى استكمال الوثائق الفنية',
-            ReturnTarget::CreatorEntity
-        );
-        $returnedResponse = $this->actingAs($this->childReviewerUser)->get(route('approvals.index', ['tab' => 'returned']));
-        $returnedResponse->assertStatus(200);
-        $returnedResponse->assertSee('معاد للاستكمال');
-        $returnedResponse->assertSee('card-returned');
-
-        // 4. Rejected
-        $project3 = $this->createProjectWithChain();
-        $this->approvalService->rejectActiveStep($project3, $this->childReviewerUser, 'رفض نهائي للمشروع');
-        $rejectedResponse = $this->actingAs($this->childReviewerUser)->get(route('approvals.index', ['tab' => 'rejected']));
-        $rejectedResponse->assertStatus(200);
-        $rejectedResponse->assertSee('مرفوض');
-        $rejectedResponse->assertSee('card-rejected');
-
-        // 5. Locked
-        $project4 = $this->createProjectWithChain();
-        // For parent user, the child entity step is waiting others, while parent step is locked
-        $waitingResponse = $this->actingAs($this->parentUser)->get(route('approvals.index', ['tab' => 'waiting_others']));
-        $waitingResponse->assertStatus(200);
-        $waitingResponse->assertSee('مقفلة');
+        $records = $completedResponse->viewData('approvalRecords');
+        $this->assertFalse($records->contains('id', $completedStep->id));
+        $this->assertTrue($records->every(fn ($record) => $record->is_active && $record->status === 'pending'));
     }
 
     // =========================================================================
@@ -323,12 +311,12 @@ class ApprovalRecordsCardsViewTest extends TestCase
         // 1. Authorized user (child reviewer whose entity matches Step 1)
         $authorizedResponse = $this->actingAs($this->childReviewerUser)->get(route('approvals.index', ['tab' => 'my_action']));
         $authorizedResponse->assertStatus(200);
-        $authorizedResponse->assertSee('اتخاذ الإجراء');
+        $authorizedResponse->assertSee(route('approvals.show', $project));
 
         // 2. Unauthorized user (parent user when step is with child entity)
         $unauthorizedResponse = $this->actingAs($this->parentUser)->get(route('approvals.index', ['tab' => 'waiting_others']));
         $unauthorizedResponse->assertStatus(200);
-        $unauthorizedResponse->assertDontSee('اتخاذ الإجراء');
+        $unauthorizedResponse->assertDontSee($project->project_name);
     }
 
     // =========================================================================
@@ -421,7 +409,7 @@ class ApprovalRecordsCardsViewTest extends TestCase
         $showResponse = $this->actingAs($this->childReviewerUser)->get(route('approvals.show', $project));
         $showResponse->assertStatus(200);
         $showResponse->assertSee($project->project_name);
-        $showResponse->assertSee('مسار وسلسلة الاعتمادات');
+        $showResponse->assertDontSee('مسار وسلسلة الاعتمادات');
         $showResponse->assertSee('لوحة اتخاذ القرار');
     }
 

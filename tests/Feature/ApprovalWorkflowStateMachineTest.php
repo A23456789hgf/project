@@ -4,11 +4,13 @@ namespace Tests\Feature;
 
 use App\Enums\ApprovalPhase;
 use App\Enums\ApprovalStepStatus;
+use App\Enums\EntityResponsibilityType;
 use App\Enums\ProjectStatus;
 use App\Enums\ReturnTarget;
 use App\Exceptions\InvalidWorkflowTransitionException;
 use App\Exceptions\UnauthorizedWorkflowActionException;
 use App\Exceptions\WorkflowValidationException;
+use App\Models\EntityApprovalStage;
 use App\Models\InternalEntity;
 use App\Models\Project;
 use App\Models\ProjectApproval;
@@ -63,6 +65,7 @@ class ApprovalWorkflowStateMachineTest extends TestCase
             'email' => 'creator_'.uniqid().'@test.com',
             'password' => bcrypt('password'),
             'entity_id' => $this->childEntity->id,
+            'status' => 'Active',
         ]);
 
         $this->childReviewer = User::withoutGlobalScopes()->create([
@@ -73,6 +76,7 @@ class ApprovalWorkflowStateMachineTest extends TestCase
             'email' => 'child_rev_'.uniqid().'@test.com',
             'password' => bcrypt('password'),
             'entity_id' => $this->childEntity->id,
+            'status' => 'Active',
         ]);
 
         $this->parentReviewer = User::withoutGlobalScopes()->create([
@@ -83,6 +87,7 @@ class ApprovalWorkflowStateMachineTest extends TestCase
             'email' => 'parent_rev_'.uniqid().'@test.com',
             'password' => bcrypt('password'),
             'entity_id' => $this->parentEntity->id,
+            'status' => 'Active',
         ]);
 
         $unrelatedEntity = InternalEntity::withoutGlobalScopes()->create([
@@ -98,7 +103,29 @@ class ApprovalWorkflowStateMachineTest extends TestCase
             'email' => 'outsider_'.uniqid().'@test.com',
             'password' => bcrypt('password'),
             'entity_id' => $unrelatedEntity->id,
+            'status' => 'Active',
         ]);
+
+        // Entity Approval Stages Configuration
+        foreach ([
+            EntityResponsibilityType::TechnicalReview,
+            EntityResponsibilityType::FinancialReview,
+            EntityResponsibilityType::Approval,
+        ] as $type) {
+            EntityApprovalStage::create([
+                'entity_id' => $this->childEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $this->childReviewer->id,
+            ]);
+
+            EntityApprovalStage::create([
+                'entity_id' => $this->parentEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $this->parentReviewer->id,
+            ]);
+        }
     }
 
     protected function createDraftProject(): Project

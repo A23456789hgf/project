@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Participant;
+use App\Models\Participation;
 use Illuminate\Http\Request;
 
 class ParticipationController extends Controller
@@ -10,6 +11,7 @@ class ParticipationController extends Controller
     // GET /participation
     public function index()
     {
+        $this->authorize('viewAny', Participation::class);
         $participants = Participant::orderBy('id', 'desc')->get();
 
         return view('configuration.participation.index', compact('participants'));
@@ -18,12 +20,15 @@ class ParticipationController extends Controller
     // GET /participation/create
     public function create()
     {
+        $this->authorize('create', Participation::class);
+
         return view('configuration.participation.create');
     }
 
     // POST /participation
     public function store(Request $request)
     {
+        $this->authorize('create', Participation::class);
         $request->validate([
             'name' => 'required|unique:participants,name',
         ]);
@@ -39,12 +44,15 @@ class ParticipationController extends Controller
     // GET /participation/{id}/edit
     public function edit(Participant $participant)
     {
+        $this->authorize('update', Participation::class);
+
         return view('configuration.participation.edit', compact('participant'));
     }
 
     // PUT /participation/{id}
     public function update(Request $request, Participant $participant)
     {
+        $this->authorize('update', Participation::class);
         $request->validate([
             'name' => 'required|unique:participants,name,'.$participant->id,
             'is_active' => 'required|boolean',
@@ -66,6 +74,7 @@ class ParticipationController extends Controller
     // DELETE /participation/{id}
     public function destroy(Participant $participant)
     {
+        $this->authorize('delete', Participation::class);
         $participant->delete();
 
         return redirect()->route('participation.index')->with('success', 'تم الحذف بنجاح');

@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\EntityResponsibilityType;
 use App\Enums\ReturnTarget;
+use App\Models\EntityApprovalStage;
 use App\Models\InternalEntity;
 use App\Models\Permission;
 use App\Models\Project;
@@ -130,6 +132,27 @@ class ProjectApprovalBladeViewTest extends TestCase
             'role_id' => $role->id,
             'signature' => 'signatures/test_signature.png',
         ]);
+
+        // Entity Approval Stages Configuration
+        foreach ([
+            EntityResponsibilityType::TechnicalReview,
+            EntityResponsibilityType::FinancialReview,
+            EntityResponsibilityType::Approval,
+        ] as $type) {
+            EntityApprovalStage::create([
+                'entity_id' => $this->childEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $this->childUser->id,
+            ]);
+
+            EntityApprovalStage::create([
+                'entity_id' => $this->parentEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $this->parentUser->id,
+            ]);
+        }
     }
 
     protected function createProject(string $status = 'draft'): Project

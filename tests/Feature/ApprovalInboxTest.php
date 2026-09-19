@@ -178,6 +178,12 @@ class ApprovalInboxTest extends TestCase
             'is_active' => true,
         ]);
 
+        $adminRole = Role::create([
+            'name' => 'Admin',
+            'is_active' => true,
+            'full_access' => true,
+        ]);
+
         $this->adminUser = User::withoutGlobalScopes()->create([
             'name' => 'Admin User',
             'username' => 'admin_'.uniqid(),
@@ -186,7 +192,7 @@ class ApprovalInboxTest extends TestCase
             'email' => 'admin_'.uniqid().'@test.com',
             'password' => bcrypt('password'),
             'entity_id' => null,
-            'role_id' => $this->reviewRole->id,
+            'role_id' => $adminRole->id,
             'signature' => 'signatures/test_signature.png',
             'signature_path' => 'signatures/test_signature.png',
             'is_active' => true,
@@ -232,7 +238,6 @@ class ApprovalInboxTest extends TestCase
         $response->assertStatus(200);
         $records = $response->viewData('approvalRecords');
         $this->assertTrue($records->contains('id', $approval->id));
-        $this->assertEquals(1, $response->viewData('myActionCount'));
     }
 
     public function test_unassigned_user_in_same_entity_does_not_see_assigned_task(): void
@@ -244,7 +249,6 @@ class ApprovalInboxTest extends TestCase
         $response->assertStatus(200);
         $records = $response->viewData('approvalRecords');
         $this->assertFalse($records->contains('id', $approval->id));
-        $this->assertEquals(0, $response->viewData('myActionCount'));
     }
 
     public function test_user_in_different_entity_does_not_see_approval_task(): void
@@ -256,7 +260,6 @@ class ApprovalInboxTest extends TestCase
         $response->assertStatus(200);
         $records = $response->viewData('approvalRecords');
         $this->assertFalse($records->contains('id', $approval->id));
-        $this->assertEquals(0, $response->viewData('myActionCount'));
     }
 
     public function test_admin_user_sees_all_approval_records(): void
@@ -284,7 +287,6 @@ class ApprovalInboxTest extends TestCase
         // 3. Disappears from Assigned Reviewer inbox
         $resAfter = $this->actingAs($this->assignedReviewer)->get(route('approvals.index'));
         $this->assertFalse($resAfter->viewData('approvalRecords')->contains('id', $approval->id));
-        $this->assertEquals(0, $resAfter->viewData('myActionCount'));
 
         // 4. Historical integrity: Record still exists in database
         $this->assertDatabaseHas('project_approvals', [
@@ -304,7 +306,6 @@ class ApprovalInboxTest extends TestCase
         // 2. Disappears from Assigned Reviewer inbox
         $resAfter = $this->actingAs($this->assignedReviewer)->get(route('approvals.index'));
         $this->assertFalse($resAfter->viewData('approvalRecords')->contains('id', $approval->id));
-        $this->assertEquals(0, $resAfter->viewData('myActionCount'));
 
         // 3. Historical integrity: Record still exists in database
         $this->assertDatabaseHas('project_approvals', [
@@ -333,7 +334,6 @@ class ApprovalInboxTest extends TestCase
         // 2. Disappears from Assigned Reviewer inbox
         $resAfter = $this->actingAs($this->assignedReviewer)->get(route('approvals.index'));
         $this->assertFalse($resAfter->viewData('approvalRecords')->contains('id', $approval->id));
-        $this->assertEquals(0, $resAfter->viewData('myActionCount'));
 
         // 3. Historical integrity: Record still exists in database
         $this->assertDatabaseHas('project_approvals', [
@@ -344,5 +344,96 @@ class ApprovalInboxTest extends TestCase
             'id' => $project->id,
             'status' => ProjectStatus::RolledBackForReview->value,
         ]);
+    }
+
+    public function test_task_moves_from_user_a_to_user_b_and_returns_to_user_a_as_a_new_step(): void
+    {
+        $project = Project::withoutGlobalScopes()->create([
+            'project_name' => 'A B A Workflow Project',
+            'form_number' => 'PRJ-A-B-A',
+            'creator_entity_id' => $this->creatorEntity->id,
+            'internal_entity_id' => $this->creatorEntity->id,
+            'created_by_user_id' => $this->creatorUser->id,
+            'created_by' => $this->creatorUser->id,
+            'status' => ProjectStatus::PendingApproval->value,
+            'current_stage' => 'user_a_first_step',
+            'current_stage_order' => 1,
+        ]);
+
+        $firstUserAStep = ProjectApproval::create([
+            'project_id' => $project->id,
+            'entity_id' => $this->reviewEntity->id,
+            'step_order' => 1,
+            'status' => 'pending',
+            'phase' => ApprovalPhase::TechnicalReview->value,
+            'is_active' => true,
+            'technical_reviewer_id' => $this->assignedReviewer->id,
+            'drop' => 'user_a_first_step',
+        ]);
+
+        $userBStep = ProjectApproval::create([
+            'project_id' => $project->id,
+            'entity_id' => $this->otherEntity->id,
+            'step_order' => 2,
+            'status' => 'locked',
+            'phase' => ApprovalPhase::StageApproval->value,
+            'is_active' => false,
+            'assigned_user_id' => $this->otherEntityUser->id,
+            'drop' => 'user_b_step',
+        ]);
+
+        $secondUserAStep = ProjectApproval::create([
+            'project_id' => $project->id,
+            'entity_id' => $this->reviewEntity->id,
+            'step_order' => 3,
+            'status' => 'locked',
+            'phase' => ApprovalPhase::FinancialReview->value,
+            'is_active' => false,
+            'financial_reviewer_id' => $this->assignedReviewer->id,
+            'drop' => 'user_a_second_step',
+        ]);
+
+        $userAInbox = $this->actingAs($this->assignedReviewer)->get(route('approvals.index'));
+        $this->assertTrue($userAInbox->viewData('approvalRecords')->contains('id', $firstUserAStep->id));
+
+        $this->approvalService->approveActiveStep($project, $this->assignedReviewer, 'A completed step one');
+
+        $userAAfter = $this->actingAs($this->assignedReviewer)->get(route('approvals.index'));
+        $this->assertFalse($userAAfter->viewData('approvalRecords')->contains('project_id', $project->id));
+        $this->actingAs($this->assignedReviewer)->get(route('approvals.show', $project))->assertForbidden();
+
+        $userBInbox = $this->actingAs($this->otherEntityUser)->get(route('approvals.index'));
+        $this->assertTrue($userBInbox->viewData('approvalRecords')->contains('id', $userBStep->id));
+
+        $this->approvalService->approveActiveStep($project->fresh(), $this->otherEntityUser, 'B completed step two');
+
+        $userAReturnedInbox = $this->actingAs($this->assignedReviewer)->get(route('approvals.index'));
+        $this->assertTrue($userAReturnedInbox->viewData('approvalRecords')->contains('id', $secondUserAStep->id));
+        $this->assertFalse($userAReturnedInbox->viewData('approvalRecords')->contains('id', $firstUserAStep->id));
+    }
+
+    public function test_query_parameters_and_direct_ids_cannot_widen_approval_scope(): void
+    {
+        [$project, $approval] = $this->createProjectWithAssignedTechnicalReview();
+
+        $requests = [
+            ['tab' => 'all'],
+            ['tab' => 'completed', 'status' => 'approved'],
+            ['entity_id' => $this->reviewEntity->id, 'phase' => ApprovalPhase::TechnicalReview->value],
+            ['search' => $project->form_number],
+            ['id' => $approval->id, 'scope' => 'all', 'unexpected' => 'true'],
+        ];
+
+        foreach ($requests as $parameters) {
+            $response = $this->actingAs($this->unassignedSameEntityUser)
+                ->get(route('approvals.index', $parameters));
+
+            $response->assertOk();
+            $this->assertFalse($response->viewData('approvalRecords')->contains('id', $approval->id));
+        }
+
+        $this->actingAs($this->unassignedSameEntityUser)
+            ->get(route('approvals.show', $project))
+            ->assertForbidden();
     }
 }

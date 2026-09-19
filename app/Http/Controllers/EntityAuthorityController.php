@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EntityAuthority;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -13,6 +14,7 @@ class EntityAuthorityController extends Controller
      */
     public function index()
     {
+        $this->authorize('viewAny', EntityAuthority::class);
         Gate::authorize('entity-authorities.view');
 
         $settings = [
@@ -29,6 +31,7 @@ class EntityAuthorityController extends Controller
      */
     public function update(Request $request)
     {
+        $this->authorize('update', EntityAuthority::class);
         Gate::authorize('entity-authorities.modify-source');
 
         $request->validate([

@@ -22,6 +22,7 @@ class GovernorateController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Governorate::class);
         $query = Governorate::query();
 
         // البحث
@@ -46,11 +47,14 @@ class GovernorateController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Governorate::class);
+
         return view('configuration.governorates.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', Governorate::class);
         $request->validate(['name' => 'required|unique:governorates,name']);
         Governorate::create($request->only('name'));
 
@@ -59,11 +63,14 @@ class GovernorateController extends Controller
 
     public function edit(Governorate $governorate)
     {
+        $this->authorize('update', Governorate::class);
+
         return view('configuration.governorates.edit', compact('governorate'));
     }
 
     public function update(Request $request, Governorate $governorate)
     {
+        $this->authorize('update', Governorate::class);
         $request->validate([
             'name' => 'required|max:255|unique:governorates,name,'.$governorate->id,
         ]);
@@ -81,6 +88,8 @@ class GovernorateController extends Controller
 
     public function show(Governorate $governorate)
     {
+        $this->authorize('view', Governorate::class);
+
         // يمكنك تنفيذ المنطق الخاص بعرض تفاصيل المحافظة هنا
         return view('configuration.governorates.show', compact('governorate'));
     }
@@ -99,6 +108,7 @@ class GovernorateController extends Controller
 
     public function downloadTemplate(Request $request)
     {
+        $this->authorize('import', Governorate::class);
         $format = $request->get('format', 'csv'); // Default to CSV
 
         $templateData = [
@@ -118,6 +128,7 @@ class GovernorateController extends Controller
 
     public function previewImport(Request $request)
     {
+        $this->authorize('import', Governorate::class);
         $request->validate([
             'file' => 'required|file|mimes:csv,xlsx,xls|max:2048',
         ]);
@@ -144,6 +155,7 @@ class GovernorateController extends Controller
 
     public function processImport(Request $request)
     {
+        $this->authorize('import', Governorate::class);
         $request->validate([
             'file_path' => 'required',
             'operation' => 'required|in:insert,update,both',
@@ -309,6 +321,7 @@ class GovernorateController extends Controller
 
     public function undoImport($fileName)
     {
+        $this->authorize('import', Governorate::class);
         // البحث عن السجلات المستوردة بواسطة اسم الملف
         $importedRecords = Governorate::where('import_batch', $fileName)->get();
 
@@ -368,6 +381,7 @@ class GovernorateController extends Controller
      */
     public function exportExcel()
     {
+        $this->authorize('export', Governorate::class);
         $startTime = microtime(true);
         $fileName = 'governorates_'.date('Y-m-d_H-i-s').'.xlsx';
 

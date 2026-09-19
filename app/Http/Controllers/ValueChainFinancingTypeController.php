@@ -51,6 +51,7 @@ class ValueChainFinancingTypeController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', ValueChainFinancingType::class);
         $query = ValueChainFinancingType::withInactive()
             ->visibleToUser('value-chain-financing-types')
             ->with(['creatorEntity']);
@@ -89,11 +90,14 @@ class ValueChainFinancingTypeController extends Controller
 
     public function create()
     {
+        $this->authorize('create', ValueChainFinancingType::class);
+
         return view('configuration.value_chain_financing_types.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', ValueChainFinancingType::class);
         $request->validate([
             'name' => 'required|string|max:255|unique:value_chain_financing_types,name',
         ]);
@@ -119,6 +123,7 @@ class ValueChainFinancingTypeController extends Controller
 
     public function edit($id)
     {
+        $this->authorize('update', ValueChainFinancingType::class);
         $type = ValueChainFinancingType::visibleToUser('value-chain-financing-types')
             ->findOrFail($id);
 
@@ -127,6 +132,7 @@ class ValueChainFinancingTypeController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorize('update', ValueChainFinancingType::class);
         $type = ValueChainFinancingType::visibleToUser('value-chain-financing-types')
             ->findOrFail($id);
 
@@ -147,6 +153,7 @@ class ValueChainFinancingTypeController extends Controller
 
     public function destroy($id)
     {
+        $this->authorize('delete', ValueChainFinancingType::class);
         $type = ValueChainFinancingType::visibleToUser('value-chain-financing-types')
             ->findOrFail($id);
 
@@ -182,6 +189,7 @@ class ValueChainFinancingTypeController extends Controller
 
     public function downloadTemplate(Request $request)
     {
+        $this->authorize('import', ValueChainFinancingType::class);
         $format = $request->get('format', 'xls');
 
         $templateData = [
@@ -207,6 +215,7 @@ class ValueChainFinancingTypeController extends Controller
 
     public function previewImport(Request $request)
     {
+        $this->authorize('import', ValueChainFinancingType::class);
         set_time_limit(600);
         ini_set('memory_limit', '512M');
 
@@ -245,6 +254,7 @@ class ValueChainFinancingTypeController extends Controller
 
     public function processImport(Request $request)
     {
+        $this->authorize('import', ValueChainFinancingType::class);
         set_time_limit(900);
         ini_set('memory_limit', '1024M');
 
@@ -487,6 +497,7 @@ class ValueChainFinancingTypeController extends Controller
 
     public function undoImport($fileName)
     {
+        $this->authorize('import', ValueChainFinancingType::class);
         $importedRecords = ValueChainFinancingType::visibleToUser('value-chain-financing-types')
             ->where('import_batch', $fileName)
             ->get();
@@ -663,6 +674,7 @@ class ValueChainFinancingTypeController extends Controller
 
     public function exportExcel()
     {
+        $this->authorize('export', ValueChainFinancingType::class);
         $typesCount = ValueChainFinancingType::visibleToUser('value-chain-financing-types')->count();
 
         Log::info('Excel Export Started', [

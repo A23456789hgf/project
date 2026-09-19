@@ -21,6 +21,7 @@ class ProgramController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Program::class);
         $query = Program::query();
 
         // Apply entity visibility filter
@@ -52,11 +53,14 @@ class ProgramController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Program::class);
+
         return view('configuration.programs.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', Program::class);
         $request->validate([
             'name' => 'required|string|max:255|unique:programs,name',
         ]);
@@ -78,6 +82,7 @@ class ProgramController extends Controller
 
     public function edit($id)
     {
+        $this->authorize('update', Program::class);
         $program = Program::findOrFail($id);
 
         return view('configuration.programs.edit', compact('program'));
@@ -85,6 +90,7 @@ class ProgramController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorize('update', Program::class);
         $program = Program::findOrFail($id);
 
         $request->validate([
@@ -101,6 +107,7 @@ class ProgramController extends Controller
 
     public function destroy($id)
     {
+        $this->authorize('delete', Program::class);
         $program = Program::findOrFail($id);
         $program->delete();
 
@@ -114,6 +121,7 @@ class ProgramController extends Controller
 
     public function downloadTemplate(Request $request)
     {
+        $this->authorize('import', Program::class);
         $format = $request->get('format', 'xls');
 
         $templateData = [
@@ -133,6 +141,7 @@ class ProgramController extends Controller
 
     public function previewImport(Request $request)
     {
+        $this->authorize('import', Program::class);
         set_time_limit(600);
         ini_set('memory_limit', '512M');
 
@@ -166,6 +175,7 @@ class ProgramController extends Controller
 
     public function processImport(Request $request)
     {
+        $this->authorize('import', Program::class);
         set_time_limit(900);
         ini_set('memory_limit', '1024M');
 
@@ -335,6 +345,7 @@ class ProgramController extends Controller
 
     public function undoImport($fileName)
     {
+        $this->authorize('import', Program::class);
         $importedRecords = Program::where('import_batch', $fileName)->get();
 
         DB::transaction(function () use ($importedRecords) {
@@ -539,6 +550,7 @@ class ProgramController extends Controller
 
     public function exportExcel()
     {
+        $this->authorize('export', Program::class);
         $startTime = microtime(true);
 
         try {

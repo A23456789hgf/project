@@ -15,6 +15,7 @@ class FinancialItemController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', FinancialItem::class);
         $query = FinancialItem::query();
         $query = $this->applyStatusFilter($query, $request);
         $items = $query->paginate(20)->withQueryString();
@@ -37,6 +38,8 @@ class FinancialItemController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', FinancialItem::class);
+
         return view('configuration.financialitems.create');
     }
 
@@ -45,6 +48,7 @@ class FinancialItemController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', FinancialItem::class);
         $request->validate([
             'code' => 'required|string|unique:financial_items,code',
             'name' => 'required|string',
@@ -64,6 +68,8 @@ class FinancialItemController extends Controller
      */
     public function edit(FinancialItem $financialItem)
     {
+        $this->authorize('update', FinancialItem::class);
+
         return view(
             'configuration.financialitems.edit',
             compact('financialItem')
@@ -75,6 +81,7 @@ class FinancialItemController extends Controller
      */
     public function update(Request $request, FinancialItem $financialItem)
     {
+        $this->authorize('update', FinancialItem::class);
         $request->validate([
             'code' => 'required|string|unique:financial_items,code,'.$financialItem->id,
             'name' => 'required|string',
@@ -94,6 +101,7 @@ class FinancialItemController extends Controller
      */
     public function destroy(FinancialItem $financialItem)
     {
+        $this->authorize('delete', FinancialItem::class);
         $financialItem->delete();
 
         return redirect()->route('financial-items.index')

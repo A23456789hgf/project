@@ -9,6 +9,7 @@ class ExecutorController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Executor::class);
         $query = Executor::query();
 
         if ($search = $request->input('search')) {
@@ -25,11 +26,14 @@ class ExecutorController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Executor::class);
+
         return view('configuration.executors.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', Executor::class);
         $data = $request->validate([
             'name' => 'required|unique:executors,name',
         ]);
@@ -44,11 +48,14 @@ class ExecutorController extends Controller
 
     public function edit(Executor $executor)
     {
+        $this->authorize('update', Executor::class);
+
         return view('configuration.executors.edit', compact('executor'));
     }
 
     public function update(Request $request, Executor $executor)
     {
+        $this->authorize('update', Executor::class);
         $data = $request->validate([
             'name' => 'required|unique:executors,name,'.$executor->id,
         ]);
@@ -60,6 +67,7 @@ class ExecutorController extends Controller
 
     public function destroy(Executor $executor)
     {
+        $this->authorize('delete', Executor::class);
         $executor->delete();
 
         return redirect()->route('executors.index')->with('success', 'تم حذف الجهة المنفذة.');

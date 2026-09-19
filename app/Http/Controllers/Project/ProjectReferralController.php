@@ -108,7 +108,7 @@ class ProjectReferralController extends Controller
             ]);
 
             $referral->load(['referringEntity', 'referredEntity', 'referringUser', 'referredUser']);
-            
+
             $createdReferrals[] = $referral;
 
             // Notify users of referred entity

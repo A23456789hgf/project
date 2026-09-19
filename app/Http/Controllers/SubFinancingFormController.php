@@ -12,6 +12,7 @@ class SubFinancingFormController extends Controller
     // عرض جميع الأشكال الفرعية
     public function index(Request $request)
     {
+        $this->authorize('viewAny', SubFinancingForm::class);
         $query = SubFinancingForm::with('financingForm');
 
         // البحث النصي
@@ -47,6 +48,7 @@ class SubFinancingFormController extends Controller
     // صفحة إضافة شكل فرعي
     public function create()
     {
+        $this->authorize('create', SubFinancingForm::class);
         $financingForms = FinancingForm::all();
 
         return view('configuration.subfinancingform.create', compact('financingForms'));
@@ -55,6 +57,7 @@ class SubFinancingFormController extends Controller
     // تخزين البيانات
     public function store(Request $request)
     {
+        $this->authorize('create', SubFinancingForm::class);
         $request->validate([
             'financing_form_id' => 'required|exists:financing_forms,id',
             'name' => 'required|unique:sub_financing_forms,name|max:255',
@@ -77,6 +80,7 @@ class SubFinancingFormController extends Controller
     // صفحة التعديل
     public function edit(SubFinancingForm $subFinancingForm)
     {
+        $this->authorize('update', SubFinancingForm::class);
         $financingForms = FinancingForm::all();
 
         return view('configuration.subfinancingform.edit', compact('subFinancingForm', 'financingForms'));
@@ -85,6 +89,7 @@ class SubFinancingFormController extends Controller
     // تحديث البيانات
     public function update(Request $request, SubFinancingForm $subFinancingForm)
     {
+        $this->authorize('update', SubFinancingForm::class);
         $request->validate([
             'financing_form_id' => 'required|exists:financing_forms,id',
             'name' => 'required|unique:sub_financing_forms,name,'.$subFinancingForm->id.'|max:255',
@@ -107,6 +112,7 @@ class SubFinancingFormController extends Controller
     // الحذف
     public function destroy(SubFinancingForm $subFinancingForm)
     {
+        $this->authorize('delete', SubFinancingForm::class);
         DB::beginTransaction();
         try {
             $subFinancingForm->delete();

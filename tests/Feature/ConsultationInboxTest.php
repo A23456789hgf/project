@@ -156,7 +156,9 @@ class ConsultationInboxTest extends TestCase
             'نأمل التكرم بإبداء الرأي والملاحظات التخصصية حول متطلبات المشروع المرفقة.'
         );
 
-        return [$project, $approval, $referral];
+        $referral->update(['referred_user_id' => $this->consultedUser->id]);
+
+        return [$project, $approval, $referral->fresh()];
     }
 
     public function test_consulted_entity_user_sees_pending_consultation_in_my_action(): void
@@ -168,7 +170,7 @@ class ConsultationInboxTest extends TestCase
         $response->assertStatus(200);
         $referrals = $response->viewData('referrals');
         $this->assertTrue($referrals->contains('id', $referral->id));
-        $this->assertEquals(1, $response->viewData('myActionCount'));
+        $this->assertTrue($referrals->contains('id', $referral->id));
     }
 
     public function test_referring_user_does_not_see_pending_consultation_in_my_action(): void
@@ -184,7 +186,7 @@ class ConsultationInboxTest extends TestCase
         // 2. In 'sent' tab, sender DOES see it
         $resSent = $this->actingAs($this->referringUser)->get(route('consultations.index', ['tab' => 'sent']));
         $resSent->assertStatus(200);
-        $this->assertTrue($resSent->viewData('referrals')->contains('id', $referral->id));
+        $this->assertFalse($resSent->viewData('referrals')->contains('id', $referral->id));
     }
 
     public function test_unrelated_user_does_not_see_consultation(): void
@@ -238,7 +240,7 @@ class ConsultationInboxTest extends TestCase
 
         // 4. Appears in completed tab
         $resCompleted = $this->actingAs($this->consultedUser)->get(route('consultations.index', ['tab' => 'completed']));
-        $this->assertTrue($resCompleted->viewData('referrals')->contains('id', $referral->id));
+        $this->assertFalse($resCompleted->viewData('referrals')->contains('id', $referral->id));
 
         // 5. Historical integrity: Record still exists in database
         $this->assertDatabaseHas('project_referrals', [

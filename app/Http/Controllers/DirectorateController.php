@@ -22,6 +22,7 @@ class DirectorateController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Directorate::class);
         $query = Directorate::with('governorate');
 
         // البحث
@@ -57,6 +58,7 @@ class DirectorateController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Directorate::class);
         $governorates = Governorate::getCachedAll();
 
         return view('configuration.directorates.create', compact('governorates'));
@@ -64,6 +66,7 @@ class DirectorateController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Directorate::class);
         $request->validate([
             'governorate_id' => 'required|exists:governorates,id',
             'name' => 'required|string|max:255|unique:directorates,name,NULL,id,governorate_id,'.$request->governorate_id,
@@ -76,6 +79,7 @@ class DirectorateController extends Controller
 
     public function edit(Directorate $directorate)
     {
+        $this->authorize('update', Directorate::class);
         $governorates = Governorate::getCachedAll();
 
         return view('configuration.directorates.edit', compact('directorate', 'governorates'));
@@ -83,6 +87,7 @@ class DirectorateController extends Controller
 
     public function update(Request $request, Directorate $directorate)
     {
+        $this->authorize('update', Directorate::class);
         $request->validate([
             'governorate_id' => 'required|exists:governorates,id',
             'name' => 'required|string|max:255|unique:directorates,name,'.$directorate->id.',id,governorate_id,'.$request->governorate_id,
@@ -95,6 +100,7 @@ class DirectorateController extends Controller
 
     public function destroy(Directorate $directorate)
     {
+        $this->authorize('delete', Directorate::class);
         $directorate->delete();
 
         return redirect()->route('directorates.index')->with('success', 'تم الحذف بنجاح');
@@ -131,6 +137,7 @@ class DirectorateController extends Controller
 
     public function downloadTemplate(Request $request)
     {
+        $this->authorize('import', Directorate::class);
         $format = $request->get('format', 'csv');
 
         $templateData = [
@@ -150,6 +157,7 @@ class DirectorateController extends Controller
 
     public function previewImport(Request $request)
     {
+        $this->authorize('import', Directorate::class);
         $request->validate([
             'file' => 'required|file|mimes:csv,xlsx,xls|max:2048',
         ]);
@@ -175,6 +183,7 @@ class DirectorateController extends Controller
 
     public function processImport(Request $request)
     {
+        $this->authorize('import', Directorate::class);
         $request->validate([
             'file_path' => 'required',
             'operation' => 'required|in:insert,update,both',
@@ -318,6 +327,7 @@ class DirectorateController extends Controller
 
     public function undoImport($fileName)
     {
+        $this->authorize('import', Directorate::class);
         $importedRecords = Directorate::where('import_batch', $fileName)->get();
 
         DB::transaction(function () use ($importedRecords) {
@@ -336,6 +346,7 @@ class DirectorateController extends Controller
 
     public function exportExcel()
     {
+        $this->authorize('export', Directorate::class);
         $startTime = microtime(true);
         $fileName = 'directorates_'.date('Y-m-d_H-i-s').'.xlsx';
 

@@ -13,6 +13,7 @@ class FundingSourceController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', FundingSource::class);
         // Initialize query builder
         $query = FundingSource::query();
 
@@ -45,6 +46,8 @@ class FundingSourceController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', FundingSource::class);
+
         return view('configuration.sourcefunding.create');
     }
 
@@ -53,6 +56,7 @@ class FundingSourceController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', FundingSource::class);
         // Validate input
         $validator = Validator::make($request->all(), [
             'name' => 'required|unique:funding_sources|max:255',
@@ -80,6 +84,8 @@ class FundingSourceController extends Controller
      */
     public function edit(FundingSource $fundingSource)
     {
+        $this->authorize('update', FundingSource::class);
+
         return view('configuration.sourcefunding.edit', compact('fundingSource'));
     }
 
@@ -88,6 +94,7 @@ class FundingSourceController extends Controller
      */
     public function update(Request $request, FundingSource $fundingSource)
     {
+        $this->authorize('update', FundingSource::class);
         // Validate input
         $validator = Validator::make($request->all(), [
             'name' => 'required|max:255|unique:funding_sources,name,'.$fundingSource->id,
@@ -115,6 +122,7 @@ class FundingSourceController extends Controller
      */
     public function destroy(FundingSource $fundingSource)
     {
+        $this->authorize('delete', FundingSource::class);
         $fundingSource->delete();
 
         return redirect()->route('funding-sources.index')

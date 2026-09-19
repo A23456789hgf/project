@@ -21,6 +21,7 @@ class SubAreaController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', SubArea::class);
         $query = SubArea::with('governorate', 'directorate');
 
         // 1. فلترة نصية متعددة الحقول
@@ -76,6 +77,7 @@ class SubAreaController extends Controller
 
     public function create()
     {
+        $this->authorize('create', SubArea::class);
         $governorates = Governorate::getCachedAll();
         $directorates = collect(); // قائمة فارغة للمديريات
 
@@ -86,6 +88,7 @@ class SubAreaController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', SubArea::class);
         $request->validate([
             'governorate_id' => 'required|exists:governorates,id',
             'directorate_id' => 'required|exists:directorates,id',
@@ -99,6 +102,7 @@ class SubAreaController extends Controller
 
     public function show(SubArea $subArea)
     {
+        $this->authorize('view', SubArea::class);
         $subArea->load(['governorate', 'directorate']);
 
         return view('configuration.subareas.show', compact('subArea'));
@@ -106,6 +110,7 @@ class SubAreaController extends Controller
 
     public function edit(SubArea $subArea)
     {
+        $this->authorize('update', SubArea::class);
         $governorates = Governorate::getCachedAll();
         $directorates = Directorate::where('governorate_id', $subArea->governorate_id)->get();
 
@@ -116,6 +121,7 @@ class SubAreaController extends Controller
 
     public function update(Request $request, SubArea $subArea)
     {
+        $this->authorize('update', SubArea::class);
         $request->validate([
             'governorate_id' => 'required|exists:governorates,id',
             'directorate_id' => 'required|exists:directorates,id',
@@ -129,6 +135,7 @@ class SubAreaController extends Controller
 
     public function destroy(SubArea $subArea)
     {
+        $this->authorize('delete', SubArea::class);
         $subArea->delete();
 
         return redirect()->route('sub-areas.index')->with('success', 'تم حذف السجل');
@@ -177,6 +184,7 @@ class SubAreaController extends Controller
 
     public function downloadTemplate(Request $request)
     {
+        $this->authorize('import', SubArea::class);
         $format = $request->get('format', 'csv'); // Default to CSV
 
         $templateData = [
@@ -196,6 +204,7 @@ class SubAreaController extends Controller
 
     public function previewImport(Request $request)
     {
+        $this->authorize('import', SubArea::class);
         $request->validate([
             'file' => 'required|file|mimes:csv,xlsx,xls|max:2048',
         ]);
@@ -222,6 +231,7 @@ class SubAreaController extends Controller
 
     public function processImport(Request $request)
     {
+        $this->authorize('import', SubArea::class);
         $request->validate([
             'file_path' => 'required',
             'operation' => 'required|in:insert,update,both',
@@ -435,6 +445,7 @@ class SubAreaController extends Controller
 
     public function undoImport($fileName)
     {
+        $this->authorize('import', SubArea::class);
         // البحث عن السجلات المستوردة بواسطة اسم الملف
         $importedRecords = SubArea::where('import_batch', $fileName)->get();
 
@@ -452,6 +463,7 @@ class SubAreaController extends Controller
      */
     public function exportExcel()
     {
+        $this->authorize('export', SubArea::class);
         $startTime = microtime(true);
 
         try {

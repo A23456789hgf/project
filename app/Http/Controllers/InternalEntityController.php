@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EntityResponsibilityType;
 use App\Exports\BaseSpreadsheetExport;
 use App\Models\Authority;
+use App\Models\EntityApprovalStage;
 use App\Models\InternalEntity;
 use App\Services\FileImportService;
 use App\Services\FrappeAPIService;
@@ -17,6 +19,7 @@ class InternalEntityController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', InternalEntity::class);
         $query = InternalEntity::with([
             'parent',
             'governorate' => fn ($q) => $q->withoutGlobalScopes(),
@@ -117,6 +120,7 @@ class InternalEntityController extends Controller
 
     public function show(InternalEntity $internalEntity)
     {
+        $this->authorize('view', InternalEntity::class);
         $internalEntity->load([
             'parent',
             'governorate' => fn ($q) => $q->withoutGlobalScopes(),
@@ -130,6 +134,7 @@ class InternalEntityController extends Controller
 
     public function create()
     {
+        $this->authorize('create', InternalEntity::class);
         $parentEntities = InternalEntity::active()
             ->visibleToUser()
             ->with(['authority', 'governorate', 'directorate'])
@@ -150,6 +155,7 @@ class InternalEntityController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', InternalEntity::class);
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:internal_entities',
             'entity_type' => 'required|in:Company,Department',
@@ -181,7 +187,21 @@ class InternalEntityController extends Controller
             'directorate_id' => $validated['directorate_id'],
         ]);
 
-        $internalEntity = InternalEntity::create($validated);
+        $internalEntity = DB::transaction(function () use ($validated) {
+            $internalEntity = InternalEntity::create($validated);
+
+            // -- Add default approval stages for the new entity
+            foreach (EntityResponsibilityType::orderedCases() as $stageType) {
+                EntityApprovalStage::create([
+                    'entity_id' => $internalEntity->id,
+                    'stage' => $stageType->value,
+                    'stage_order' => $stageType->stageOrder(),
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            return $internalEntity;
+        });
 
         try {
             $frappeService = app(FrappeAPIService::class);
@@ -200,6 +220,7 @@ class InternalEntityController extends Controller
 
     public function edit(InternalEntity $internalEntity)
     {
+        $this->authorize('update', InternalEntity::class);
         // Use the new method that avoids lazy loading
         $descendantIds = InternalEntity::getAllDescendantIds($internalEntity->id);
         $excludeIds = array_merge([$internalEntity->id], $descendantIds);
@@ -232,6 +253,7 @@ class InternalEntityController extends Controller
 
     public function update(Request $request, InternalEntity $internalEntity)
     {
+        $this->authorize('update', InternalEntity::class);
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:internal_entities,name,'.$internalEntity->id,
             'entity_type' => 'required|in:Company,Department',
@@ -313,6 +335,7 @@ class InternalEntityController extends Controller
 
     public function destroy(InternalEntity $internalEntity)
     {
+        $this->authorize('delete', InternalEntity::class);
         $internalEntity->delete();
 
         return redirect()->route('internal-entities.index')
@@ -357,6 +380,7 @@ class InternalEntityController extends Controller
 
     public function export()
     {
+        $this->authorize('export', InternalEntity::class);
         $entities = InternalEntity::with([
             'parent',
             'authority' => fn ($q) => $q->withoutGlobalScopes(), // تم التعديل: تجاوز النطاقات العالمية
@@ -407,6 +431,7 @@ class InternalEntityController extends Controller
 
     public function downloadTemplate()
     {
+        $this->authorize('import', InternalEntity::class);
         $headers = ['id', 'name', 'entity_type', 'entity_code', 'parent_name', 'authority_name', 'is_active'];
 
         $sample = [
@@ -426,6 +451,7 @@ class InternalEntityController extends Controller
 
     public function previewImport(Request $request)
     {
+        $this->authorize('import', InternalEntity::class);
         $request->validate([
             'file' => 'required|file|mimes:csv,xlsx,xls|max:5120',
             'authority_id' => 'nullable|exists:authorities,id',
@@ -448,6 +474,7 @@ class InternalEntityController extends Controller
 
     public function processImport(Request $request)
     {
+        $this->authorize('import', InternalEntity::class);
         $request->validate([
             'file_path' => 'required|string',
             'operation' => 'required|in:insert,update,both',

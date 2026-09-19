@@ -10,6 +10,7 @@ class DonorController extends Controller
     // Index with pagination, search, and sorting
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Donor::class);
         $query = Donor::query();
 
         // Search
@@ -33,12 +34,15 @@ class DonorController extends Controller
     // Create form
     public function create()
     {
+        $this->authorize('create', Donor::class);
+
         return view('configuration.donors.create');
     }
 
     // Store new donor
     public function store(Request $request)
     {
+        $this->authorize('create', Donor::class);
         $request->validate(['name' => 'required|unique:donors|max:255']);
         Donor::create($request->all());
 
@@ -48,12 +52,15 @@ class DonorController extends Controller
     // Edit form
     public function edit(Donor $donor)
     {
+        $this->authorize('update', Donor::class);
+
         return view('configuration.donors.edit', compact('donor'));
     }
 
     // Update donor (PUT/PATCH)
     public function update(Request $request, Donor $donor)
     {
+        $this->authorize('update', Donor::class);
         $request->validate(['name' => 'required|unique:donors,name,'.$donor->id.'|max:255']);
         $donor->update($request->all());
 
@@ -63,6 +70,7 @@ class DonorController extends Controller
     // Delete donor
     public function destroy(Donor $donor)
     {
+        $this->authorize('delete', Donor::class);
         $donor->delete();
 
         return redirect()->route('donors.index')->with('success', 'تم الحذف بنجاح');

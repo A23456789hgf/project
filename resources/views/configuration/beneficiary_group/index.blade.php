@@ -16,9 +16,11 @@
             </div>
             
             <div class="d-flex gap-2">
-                <a href="{{ route('beneficiary-groups.create') }}" class="btn btn-success px-4 rounded-3 fw-bold shadow-sm">
+                @canany(['beneficiary-groups.create', 'beneficiary-groups.update'])
+<a href="{{ route('beneficiary-groups.create') }}" class="btn btn-success px-4 rounded-3 fw-bold shadow-sm">
                     <i class="fas fa-plus me-1"></i> إضافة فئة جديدة
                 </a>
+@endcanany
 
                 <div class="dropdown">
                     <button class="btn btn-navy-gold dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">

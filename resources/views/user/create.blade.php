@@ -72,6 +72,20 @@
             @error('entity_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
+        {{-- مسؤولية الموافقات --}}
+        <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted small mb-1">مسؤولية الموافقات</label>
+            <select name="responsibility" id="responsibility" class="form-select @error('responsibility') is-invalid @enderror">
+                <option value="">-- بدون مسؤولية في دورة الموافقات --</option>
+                @foreach(\App\Enums\UserResponsibilityType::options() as $value => $label)
+                    <option value="{{ $value }}" @selected(old('responsibility') === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+            @error('responsibility') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            <div class="form-text text-muted">يُستخدم لتحديد دور المستخدم في مراحل الموافقات (فنية / مالية / اعتماد).</div>
+        </div>
+
+
         {{-- رقم الهاتف --}}
         <div class="col-md-6">
             <label class="form-label fw-semibold text-muted small mb-1">رقم الهاتف <span class="text-danger">*</span></label>

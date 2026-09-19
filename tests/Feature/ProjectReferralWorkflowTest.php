@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\EntityResponsibilityType;
 use App\Enums\ProjectStatus;
+use App\Models\EntityApprovalStage;
 use App\Models\InternalEntity;
 use App\Models\Permission;
 use App\Models\Project;
@@ -144,6 +146,7 @@ class ProjectReferralWorkflowTest extends TestCase
             'role_id' => $this->standardRole->id,
             'signature' => 'signatures/test_signature.png',
             'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
         ]);
 
         $this->consultedUser = User::withoutGlobalScopes()->create([
@@ -157,6 +160,7 @@ class ProjectReferralWorkflowTest extends TestCase
             'role_id' => $this->standardRole->id,
             'signature' => 'signatures/test_signature.png',
             'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
         ]);
 
         $this->unrelatedUser = User::withoutGlobalScopes()->create([
@@ -170,6 +174,7 @@ class ProjectReferralWorkflowTest extends TestCase
             'role_id' => $this->standardRole->id,
             'signature' => 'signatures/test_signature.png',
             'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
         ]);
 
         $adminRole = Role::create([
@@ -189,7 +194,43 @@ class ProjectReferralWorkflowTest extends TestCase
             'signature' => 'signatures/test_signature.png',
             'signature_path' => 'signatures/test_signature.png',
             'user_type' => 'admin',
+            'status' => 'Active',
         ]);
+
+        $parentUser = User::withoutGlobalScopes()->create([
+            'name' => 'مستخدم الجهة الأب',
+            'username' => 'parent_user_'.uniqid(),
+            'user_id' => 'UID_'.uniqid(),
+            'phone' => '77'.rand(10000000, 99999999),
+            'email' => 'parent_'.uniqid().'@test.com',
+            'password' => bcrypt('password'),
+            'entity_id' => $this->parentEntity->id,
+            'role_id' => $this->standardRole->id,
+            'signature' => 'signatures/test_signature.png',
+            'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
+        ]);
+
+        // Entity Approval Stages Configuration
+        foreach ([
+            EntityResponsibilityType::TechnicalReview,
+            EntityResponsibilityType::FinancialReview,
+            EntityResponsibilityType::Approval,
+        ] as $type) {
+            EntityApprovalStage::create([
+                'entity_id' => $this->referringEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $this->referringUser->id,
+            ]);
+
+            EntityApprovalStage::create([
+                'entity_id' => $this->parentEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $parentUser->id,
+            ]);
+        }
     }
 
     protected function createProjectWithApprovalChain(): Project
@@ -262,17 +303,16 @@ class ProjectReferralWorkflowTest extends TestCase
             $project,
             $this->referringUser,
             $this->consultedEntity->id,
-            'طلب استشارة لمعاينة الموقع'
+            'طلب استشارة لمعاينة الموقع',
+            null,
+            $this->consultedUser->id
         );
 
-        // 1. Referring user can view
+        // The referring user has no action while the consultation awaits a response.
         $response = $this->actingAs($this->referringUser)->get(route('approvals.referral.show', $referral));
-        $response->assertStatus(200);
-        $response->assertSee('طلب استشارة لمعاينة الموقع');
-        $response->assertSee($this->referringEntity->name);
-        $response->assertSee($this->consultedEntity->name);
+        $response->assertStatus(403);
 
-        // 2. Consulted entity user can view
+        // The specifically assigned consulted user can view and respond.
         $response = $this->actingAs($this->consultedUser)->get(route('approvals.referral.show', $referral));
         $response->assertStatus(200);
         $response->assertSee('طلب استشارة لمعاينة الموقع');
@@ -304,7 +344,9 @@ class ProjectReferralWorkflowTest extends TestCase
             $project,
             $this->referringUser,
             $this->consultedEntity->id,
-            'طلب الإفادة الفنية'
+            'طلب الإفادة الفنية',
+            null,
+            $this->consultedUser->id
         );
 
         $file = UploadedFile::fake()->create('technical_response.pdf', 200, 'application/pdf');
@@ -402,63 +444,32 @@ class ProjectReferralWorkflowTest extends TestCase
     // 4. CONSULTATIONS CENTER TABS & DYNAMIC COUNTS FOR REFERRALS
     // =========================================================================
 
-    public function test_consultations_center_tabs_display_records_and_dynamic_counts(): void
+    public function test_consultation_parameters_cannot_widen_normal_user_scope(): void
     {
         $project = $this->createProjectWithApprovalChain();
-
-        // 1. Create a pending referral from referringEntity to consultedEntity
         $referral1 = $this->approvalService->recordConsultation(
             $project,
             $this->referringUser,
             $this->consultedEntity->id,
-            'استشارة قيد الانتظار واردة للجهة المستشارة'
+            'استشارة قيد الانتظار واردة للجهة المستشارة',
+            null,
+            $this->consultedUser->id
         );
 
-        // Check for Consulted User on consultations.index (Incoming tab count should be 1, Sent count 0)
-        $response = $this->actingAs($this->consultedUser)->get(route('consultations.index', ['tab' => 'incoming']));
+        $response = $this->actingAs($this->consultedUser)->get(route('consultations.index', [
+            'tab' => 'completed',
+            'status' => 'closed',
+            'entity_id' => $this->referringEntity->id,
+            'date_from' => now()->addYear()->toDateString(),
+            'unexpected' => 'all',
+        ]));
         $response->assertStatus(200);
-        $response->assertSee('استشارة قيد الانتظار واردة للجهة المستشارة');
-        $response->assertSee('الاستشارات الواردة');
-        $response->assertSee('الاستشارات الصادرة');
-        $response->assertSee('بانتظار الرد');
-        $response->assertViewHas('incomingCount', 1);
-        $response->assertViewHas('sentCount', 0);
-        $response->assertViewHas('pendingCount', 1);
+        $response->assertDontSee('الاستشارات الواردة');
+        $this->assertTrue($response->viewData('referrals')->contains('id', $referral1->id));
 
-        // Check for Referring User on consultations.index (Sent tab count should be 1, Incoming count 0)
         $response = $this->actingAs($this->referringUser)->get(route('consultations.index', ['tab' => 'sent']));
         $response->assertStatus(200);
-        $response->assertSee('استشارة قيد الانتظار واردة للجهة المستشارة');
-        $response->assertViewHas('incomingCount', 0);
-        $response->assertViewHas('sentCount', 1);
-
-        // Check legacy route redirect: /approvals?tab=referrals_incoming redirects to /consultations?tab=referrals_incoming
-        $legacyApprovalResponse = $this->actingAs($this->consultedUser)->get(route('approvals.index', ['tab' => 'referrals_incoming']));
-        $legacyApprovalResponse->assertRedirect(route('consultations.index', ['tab' => 'referrals_incoming']));
-
-        // Check legacy project-referrals index redirect: /project-referrals redirects to /consultations
-        $legacyReferralsIndexResponse = $this->actingAs($this->consultedUser)->get(route('project-referrals.index'));
-        $legacyReferralsIndexResponse->assertRedirect(route('consultations.index'));
-
-        // 2. Respond to the referral
-        $this->approvalService->respondToConsultation(
-            $referral1,
-            'تم الرد رسمياً',
-            $this->consultedUser,
-            'responded'
-        );
-
-        // Check Completed Referrals Tab for both users
-        $response = $this->actingAs($this->consultedUser)->get(route('consultations.index', ['tab' => 'completed']));
-        $response->assertStatus(200);
-        $response->assertSee('استشارة قيد الانتظار واردة للجهة المستشارة');
-        $response->assertViewHas('respondedCount', 1);
-        $response->assertViewHas('pendingCount', 0);
-
-        $response = $this->actingAs($this->referringUser)->get(route('consultations.index', ['tab' => 'completed']));
-        $response->assertStatus(200);
-        $response->assertSee('استشارة قيد الانتظار واردة للجهة المستشارة');
-        $response->assertViewHas('respondedCount', 1);
+        $this->assertFalse($response->viewData('referrals')->contains('id', $referral1->id));
     }
 
     // =========================================================================
@@ -571,7 +582,9 @@ class ProjectReferralWorkflowTest extends TestCase
             $project,
             $this->referringUser,
             $this->consultedEntity->id,
-            'استشارة لاختبار العزل الكامل للقوائم'
+            'استشارة لاختبار العزل الكامل للقوائم',
+            null,
+            $this->consultedUser->id
         );
 
         $response = $this->actingAs($this->consultedUser)->get(route('consultations.index'));
@@ -584,12 +597,8 @@ class ProjectReferralWorkflowTest extends TestCase
             $this->assertNotInstanceOf(ProjectApproval::class, $item);
         }
 
-        // Consultations page displays all 5 required statistics
-        $response->assertSee('الاستشارات الواردة');
-        $response->assertSee('الاستشارات الصادرة');
-        $response->assertSee('بانتظار الرد');
-        $response->assertSee('تم الرد');
-        $response->assertSee('المغلقة');
+        $response->assertDontSee('الاستشارات الواردة');
+        $response->assertDontSee('الاستشارات الصادرة');
     }
 
     public function test_approval_cards_display_project_approval_records(): void
@@ -599,8 +608,8 @@ class ProjectReferralWorkflowTest extends TestCase
         $response->assertStatus(200);
 
         // Asserts presence of ProjectApproval presentation attributes
-        $response->assertSee('الخطوة 1');
-        $response->assertSee('عرض المشروع');
+        $response->assertSee($project->project_name);
+        $response->assertSee('التفاصيل');
         $records = $response->viewData('approvalRecords') ?? $response->viewData('projects');
         $firstRecord = $records->first();
         $this->assertInstanceOf(ProjectApproval::class, $firstRecord);
@@ -614,7 +623,9 @@ class ProjectReferralWorkflowTest extends TestCase
             $project,
             $this->referringUser,
             $this->consultedEntity->id,
-            'نص استشارة مستقل تماماً'
+            'نص استشارة مستقل تماماً',
+            null,
+            $this->consultedUser->id
         );
 
         $response = $this->actingAs($this->consultedUser)->get(route('consultations.index'));
@@ -624,9 +635,7 @@ class ProjectReferralWorkflowTest extends TestCase
         $response->assertSee($project->project_name);
         $response->assertSee($this->referringEntity->name);
         $response->assertSee($this->consultedEntity->name);
-        $response->assertSee('عرض الاستشارة');
         $response->assertSee('مدة الانتظار');
-        $response->assertSee('نص الاستشارة:');
 
         $referrals = $response->viewData('referrals');
         $firstItem = $referrals->first();

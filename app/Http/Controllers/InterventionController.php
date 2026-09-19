@@ -16,6 +16,7 @@ class InterventionController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Intervention::class);
         $perPage = $request->query('per_page', 20);
         $perPage = in_array($perPage, [20, 100, 500]) ? $perPage : 20;
 
@@ -32,6 +33,7 @@ class InterventionController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', Intervention::class);
         $domains = Domain::select('id', 'name')->get();
         $subdomains = Subdomain::select('id', 'name')->get();
 
@@ -43,6 +45,7 @@ class InterventionController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Intervention::class);
         $validator = Validator::make($request->all(), [
             'domain_id' => 'required|exists:domains,id',
             'subdomain_id' => 'required|exists:subdomains,id',
@@ -78,6 +81,7 @@ class InterventionController extends Controller
      */
     public function edit(Intervention $intervention)
     {
+        $this->authorize('update', Intervention::class);
         $domains = Domain::select('id', 'name')->get();
         $subdomains = Subdomain::select('id', 'name')->get();
 
@@ -89,6 +93,7 @@ class InterventionController extends Controller
      */
     public function update(Request $request, Intervention $intervention)
     {
+        $this->authorize('update', Intervention::class);
         $validator = Validator::make($request->all(), [
             'domain_id' => 'required|exists:domains,id',
             'subdomain_id' => 'required|exists:subdomains,id',
@@ -164,6 +169,7 @@ class InterventionController extends Controller
      */
     public function destroy(Intervention $intervention)
     {
+        $this->authorize('delete', Intervention::class);
         try {
             $intervention->delete();
 

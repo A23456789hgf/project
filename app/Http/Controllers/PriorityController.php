@@ -9,6 +9,7 @@ class PriorityController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', Priority::class);
         $priorities = Priority::all();
 
         return view('configuration.priorities.index', compact('priorities'));
@@ -16,11 +17,14 @@ class PriorityController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Priority::class);
+
         return view('configuration.priorities.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', Priority::class);
         $request->validate([
             'priority' => 'required|string|max:255',
             'is_enabled' => 'required|boolean',
@@ -33,11 +37,14 @@ class PriorityController extends Controller
 
     public function edit(Priority $priority)
     {
+        $this->authorize('update', Priority::class);
+
         return view('configuration.priorities.edit', compact('priority'));
     }
 
     public function update(Request $request, Priority $priority)
     {
+        $this->authorize('update', Priority::class);
         $request->validate([
             'priority' => 'required|string|max:255',
             'is_enabled' => 'required|boolean',
@@ -50,6 +57,7 @@ class PriorityController extends Controller
 
     public function destroy(Priority $priority)
     {
+        $this->authorize('delete', Priority::class);
         $priority->delete();
 
         return redirect()->route('priorities.index')->with('success', 'تم حذف الأولوية بنجاح');

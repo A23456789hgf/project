@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\EntityResponsibilityType;
 use App\Enums\ProjectStatus;
 use App\Enums\ReturnTarget;
+use App\Models\EntityApprovalStage;
 use App\Models\InternalEntity;
 use App\Models\Permission;
 use App\Models\Project;
@@ -87,8 +89,9 @@ class ApprovalCenterTest extends TestCase
         PermissionResolver::clearCache();
         Cache::flush();
 
+        // Only create roles if we are using a real database and role system requires it
         $role = Role::create([
-            'name' => 'FullAccessRole',
+            'name' => 'RegularRole',
             'is_active' => true,
             'full_access' => true,
         ]);
@@ -186,6 +189,27 @@ class ApprovalCenterTest extends TestCase
             'signature_path' => 'signatures/test_signature.png',
             'user_type' => 'admin',
         ]);
+
+        // Entity Approval Stages Configuration
+        foreach ([
+            EntityResponsibilityType::TechnicalReview,
+            EntityResponsibilityType::FinancialReview,
+            EntityResponsibilityType::Approval,
+        ] as $type) {
+            EntityApprovalStage::create([
+                'entity_id' => $this->childEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $this->childReviewerUser->id,
+            ]);
+
+            EntityApprovalStage::create([
+                'entity_id' => $this->parentEntity->id,
+                'stage' => $type->value,
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $this->parentUser->id,
+            ]);
+        }
     }
 
     protected function createProject(string $status = 'draft'): Project
@@ -216,16 +240,14 @@ class ApprovalCenterTest extends TestCase
         $response = $this->actingAs($this->childReviewerUser)->get(route('approvals.index'));
         $response->assertStatus(200);
         $response->assertSee('مركز المراجعة والاعتمادات');
-        $response->assertSee('بانتظار إجرائي');
-        $response->assertSee('قيد انتظار الآخرين');
-        $response->assertSee('الموافقات المكتملة والأرشيف');
+        $response->assertSee('لا توجد مهام حالياً'); // Since there are no projects in this test
     }
 
     // =========================================================================
     // 2. INDEX TABS & DYNAMIC COUNTS
     // =========================================================================
 
-    public function test_index_displays_dynamic_counts_and_tabs(): void
+    public function test_index_displays_dynamic_counts_for_user_actionable_tasks(): void
     {
         // Project 1: Pending with Child Entity active step
         $project1 = $this->createProject('draft');
@@ -235,20 +257,17 @@ class ApprovalCenterTest extends TestCase
         $project2 = $this->createProject('in_execution');
 
         // Check view for child reviewer user (Step 1 is active on Child Entity)
-        $response = $this->actingAs($this->childReviewerUser)->get(route('approvals.index', ['tab' => 'my_action']));
+        $response = $this->actingAs($this->childReviewerUser)->get(route('approvals.index'));
         $response->assertStatus(200);
-        $response->assertSee($project1->project_name);
-        $response->assertViewHas('myActionCount', 1);
+        $response->assertSee($project1->form_number);
 
-        // For parent user: Project 1 step 1 is with child entity, so it's in waiting_others for parent
-        $parentResponse = $this->actingAs($this->parentUser)->get(route('approvals.index', ['tab' => 'waiting_others']));
+        // For parent user: Project 1 step 1 is with child entity, so parent user cannot act on it and does NOT see it in Approval Center
+        $parentResponse = $this->actingAs($this->parentUser)->get(route('approvals.index'));
         $parentResponse->assertStatus(200);
-        $parentResponse->assertSee($project1->project_name);
+        $parentResponse->assertDontSee($project1->form_number);
 
-        // Check completed tab
-        $completedResponse = $this->actingAs($this->childReviewerUser)->get(route('approvals.index', ['tab' => 'completed']));
-        $completedResponse->assertStatus(200);
-        $completedResponse->assertSee($project2->project_name);
+        // Regular user does NOT see completed projects in Approval Center
+        $response->assertDontSee($project2->form_number);
     }
 
     // =========================================================================
@@ -263,23 +282,21 @@ class ApprovalCenterTest extends TestCase
         $response = $this->actingAs($this->childReviewerUser)->get(route('approvals.show', $project));
         $response->assertStatus(200);
         $response->assertSee($project->project_name);
-        $response->assertSee('الجمعية المحلية (Child)');
-        $response->assertSee('الاتحاد العام (Parent)');
-        $response->assertSee('مسار وسلسلة الاعتمادات');
+        $response->assertDontSee('مسار وسلسلة الاعتمادات');
+        $response->assertSee('المرحلة الحالية:');
         $response->assertSee('لوحة اتخاذ القرار');
         $response->assertSee('الملخص المالي ومصادر التمويل');
         $response->assertSee('سجل الإجراءات والتدقيق');
     }
 
-    public function test_unauthorized_user_sees_locked_notice_on_active_step(): void
+    public function test_unauthorized_user_cannot_access_approval_show_page(): void
     {
         $project = $this->createProject('draft');
         $this->approvalService->closeDraftAndGenerateApprovalChain($project, $this->childCreatorUser);
 
-        // Parent user views project while Step 1 is active on Child entity
+        // Parent user attempts to view project approval page while Step 1 is active on Child entity
         $response = $this->actingAs($this->parentUser)->get(route('approvals.show', $project));
-        $response->assertStatus(200);
-        $response->assertSee('بانتظار إجراء الجهة المختصة');
+        $response->assertStatus(403);
     }
 
     // =========================================================================

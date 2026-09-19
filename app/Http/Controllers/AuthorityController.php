@@ -24,6 +24,7 @@ class AuthorityController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Authority::class);
         try {
             $view = $request->get('view', 'list');
 
@@ -309,6 +310,7 @@ class AuthorityController extends Controller
      */
     public function create(Request $request)
     {
+        $this->authorize('create', Authority::class);
         try {
             $parentId = $request->get('parent_id');
 
@@ -346,6 +348,7 @@ class AuthorityController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Authority::class);
         try {
             $validated = $request->validate([
                 'agency_name' => [
@@ -403,6 +406,7 @@ class AuthorityController extends Controller
      */
     public function show(string $id)
     {
+        $this->authorize('view', Authority::class);
         try {
             $authority = Authority::with([
                 'parent',
@@ -491,6 +495,7 @@ class AuthorityController extends Controller
      */
     public function edit(string $id)
     {
+        $this->authorize('update', Authority::class);
         try {
             $authority = Authority::with(['typeEntity'])->findOrFail($id);
 
@@ -550,6 +555,7 @@ class AuthorityController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        $this->authorize('update', Authority::class);
         try {
             $authority = Authority::findOrFail($id);
 
@@ -614,6 +620,7 @@ class AuthorityController extends Controller
      */
     public function destroy(string $id)
     {
+        $this->authorize('delete', Authority::class);
         try {
             $authority = Authority::withCount('children')->findOrFail($id);
 
@@ -1303,6 +1310,7 @@ class AuthorityController extends Controller
      */
     public function export(Request $request)
     {
+        $this->authorize('export', Authority::class);
         try {
             $validated = $request->validate([
                 'scope' => 'sometimes|in:all,active,inactive',
@@ -1350,6 +1358,7 @@ class AuthorityController extends Controller
      */
     public function showImport()
     {
+        $this->authorize('import', Authority::class);
         try {
             if (! view()->exists('configuration.authorities.import')) {
                 return redirect()->route('authorities.index')->with('error', 'صفحة الاستيراد غير متوفرة.');
@@ -1368,6 +1377,7 @@ class AuthorityController extends Controller
      */
     public function previewImport(Request $request)
     {
+        $this->authorize('import', Authority::class);
         $request->validate([
             'file' => 'required|mimes:xlsx,xls,csv|max:5120',
         ]);
@@ -1635,6 +1645,7 @@ class AuthorityController extends Controller
      */
     public function downloadTemplate(Request $request)
     {
+        $this->authorize('import', Authority::class);
         try {
             $request->validate([
                 'format' => 'sometimes|in:xlsx,csv',

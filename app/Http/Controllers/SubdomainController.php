@@ -11,6 +11,7 @@ class SubdomainController extends Controller
     // عرض قائمة المجالات الفرعية مع فلترة، بحث، فرز، وتصفح صفحات
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Subdomain::class);
         $query = Subdomain::with('domain');
 
         // فلترة حسب domain_id
@@ -48,6 +49,7 @@ class SubdomainController extends Controller
     // صفحة إضافة مجال فرعي جديد
     public function create()
     {
+        $this->authorize('create', Subdomain::class);
         $domains = Domain::all();
 
         return view('configuration.subdomain.create', compact('domains'));
@@ -56,6 +58,7 @@ class SubdomainController extends Controller
     // حفظ المجال الفرعي الجديد
     public function store(Request $request)
     {
+        $this->authorize('create', Subdomain::class);
         $request->validate([
             'domain_id' => 'required|exists:domains,id',
             'name' => 'required|string|max:255|unique:subdomains,name,NULL,id,domain_id,'.$request->domain_id,
@@ -69,6 +72,7 @@ class SubdomainController extends Controller
     // صفحة تعديل مجال فرعي
     public function edit(Subdomain $subdomain)
     {
+        $this->authorize('update', Subdomain::class);
         $domains = Domain::all();
 
         return view('configuration.subdomain.edit', compact('subdomain', 'domains'));
@@ -77,6 +81,7 @@ class SubdomainController extends Controller
     // تحديث مجال فرعي
     public function update(Request $request, Subdomain $subdomain)
     {
+        $this->authorize('update', Subdomain::class);
         $request->validate([
             'domain_id' => 'required|exists:domains,id',
             'name' => 'required|string|max:255|unique:subdomains,name,'.$subdomain->id.',id,domain_id,'.$request->domain_id,
@@ -90,6 +95,7 @@ class SubdomainController extends Controller
     // حذف مجال فرعي
     public function destroy(Subdomain $subdomain)
     {
+        $this->authorize('delete', Subdomain::class);
         $subdomain->delete();
 
         return redirect()->route('subdomains.index')->with('success', 'تم حذف المجال الفرعي بنجاح');

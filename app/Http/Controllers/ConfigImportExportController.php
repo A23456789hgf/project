@@ -297,6 +297,7 @@ class ConfigImportExportController extends Controller
     {
         abort_unless(isset($this->configs[$entity]), 404);
         $config = $this->configs[$entity];
+        $this->authorize('import', $config['model']);
 
         $authorities = [];
         if ($entity === 'internal-entities') {
@@ -315,6 +316,7 @@ class ConfigImportExportController extends Controller
     {
         abort_unless(isset($this->configs[$entity]), 404);
         $cfg = $this->configs[$entity];
+        $this->authorize('export', $cfg['model']);
 
         $model = $cfg['model'];
         $query = $model::query();
@@ -395,6 +397,7 @@ class ConfigImportExportController extends Controller
     {
         abort_unless(isset($this->configs[$entity]), 404);
         $cfg = $this->configs[$entity];
+        $this->authorize('import', $cfg['model']);
 
         // Build headers using column keys, but output as raw keys for import mapping
         // We'll include readable relation names where defined
@@ -435,6 +438,9 @@ class ConfigImportExportController extends Controller
     public function previewImport(Request $request, string $entity)
     {
         abort_unless(isset($this->configs[$entity]), 404);
+        $cfg = $this->configs[$entity];
+        $this->authorize('import', $cfg['model']);
+
         $request->validate(['file' => 'required|file|mimes:csv,xlsx,xls|max:5120']);
 
         $file = $request->file('file');
@@ -458,6 +464,7 @@ class ConfigImportExportController extends Controller
     {
         abort_unless(isset($this->configs[$entity]), 404);
         $cfg = $this->configs[$entity];
+        $this->authorize('import', $cfg['model']);
 
         $request->validate([
             'file_path' => 'required|string',

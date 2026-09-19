@@ -1,0 +1,2506 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="E:\project\phpunit.xml" tests="1" assertions="5" errors="0" failures="1" skipped="0" time="43.459997">
+    <testsuite name="Feature" tests="1" assertions="5" errors="0" failures="1" skipped="0" time="43.459997">
+      <testsuite name="Tests\Feature\ApprovalCenterTest" file="E:\project\tests\Feature\ApprovalCenterTest.php" tests="1" assertions="5" errors="0" failures="1" skipped="0" time="43.459997">
+        <testcase name="test_index_displays_dynamic_counts_for_user_actionable_tasks" file="E:\project\tests\Feature\ApprovalCenterTest.php" line="226" class="Tests\Feature\ApprovalCenterTest" classname="Tests.Feature.ApprovalCenterTest" assertions="5" time="43.459997">
+          <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\ApprovalCenterTest::test_index_displays_dynamic_counts_for_user_actionable_tasks&#13;
+Failed asserting that '&lt;!DOCTYPE html&gt;\n
+&lt;html lang="ar" dir="rtl"&gt;\n
+\n
+&lt;head&gt;\n
+    &lt;meta charset="UTF-8" /&gt;\n
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;\n
+    &lt;meta name="csrf-token" content="agL56uPVSNtQPM22bNamOXCAFc3lMTxNXp7aOJ0a"&gt;\n
+    &lt;title&gt;مركز المراجعة والاعتمادات - نظام متابعة المشاريع&lt;/title&gt;\n
+    &lt;link rel="icon" href="http://127.0.0.1:8000/images/logo.ico" type="image/x-icon" /&gt;\n
+\n
+    &lt;!-- All assets and fonts self-hosted locally via Vite --&gt;\n
+\n
+    &lt;!-- Vendor Libraries (Bootstrap RTL, FontAwesome, Select2, Flasher) --&gt;\n
+    &lt;link rel="stylesheet" href="http://127.0.0.1:8000/css/libs/bootstrap.rtl.min.css" /&gt;\n
+    &lt;link rel="stylesheet" href="http://127.0.0.1:8000/css/libs/font-awesome.all.min.css" /&gt;\n
+    &lt;link rel="stylesheet" href="http://127.0.0.1:8000/css/libs/select2.min.css" /&gt;\n
+    &lt;link rel="stylesheet" href="http://127.0.0.1:8000/css/libs/select2-bootstrap-5-theme.min.css" /&gt;\n
+    &lt;link rel="stylesheet" href="http://127.0.0.1:8000/vendor/flasher/flasher-toastr.min.css" /&gt;\n
+\n
+    &lt;!-- Unified Master Stylesheet &amp; Application JS (Vite Pipeline) --&gt;\n
+    &lt;link rel="preload" as="style" href="http://127.0.0.1:8000/build/assets/app-d58yrn2m.css" /&gt;&lt;link rel="modulepreload" as="script" href="http://127.0.0.1:8000/build/assets/app-DIXZbemX.js" /&gt;&lt;link rel="stylesheet" href="http://127.0.0.1:8000/build/assets/app-d58yrn2m.css" /&gt;&lt;script type="module" src="http://127.0.0.1:8000/build/assets/app-DIXZbemX.js"&gt;&lt;/script&gt;    &lt;!-- jQuery (loaded first - required by Select2, financing, and other components) --&gt;\n
+    &lt;script src="http://127.0.0.1:8000/js/libs/jquery-3.7.0.min.js"&gt;&lt;/script&gt;\n
+    &lt;!-- PHPFlasher &amp; Toastr Scripts (Local) --&gt;\n
+    &lt;script src="http://127.0.0.1:8000/vendor/flasher/flasher.min.js"&gt;&lt;/script&gt;\n
+    &lt;script src="http://127.0.0.1:8000/vendor/flasher/flasher-toastr.min.js"&gt;&lt;/script&gt;\n
+    &lt;script src="http://127.0.0.1:8000/js/app-utils.js"&gt;&lt;/script&gt;\n
+    &lt;style&gt;\n
+    .approval-center-header {\n
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);\n
+        border-radius: 1rem;\n
+        color: #fff;\n
+        padding: 1.75rem 2rem;\n
+        margin-bottom: 1.75rem;\n
+        box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.15);\n
+    }\n
+&lt;/style&gt;\n
+    &lt;style&gt;\n
+        :root {\n
+            /* Color Palette */\n
+            --primary: #1e3a5f;\n
+            --primary-light: #2d5a8f;\n
+            --primary-dark: #0f1f3d;\n
+            --primary-color: #1e3a5f; /* alias for unified-arabic-design.css compatibility */\n
+            --accent: #c9a961;\n
+            --accent-light: #d4b876;\n
+            --accent-dark: #b89850;\n
+            --sky-blue: #3a8fc7; /* Sky Blue - secondary accent */\n
+            --sky-blue-light: #5ba3d0;\n
+            --gold-color: #c9a961; /* Gold alias */\n
+\n
+            /* Neutrals */\n
+            --white: #ffffff;\n
+            --gray-50: #f9fafb;\n
+            --gray-100: #f3f4f6;\n
+            --gray-200: #e5e7eb;\n
+            --gray-300: #d1d5db;\n
+            --gray-400: #9ca3af;\n
+            --gray-500: #6b7280;\n
+            --gray-600: #4b5563;\n
+            --gray-700: #374151;\n
+            --gray-800: #1f2937;\n
+            --gray-900: #111827;\n
+\n
+            /* Layout */\n
+            --sidebar-width: 240px;\n
+            --header-height: 50px;\n
+            --content-max-width: 1400px;\n
+\n
+            /* Spacing */\n
+            --space-xs: 0.25rem;\n
+            --space-sm: 0.4rem;\n
+            --space-md: 0.8rem;\n
+            --space-lg: 1.2rem;\n
+            --space-xl: 1.6rem;\n
+            --space-2xl: 2.4rem;\n
+\n
+            /* Typography */\n
+            --font-sans: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;\n
+            --font-size-xs: 0.75rem;\n
+            --font-size-sm: 0.875rem;\n
+            --font-size-base: 1rem;\n
+            --font-size-lg: 1.125rem;\n
+            --font-size-xl: 1.25rem;\n
+\n
+            /* Shadows */\n
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);\n
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);\n
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);\n
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);\n
+\n
+            /* Transitions */\n
+            --transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;\n
+            --transition-slow: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, opacity 0.25s ease, transform 0.25s ease;\n
+\n
+            /* Border Radius */\n
+            --radius-sm: 0.375rem;\n
+            --radius: 0.5rem;\n
+            --radius-lg: 0.75rem;\n
+            --radius-xl: 1rem;\n
+        }\n
+\n
+        * {\n
+            margin: 0;\n
+            padding: 0;\n
+            box-sizing: border-box;\n
+            font-weight: 400;\n
+        }\n
+\n
+        b, strong, th, h1, h2, h3, h4, h5, h6, .fw-bold, .font-weight-bold {\n
+            font-weight: 700 !important;\n
+        }\n
+\n
+        .fw-semibold, .font-weight-semibold, .card-header, .card-header h5, .form-label, .btn {\n
+            font-weight: 600 !important;\n
+        }\n
+\n
+        html {\n
+            scroll-behavior: smooth;\n
+            font-size: 14px;\n
+        }\n
+\n
+        body {\n
+            font-family: var(--font-sans);\n
+            font-size: var(--font-size-sm);\n
+            line-height: 1.6;\n
+            color: var(--gray-800);\n
+            background: var(--gray-50);\n
+            padding-top: var(--header-height);\n
+            min-height: 100vh;\n
+            -webkit-font-smoothing: antialiased;\n
+            -moz-osx-font-smoothing: grayscale;\n
+        }\n
+\n
+        /* ========== NAVBAR ========== */\n
+        .navbar {\n
+            position: fixed;\n
+            top: 0;\n
+            left: 0;\n
+            right: 0;\n
+            height: var(--header-height);\n
+            background: var(--primary);\n
+            /* Same subtle separator as sidebar's internal borders */\n
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);\n
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);\n
+            z-index: 1000;\n
+            transition: var(--transition);\n
+        }\n
+\n
+        .navbar .container-fluid {\n
+            height: 100%;\n
+\n
+            display: flex;\n
+            align-items: center;\n
+            justify-content: space-between;\n
+        }\n
+\n
+        .navbar-brand {\n
+            display: flex;\n
+            align-items: center;\n
+            gap: var(--space-md);\n
+            font-size: var(--font-size-sm);\n
+            font-weight: 600;\n
+            color: var(--white);\n
+            text-decoration: none;\n
+            transition: var(--transition);\n
+        }\n
+\n
+        .navbar-brand:hover {\n
+            color: var(--accent);\n
+        }\n
+\n
+        .navbar-brand img {\n
+            width: 32px;\n
+            height: 32px;\n
+            object-fit: contain;\n
+        }\n
+\n
+        .menu-toggle {\n
+            display: block;\n
+            background: none;\n
+            border: none;\n
+            color: var(--white);\n
+            font-size: 1.25rem;\n
+            cursor: pointer;\n
+            padding: var(--space-sm);\n
+            border-radius: var(--radius);\n
+            transition: var(--transition);\n
+        }\n
+\n
+        .menu-toggle:hover {\n
+            background: rgba(255, 255, 255, 0.1);\n
+            color: var(--accent);\n
+        }\n
+\n
+        /* ========== NOTIFICATION BUTTONS ========== */\n
+        .btn-link {\n
+            background: none;\n
+            border: none;\n
+            color: var(--accent) !important;\n
+            font-size: 1.125rem;\n
+            cursor: pointer;\n
+            padding: var(--space-sm);\n
+            border-radius: var(--radius);\n
+            transition: var(--transition);\n
+        }\n
+\n
+        .btn-link:hover {\n
+            background: rgba(201, 169, 97, 0.1);\n
+            color: var(--accent-light) !important;\n
+        }\n
+\n
+        /* ========== NOTIFICATION SYSTEM ========== */\n
+        .notification-wrapper {\n
+            position: relative;\n
+        }\n
+\n
+        .notification-badge {\n
+            position: absolute;\n
+            top: -5px;\n
+            left: 10px;\n
+            background: #dc3545;\n
+            color: white;\n
+            border-radius: 50%;\n
+            width: 18px;\n
+            height: 18px;\n
+            font-size: 0.7rem;\n
+            display: flex;\n
+            align-items: center;\n
+            justify-content: center;\n
+            font-weight: bold;\n
+        }\n
+\n
+        .notification-dropdown {\n
+            position: absolute;\n
+            top: 100%;\n
+            left: 0;\n
+            width: 320px;\n
+            background: var(--white);\n
+            border: 1px solid var(--gray-200);\n
+            border-radius: var(--radius);\n
+            box-shadow: var(--shadow-lg);\n
+            z-index: 1050;\n
+            display: none;\n
+            margin-top: 0.5rem;\n
+        }\n
+\n
+        .notification-dropdown.active {\n
+            display: block;\n
+        }\n
+\n
+        .notification-header {\n
+            padding: var(--space-md);\n
+            border-bottom: 1px solid var(--gray-200);\n
+            background: var(--gray-50);\n
+        }\n
+\n
+        .notification-header h6 {\n
+            margin: 0;\n
+            font-size: var(--font-size-base);\n
+            font-weight: 600;\n
+            color: var(--gray-800);\n
+        }\n
+\n
+        .notification-list {\n
+            max-height: 350px;\n
+            overflow-y: auto;\n
+        }\n
+\n
+        .notification-item {\n
+            display: flex;\n
+            padding: var(--space-md);\n
+            border-bottom: 1px solid var(--gray-100);\n
+            text-decoration: none;\n
+            color: var(--gray-700);\n
+            transition: var(--transition);\n
+        }\n
+\n
+        .notification-item:hover {\n
+            background: var(--gray-50);\n
+        }\n
+\n
+        .notification-icon {\n
+            width: 36px;\n
+            height: 36px;\n
+            background: var(--primary-light);\n
+            color: white;\n
+            border-radius: var(--radius);\n
+            display: flex;\n
+            align-items: center;\n
+            justify-content: center;\n
+            margin-left: var(--space-sm);\n
+            flex-shrink: 0;\n
+        }\n
+\n
+        .notification-content {\n
+            flex: 1;\n
+        }\n
+\n
+        .notification-title {\n
+            font-weight: 600;\n
+            margin-bottom: 2px;\n
+            color: var(--primary);\n
+        }\n
+\n
+        .notification-desc {\n
+            font-size: var(--font-size-xs);\n
+            color: var(--gray-600);\n
+            line-height: 1.4;\n
+        }\n
+\n
+        .notification-time {\n
+            font-size: 0.75rem;\n
+            color: var(--gray-500);\n
+            margin-top: 4px;\n
+        }\n
+\n
+        .notification-time i {\n
+            margin-left: 4px;\n
+        }\n
+\n
+        .notification-footer {\n
+            padding: var(--space-sm) var(--space-md);\n
+            border-top: 1px solid var(--gray-200);\n
+            text-align: center;\n
+        }\n
+\n
+        .notification-footer a {\n
+            color: var(--primary);\n
+            text-decoration: none;\n
+            font-size: var(--font-size-xs);\n
+            font-weight: 500;\n
+        }\n
+\n
+        .notification-footer a:hover {\n
+            color: var(--primary-light);\n
+            text-decoration: underline;\n
+        }\n
+\n
+        /* ========== SIDEBAR ========== */\n
+        .sidebar-container {\n
+            position: fixed;\n
+            top: var(--header-height);\n
+            right: 0;\n
+            width: var(--sidebar-width);\n
+            height: calc(100vh - var(--header-height));\n
+            background: var(--primary);\n
+            border-left: 1px solid rgba(255, 255, 255, 0.1);\n
+            overflow-y: auto;\n
+            overflow-x: hidden;\n
+            transition: transform 0.3s ease;\n
+            z-index: 900;\n
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);\n
+        }\n
+\n
+        .sidebar-container.collapsed {\n
+            transform: translateX(100%);\n
+        }\n
+\n
+        /* Custom Scrollbar */\n
+        .sidebar-container::-webkit-scrollbar {\n
+            width: 6px;\n
+        }\n
+\n
+        .sidebar-container::-webkit-scrollbar-track {\n
+            background: transparent;\n
+        }\n
+\n
+        .sidebar-container::-webkit-scrollbar-thumb {\n
+            background: rgba(201, 169, 97, 0.5);\n
+            border-radius: 3px;\n
+        }\n
+\n
+        .sidebar-container::-webkit-scrollbar-thumb:hover {\n
+            background: var(--accent);\n
+        }\n
+\n
+        .sidebar-header {\n
+            padding: var(--space-md) var(--space-lg);\n
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);\n
+            /* Exactly does not match the navbar background so the two zones look like one band */\n
+            background: var(--primary);\n
+            min-height: 0;\n
+        }\n
+\n
+        .sidebar-header h5 {\n
+            font-size: var(--font-size-sm);\n
+            font-weight: 700;\n
+            color: rgba(255, 255, 255, 0.75);\n
+            margin: 0;\n
+            letter-spacing: 0.03em;\n
+            text-transform: uppercase;\n
+        }\n
+\n
+        .sidebar-content {\n
+            padding: var(--space-md) 0;\n
+        }\n
+\n
+        /* Navigation Links */\n
+        .sidebar-container .nav-link {\n
+            display: flex;\n
+            align-items: center;\n
+            padding: 0.625rem var(--space-lg);\n
+            margin: 0.125rem var(--space-md);\n
+            color: rgba(255, 255, 255, 0.85);\n
+            text-decoration: none;\n
+            border-radius: var(--radius);\n
+            font-size: var(--font-size-sm);\n
+            font-weight: 500;\n
+            transition: var(--transition);\n
+            position: relative;\n
+        }\n
+\n
+        .sidebar-container .nav-link i {\n
+            width: 20px;\n
+            margin-left: var(--space-sm);\n
+            font-size: 0.9375rem;\n
+            color: inherit;\n
+            opacity: 0.85;\n
+            transition: var(--transition);\n
+        }\n
+\n
+        .sidebar-container .nav-link:hover {\n
+            background: rgba(255, 255, 255, 0.1);\n
+            color: var(--white);\n
+        }\n
+\n
+        .sidebar-container .nav-link:hover i {\n
+            color: var(--accent);\n
+        }\n
+\n
+        .sidebar-container .nav-link.active {\n
+            background: linear-gradient(to left, rgba(201, 169, 97, 0.2), transparent);\n
+            color: var(--white);\n
+            font-weight: 600;\n
+        }\n
+\n
+        .sidebar-container .nav-link.active::before {\n
+            content: '';\n
+            position: absolute;\n
+            right: 0;\n
+            top: 50%;\n
+            transform: translateY(-50%);\n
+            width: 3px;\n
+            height: 70%;\n
+            background: var(--accent);\n
+            border-radius: 3px 0 0 3px;\n
+        }\n
+\n
+        .sidebar-container .nav-link.active i {\n
+            color: var(--accent);\n
+        }\n
+\n
+        /* Collapsible Menus */\n
+        .sidebar-container .nav-link[data-bs-toggle="collapse"] {\n
+            justify-content: space-between;\n
+        }\n
+\n
+        .sidebar-container .nav-link .fa-chevron-down {\n
+            font-size: 0.75rem;\n
+            margin-left: 0;\n
+            margin-right: auto;\n
+            transition: transform 0.2s ease;\n
+            order: -1;\n
+        }\n
+\n
+        .sidebar-container .nav-link[aria-expanded="true"] .fa-chevron-down {\n
+            transform: rotate(180deg);\n
+        }\n
+\n
+        .sidebar-container .nav-link[data-bs-toggle="collapse"] span {\n
+            order: 1;\n
+            flex: 1;\n
+            text-align: right;\n
+        }\n
+\n
+        .sidebar-container .collapse {\n
+            padding-right: var(--space-md);\n
+        }\n
+\n
+        .sidebar-container .collapse .nav-link {\n
+            padding: 0.5rem var(--space-lg) 0.5rem 2.5rem;\n
+            font-size: var(--font-size-xs);\n
+            margin: 0.125rem var(--space-sm);\n
+        }\n
+\n
+        .sidebar-container .collapse .nav-link::before {\n
+            content: '•';\n
+            position: absolute;\n
+            right: 1.75rem;\n
+            color: rgba(255, 255, 255, 0.5);\n
+            font-size: 1rem;\n
+        }\n
+\n
+        .sidebar-container .collapse .nav-link.active::before {\n
+            color: var(--accent);\n
+        }\n
+\n
+        /* ========== MAIN CONTENT ========== */\n
+        .main-content {\n
+            margin-right: var(--sidebar-width);\n
+            padding: var(--space-xl);\n
+            min-height: calc(100vh - var(--header-height));\n
+            transition: margin-right 0.3s ease;\n
+        }\n
+\n
+        .sidebar-container.collapsed~.main-content {\n
+            margin-right: 0;\n
+        }\n
+\n
+        /* ========== CARDS ========== */\n
+        .custom-card {\n
+            background: var(--white);\n
+            border: 1px solid var(--gray-200);\n
+            border-radius: var(--radius-lg);\n
+            box-shadow: var(--shadow-sm);\n
+            transition: var(--transition);\n
+        }\n
+\n
+        .custom-card:hover {\n
+            box-shadow: var(--shadow);\n
+            border-color: var(--gray-300);\n
+        }\n
+\n
+        /* ========== BUTTONS ========== */\n
+        .btn-primary {\n
+            background: var(--primary);\n
+            color: var(--white);\n
+            border: 1px solid var(--primary);\n
+            padding: 0.5rem 1.25rem;\n
+            border-radius: var(--radius);\n
+            font-size: var(--font-size-sm);\n
+            font-weight: 600;\n
+            transition: var(--transition);\n
+            cursor: pointer;\n
+        }\n
+\n
+        .btn-primary:hover {\n
+            background: var(--primary-light);\n
+            border-color: var(--primary-light);\n
+            color: var(--white);\n
+            transform: translateY(-1px);\n
+            box-shadow: var(--shadow);\n
+        }\n
+\n
+        .btn-primary:active {\n
+            transform: translateY(0);\n
+        }\n
+\n
+        /* ========== OVERLAY ========== */\n
+        .sidebar-overlay {\n
+            display: none;\n
+            position: fixed;\n
+            top: var(--header-height);\n
+            left: 0;\n
+            right: 0;\n
+            bottom: 0;\n
+            background: rgba(0, 0, 0, 0.5);\n
+            z-index: 850;\n
+            backdrop-filter: blur(2px);\n
+        }\n
+\n
+        /* ========== LOADER ========== */\n
+        .loader-overlay {\n
+            position: fixed;\n
+            top: 0;\n
+            left: 0;\n
+            right: 0;\n
+            bottom: 0;\n
+            background: rgba(15, 31, 61, 0.75);\n
+            display: flex;\n
+            visibility: hidden;\n
+            opacity: 0;\n
+            justify-content: center;\n
+            align-items: center;\n
+            z-index: 9999;\n
+            transition: opacity 0.15s ease, visibility 0.15s ease;\n
+            pointer-events: none;\n
+            will-change: opacity;\n
+        }\n
+\n
+        .loader-overlay.active {\n
+            visibility: visible;\n
+            opacity: 1;\n
+            pointer-events: all;\n
+        }\n
+\n
+        .loader-content {\n
+            background: var(--white);\n
+            border-radius: var(--radius-lg);\n
+            padding: var(--space-xl) var(--space-2xl);\n
+            text-align: center;\n
+            max-width: 320px;\n
+            width: 90%;\n
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);\n
+        }\n
+\n
+        .loader-overlay.active .loader-content {\n
+            transform: none;\n
+        }\n
+\n
+        .loader-spinner {\n
+            width: 44px;\n
+            height: 44px;\n
+            border: 3px solid var(--gray-100);\n
+            border-top: 3px solid var(--accent);\n
+            border-radius: 50%;\n
+            animation: spin 0.6s linear infinite;\n
+            margin: 0 auto var(--space-md);\n
+        }\n
+\n
+        @keyframes spin {\n
+            to { transform: rotate(360deg); }\n
+        }\n
+\n
+        .loader-text {\n
+            font-size: var(--font-size-xl);\n
+            font-weight: 700;\n
+            color: var(--primary);\n
+            margin-bottom: var(--space-sm);\n
+            letter-spacing: -0.01em;\n
+        }\n
+\n
+        .loader-subtext {\n
+            font-size: var(--font-size-base);\n
+            color: var(--gray-600);\n
+            opacity: 0.9;\n
+        }\n
+\n
+        /* ========== RESPONSIVE ========== */\n
+        @media (max-width: 992px) {\n
+            .menu-toggle {\n
+                display: block;\n
+            }\n
+\n
+            .sidebar-container {\n
+                transform: translateX(100%);\n
+                box-shadow: var(--shadow-lg);\n
+            }\n
+\n
+            .sidebar-container.show {\n
+                transform: translateX(0);\n
+            }\n
+\n
+            .sidebar-overlay.active {\n
+                display: block;\n
+            }\n
+\n
+            .main-content {\n
+                margin-right: 0;\n
+            }\n
+\n
+            .notification-dropdown {\n
+                left: auto;\n
+                right: 0;\n
+                width: 300px;\n
+            }\n
+        }\n
+\n
+        @media (max-width: 768px) {\n
+            .navbar .container-fluid {\n
+                padding: 0 var(--space-md);\n
+            }\n
+\n
+            .navbar-brand {\n
+                font-size: var(--font-size-xs);\n
+                gap: var(--space-sm);\n
+            }\n
+\n
+            .navbar-brand img {\n
+                width: 32px;\n
+                height: 32px;\n
+            }\n
+\n
+            .sidebar-container {\n
+                width: 280px;\n
+            }\n
+\n
+            .main-content {\n
+                padding: var(--space-lg);\n
+            }\n
+\n
+            .notification-dropdown {\n
+                width: 280px;\n
+            }\n
+        }\n
+\n
+        @media (max-width: 480px) {\n
+            .navbar .container-fluid {\n
+                padding: 0 var(--space-sm);\n
+            }\n
+\n
+            .navbar-brand span {\n
+                display: none;\n
+            }\n
+\n
+            .sidebar-container {\n
+                width: 100%;\n
+                max-width: 320px;\n
+            }\n
+\n
+            .main-content {\n
+                padding: var(--space-md);\n
+            }\n
+\n
+            .notification-dropdown {\n
+                width: calc(100vw - 2rem);\n
+                right: 0.5rem;\n
+                left: auto;\n
+            }\n
+        }\n
+\n
+        /* ========== UTILITIES ========== */\n
+        .hover-effect {\n
+            transition: var(--transition);\n
+            cursor: pointer;\n
+        }\n
+\n
+        .hover-effect:hover {\n
+            transform: translateY(-2px);\n
+            box-shadow: var(--shadow);\n
+        }\n
+\n
+        /* Focus States */\n
+        *:focus-visible {\n
+            outline: 2px solid var(--accent);\n
+            outline-offset: 2px;\n
+        }\n
+\n
+        /* Smooth Transitions */\n
+        a,\n
+        button,\n
+        input,\n
+        select,\n
+        textarea {\n
+            transition: var(--transition);\n
+        }\n
+\n
+        /* Select2 Bootstrap 5 Theme Fixes */\n
+        .select2-container--default .select2-selection--single {\n
+            height: 38px;\n
+            border: 1px solid #dee2e6;\n
+            border-radius: 0.375rem;\n
+            padding: 0.375rem 0.75rem;\n
+        }\n
+\n
+        .select2-container--default .select2-selection--single .select2-selection__rendered {\n
+            line-height: 24px;\n
+            padding-right: 0;\n
+            padding-left: 0;\n
+            color: #212529;\n
+        }\n
+\n
+        .select2-container--default .select2-selection--single .select2-selection__arrow {\n
+            height: 36px;\n
+            top: 1px;\n
+        }\n
+\n
+        .select2-container--default .select2-selection--multiple {\n
+            border: 1px solid #dee2e6;\n
+            border-radius: 0.375rem;\n
+            min-height: 38px;\n
+        }\n
+\n
+        .select2-container--default.select2-container--focus .select2-selection--single,\n
+        .select2-container--default.select2-container--focus .select2-selection--multiple {\n
+            border-color: #86b7fe;\n
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);\n
+        }\n
+\n
+        .select2-search__field {\n
+            font-family: inherit;\n
+        }\n
+\n
+        .select2-dropdown {\n
+            border-color: #dee2e6;\n
+            border-radius: 0.375rem;\n
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);\n
+        }\n
+\n
+        /* ==========================================================================\n
+   DYNAMIC PERMISSIONS VISIBILITY SYSTEM\n
+   Automatically hiddes elements based on role permissions\n
+   ========================================================================== */\n
+        \n
+                        \n
+            &lt;/style&gt;\n
+&lt;script&gt;\n
+(function() {\n
+    var lastErrorTime = 0;\n
+    function logError(payload) {\n
+        var now = Date.now();\n
+        if (now - lastErrorTime &lt; 10000) return; // Rate limit 10s\n
+        lastErrorTime = now;\n
+        var token = document.querySelector('meta[name="csrf-token"]');\n
+        if (!token) return;\n
+        fetch('/log-js-error', { \n
+            method: 'POST', \n
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token.getAttribute('content') }, \n
+            body: JSON.stringify(payload) \n
+        }).catch(function(){}); \n
+    }\n
+    window.onerror = function(msg, url, line, col) { \n
+        if (msg &amp;&amp; (msg.indexOf('ResizeObserver') !== -1 || msg.indexOf('extension') !== -1)) return;\n
+        logError({ message: msg, url: url, line: line, col: col });\n
+    }; \n
+    window.addEventListener('unhandledrejection', function(event) { \n
+        var reason = event.reason ? event.reason.toString() : 'Unhandled Rejection';\n
+        if (reason.indexOf('ResizeObserver') !== -1) return;\n
+        logError({ message: reason, url: window.location.href, line: 0, col: 0 });\n
+    });\n
+})();\n
+&lt;/script&gt;\n
+    &lt;script type="text/javascript" class="flasher-js" nonce='a1f004a46813bd686edc7c28f6b80b5f'&gt;\n
+        (function(window, document) {\n
+            const merge = (first, second) =&gt; {\n
+                if (Array.isArray(first) &amp;&amp; Array.isArray(second)) {\n
+                    return [...first, ...second.filter(item =&gt; !first.includes(item))];\n
+                }\n
+\n
+                if (typeof first === 'object' &amp;&amp; typeof second === 'object') {\n
+                    for (const [key, value] of Object.entries(second)) {\n
+                        first[key] = key in first ? { ...first[key], ...value } : value;\n
+                    }\n
+                    return first;\n
+                }\n
+\n
+                return undefined;\n
+            };\n
+\n
+            const mergeOptions = (...options) =&gt; {\n
+                const result = {};\n
+\n
+                options.forEach(option =&gt; {\n
+                    Object.entries(option).forEach(([key, value]) =&gt; {\n
+                        result[key] = key in result ? merge(result[key], value) : value;\n
+                    });\n
+                });\n
+\n
+                return result;\n
+            };\n
+\n
+            const renderCallback = (options) =&gt; {\n
+                if(!window.flasher) {\n
+                    throw new Error('Flasher is not loaded');\n
+                }\n
+\n
+                window.flasher.render(options);\n
+            };\n
+\n
+            const render = (options) =&gt; {\n
+                if (options instanceof Event) {\n
+                    options = options.detail;\n
+                }\n
+\n
+                if (['interactive', 'complete'].includes(document.readyState)) {\n
+                    renderCallback(options);\n
+                } else {\n
+                    document.addEventListener('DOMContentLoaded', () =&gt; renderCallback(options));\n
+                }\n
+            };\n
+\n
+            const addScriptAndRender = (options) =&gt; {\n
+                const mainScript = "\/vendor\/flasher\/flasher.min.js";\n
+\n
+                if (window.flasher || !mainScript || document.querySelector('script[src="' + mainScript + '"]')) {\n
+                    render(options);\n
+                } else {\n
+                    const tag = document.createElement('script');\n
+                    tag.src = mainScript;\n
+                    tag.type = 'text/javascript';\n
+                    tag.setAttribute('nonce', "a1f004a46813bd686edc7c28f6b80b5f");\n
+                    tag.onload = () =&gt; render(options);\n
+\n
+                    document.head.appendChild(tag);\n
+                }\n
+            };\n
+\n
+            const addRenderListener = () =&gt; {\n
+                if (1 === document.querySelectorAll('script.flasher-js').length) {\n
+                    document.addEventListener('flasher:render', render);\n
+                    document.addEventListener('turbo:before-cache', () =&gt; {\n
+                        document.querySelectorAll('.fl-wrapper').forEach(el =&gt; el.remove());\n
+                    });\n
+                }\n
+\n
+                \n
+            };\n
+\n
+            const options = [];\n
+            options.push({"envelopes":[],"scripts":[],"styles":[],"options":[],"context":{"envelopes_only":false,"csp_script_nonce":"a1f004a46813bd686edc7c28f6b80b5f","csp_style_nonce":"d4384f9da29fa4c06b5e20ca9fa60973"}});\n
+            /** {--FLASHER_REPLACE_ME--} **/\n
+            addScriptAndRender(mergeOptions(...options));\n
+            addRenderListener();\n
+        })(window, document);\n
+    &lt;/script&gt;\n
+&lt;/head&gt;\n
+\n
+\n
+\n
+&lt;body&gt;\n
+    &lt;!-- الشريط العلوي --&gt;\n
+&lt;nav class="navbar navbar-expand-lg navbar-dark fixed-top"&gt;\n
+    &lt;div class="container-fluid d-flex align-items-center justify-content-between"&gt;\n
+\n
+        &lt;!-- القسم الأيسر: الشعار والاسم --&gt;\n
+        &lt;div class="d-flex align-items-center gap-3"&gt;\n
+            &lt;button class="menu-toggle" id="sidebarToggle" style="background: none; border: none; color: #c9a961;"&gt;\n
+                &lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"\n
+                    style="width:18px;height:18px;fill:currentColor;" aria-hidden="true"&gt;\n
+                    &lt;path\n
+                        d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z" /&gt;\n
+                &lt;/svg&gt;\n
+            &lt;/button&gt;\n
+            &lt;a class="navbar-brand mb-0 h1 d-flex align-items-center gap-2" href="http://127.0.0.1:8000/dashboard"\n
+                style="font-size: 1.1rem;"&gt;\n
+                &lt;!-- تم تصغير الشعار ليتناسب مع التصميم الحديث --&gt;\n
+                &lt;img src="http://127.0.0.1:8000/images/logo.png" alt="الشعار" class="navbar-logo" width="32" height="32"\n
+                    style="object-fit: contain;" /&gt;\n
+                &lt;span class="brand-text" style="font-size: 1rem;"&gt;وزارة الزراعة والثروة السمكية والموارد المائية&lt;/span&gt;\n
+            &lt;/a&gt;\n
+        &lt;/div&gt;\n
+\n
+        &lt;!-- القسم الأيمن: الإشعارات والملف الشخصي --&gt;\n
+        &lt;div class="d-flex align-items-center gap-3"&gt;\n
+\n
+            \n
+            &lt;div class="dropdown"&gt;\n
+                &lt;button class="btn btn-link dropdown-toggle p-0 text-decoration-none border-0" type="button"\n
+                    id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color: #fff !important;"&gt;\n
+                    &lt;div class="navbar-profile-avatar bg-white d-flex align-items-center justify-content-center"\n
+                        style="color: #1e3a5f; pointer-events: none;"&gt;\n
+                        &lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"\n
+                            style="width:14px;height:14px;fill:#1e3a5f;flex-shrink:0;pointer-events: none;" aria-hidden="true"&gt;\n
+                            &lt;path\n
+                                d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304H178.3z" /&gt;\n
+                        &lt;/svg&gt;\n
+                    &lt;/div&gt;\n
+                &lt;/button&gt;\n
+\n
+                &lt;ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2 py-1" aria-labelledby="userDropdown"\n
+                    style="font-size: 0.9rem;"&gt;\n
+                                        &lt;li&gt;\n
+                        &lt;hr class="dropdown-divider my-1"&gt;\n
+                    &lt;/li&gt;\n
+                    &lt;li&gt;\n
+                        &lt;a class="dropdown-item d-flex align-items-center gap-2 py-1 text-danger"\n
+                            href="javascript:void(0)" onclick="confirmLogout()"&gt;\n
+                            &lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"\n
+                                style="width:16px;height:16px;fill:#dc3545;flex-shrink:0;" aria-hidden="true"&gt;\n
+                                &lt;path\n
+                                    d="M377.9 105.9L500.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L377.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1-128 0c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM160 96L96 96c-17.7 0-32 14.3-32 32l0 256c0 17.7 14.3 32 32 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-64 0c-53 0-96-43-96-96L0 128C0 75 43 32 96 32l64 0c17.7 0 32 14.3 32 32s-14.3 32-32 32z" /&gt;\n
+                            &lt;/svg&gt;\n
+                            &lt;span&gt;تسجيل الخروج&lt;/span&gt;\n
+                        &lt;/a&gt;\n
+                    &lt;/li&gt;\n
+                &lt;/ul&gt;\n
+            &lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/nav&gt;\n
+\n
+&lt;style&gt;\n
+    /* تصغير الشعار وجعله متجاوباً */\n
+    .navbar-logo {\n
+        height: 32px !important;\n
+        width: 32px !important;\n
+        object-fit: contain;\n
+        transition: all 0.3s ease;\n
+    }\n
+\n
+    @media (max-width: 768px) {\n
+        .navbar-logo {\n
+            height: 28px !important;\n
+            width: 28px !important;\n
+        }\n
+    }\n
+\n
+    @media (max-width: 480px) {\n
+        .navbar-logo {\n
+            height: 24px !important;\n
+            width: 24px !important;\n
+        }\n
+    }\n
+\n
+    /* تنسيق اسم الوزارة بشكل احترافي */\n
+    .brand-text {\n
+        font-family: 'Cairo', sans-serif;\n
+        font-weight: 300;\n
+        color: #ffffff;\n
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);\n
+    }\n
+\n
+    /* تصغير وتعديل لون أيقونة الملف الشخصي */\n
+    .navbar-profile-avatar {\n
+        width: 28px !important;\n
+        height: 28px !important;\n
+        border-radius: 50% !important;\n
+        color: #1e3a5f !important;\n
+        /* اللون الكحلي */\n
+        background-color: #ffffff !important;\n
+        display: flex !important;\n
+        align-items: center !important;\n
+        justify-content: center !important;\n
+        transition: all 0.3s ease;\n
+    }\n
+\n
+    /* تصغير وتعديل لون أيقونة الإشعارات */\n
+    .notification-trigger {\n
+        background: #ffffff !important;\n
+        width: 28px !important;\n
+        height: 28px !important;\n
+        border-radius: 50% !important;\n
+        display: flex !important;\n
+        align-items: center !important;\n
+        justify-content: center !important;\n
+        padding: 0 !important;\n
+        border: none !important;\n
+        transition: all 0.2s ease !important;\n
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);\n
+    }\n
+\n
+    .notification-trigger:hover {\n
+        background: #eef2f7 !important;\n
+        transform: scale(1.05);\n
+    }\n
+\n
+    /* أيقونات الإشعارات - مضمنة كـ SVG */\n
+&lt;/style&gt;\n
+\n
+&lt;!-- سكريبت SweetAlert (local) --&gt;\n
+&lt;script src="http://127.0.0.1:8000/js/libs/sweetalert2.all.min.js"&gt;&lt;/script&gt;\n
+&lt;form id="logout-form" method="POST" action="http://127.0.0.1:8000/logout" class="d-none"&gt;&lt;input type="hidden" name="_token" value="agL56uPVSNtQPM22bNamOXCAFc3lMTxNXp7aOJ0a" autocomplete="off"&gt;&lt;/form&gt;\n
+\n
+&lt;script&gt;\n
+    function confirmLogout() {\n
+        Swal.fire({\n
+            title: 'هل تود تسجيل الخروج؟',\n
+            text: 'سيتم إنهاء جلستك الحالية بأمان',\n
+            icon: 'warning',\n
+            showCancelButton: true,\n
+            confirmButtonText: '&lt;i class="fas fa-sign-out-alt me-1"&gt;&lt;/i&gt; نعم، خروج',\n
+            cancelButtonText: '&lt;i class="fas fa-times me-1"&gt;&lt;/i&gt; إلغاء',\n
+            customClass: {\n
+                confirmButton: 'btn btn-primary px-4 fw-bold',\n
+                cancelButton: 'btn btn-light text-dark px-4 border'\n
+            },\n
+            buttonsStyling: true,\n
+            reverseButtons: true\n
+        }).then((result) =&gt; {\n
+            if (result.isConfirmed) {\n
+                document.getElementById('logout-form').submit();\n
+            }\n
+        });\n
+    }\n
+&lt;/script&gt;\n
+\n
+&lt;!-- طبقة التعتيم للجوال --&gt;\n
+&lt;div class="sidebar-overlay" id="sidebarOverlay"&gt;&lt;/div&gt;\n
+\n
+&lt;!-- القائمة الجانبية --&gt;\n
+&lt;div class="sidebar-container" id="sidebar"&gt;\n
+    &lt;div class="sidebar-header d-flex justify-content-between align-items-center"&gt;\n
+        &lt;h5 class="mb-0"&gt;القائمة الجانبية&lt;/h5&gt;\n
+        &lt;button type="button" class="btn-close btn-close-white d-lg-none" id="mobileMenuClose"\n
+            aria-label="إغلاق"&gt;&lt;/button&gt;\n
+    &lt;/div&gt;\n
+\n
+    &lt;div class="sidebar-content"&gt;\n
+        &lt;ul class="nav flex-column"&gt;\n
+            \n
+            \n
+            \n
+                            &lt;li class="nav-item auth-perm-approvals-sidebar" data-sidebar-module="approvals"&gt;\n
+                    &lt;a class="nav-link active"\n
+                        href="http://127.0.0.1:8000/approvals"&gt;\n
+                        &lt;i class="fas fa-clipboard-check me-2"&gt;&lt;/i&gt; مركز المراجعة والاعتمادات\n
+                    &lt;/a&gt;\n
+                &lt;/li&gt;\n
+            \n
+                            &lt;li class="nav-item auth-perm-referrals-sidebar" data-sidebar-module="consultations"&gt;\n
+                    &lt;a class="nav-link "\n
+                        href="http://127.0.0.1:8000/consultations"&gt;\n
+                        &lt;i class="fas fa-comments me-2"&gt;&lt;/i&gt; الاستشارات والإحالات\n
+                    &lt;/a&gt;\n
+                &lt;/li&gt;\n
+            \n
+            \n
+            &lt;!--  --&gt;\n
+\n
+                        &lt;li class="nav-item auth-perm-referrals-sidebar auth-perm-correspondence-sidebar auth-perm-memoirs-sidebar"\n
+                data-sidebar-module="correspondence"&gt;\n
+                \n
+                &lt;a class="nav-link d-flex justify-content-between align-items-center "\n
+                    data-bs-toggle="collapse" href="#submenu-referrals" role="button"\n
+                    aria-expanded="false" aria-controls="submenu-referrals"&gt;\n
+\n
+                    &lt;span&gt;\n
+                        &lt;svg xmlns="http://www.w3.org/2000/svg" \n
+         viewBox="0 0 512 512" \n
+         class="svg-icon svg-icon-exchange-alt " \n
+         style="fill: currentColor !important; flex-shrink: 0; width: 1em; height: 1em; vertical-align: -0.125em; "\n
+         fill="currentColor"\n
+         aria-hidden="true"&gt;\n
+         &lt;path d="M16 128c0-17.7 14.3-32 32-32H382.1l-73-73c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l128 128c12.5 12.5 12.5 32.8 0 45.3l-128 128c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l73-73H48c-17.7 0-32-14.3-32-32zm480 256c0 17.7-14.3 32-32 32H129.9l73 73c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3l128-128c12.5-12.5 32.8-12.5 45.3 0s12.5 32.8 0 45.3l-73 73H464c17.7 0 32 14.3 32 32z"/&gt;\n
+    &lt;/svg&gt;\n
+ إدارة الإحالات\n
+                    &lt;/span&gt;\n
+\n
+                    &lt;svg xmlns="http://www.w3.org/2000/svg" \n
+         viewBox="0 0 512 512" \n
+         class="svg-icon svg-icon-chevron-down small" \n
+         style="fill: currentColor !important; flex-shrink: 0; width: 1em; height: 1em; vertical-align: -0.125em; "\n
+         fill="currentColor"\n
+         aria-hidden="true"&gt;\n
+         &lt;path d="M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.3c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z"/&gt;\n
+    &lt;/svg&gt;\n
+                &lt;/a&gt;\n
+\n
+                &lt;div class="collapse ps-3 " id="submenu-referrals"&gt;\n
+                    &lt;ul class="nav flex-column"&gt;\n
+                        \n
+                        \n
+                                            &lt;/ul&gt;\n
+                &lt;/div&gt;\n
+            &lt;/li&gt;\n
+            \n
+            \n
+            \n
+            \n
+            \n
+\n
+            \n
+            \n
+                    &lt;/ul&gt;\n
+    &lt;/div&gt;\n
+&lt;/div&gt;\n
+\n
+&lt;style&gt;\n
+    /* تكبير شعار الطير الجمهوري وجعله متجاوباً */\n
+    .navbar-logo {\n
+        height: 50px !important;\n
+        width: 50px !important;\n
+        object-fit: contain;\n
+        transition: all 0.3s ease;\n
+    }\n
+\n
+    @media (max-width: 768px) {\n
+        .navbar-logo {\n
+            height: 42px !important;\n
+            width: 42px !important;\n
+        }\n
+    }\n
+\n
+    @media (max-width: 480px) {\n
+        .navbar-logo {\n
+            height: 35px !important;\n
+            width: 35px !important;\n
+        }\n
+    }\n
+\n
+    /* تنسيق اسم الوزارة بشكل احترافي */\n
+    .brand-text {\n
+        font-family: 'Cairo', sans-serif;\n
+        font-weight: 300;\n
+        color: #ffffff;\n
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);\n
+    }\n
+\n
+    /* تصغير وتعديل لون أيقونة الملف الشخصي */\n
+    .navbar-profile-avatar {\n
+        width: 28px !important;\n
+        height: 28px !important;\n
+        border-radius: 50% !important;\n
+        color: #002147 !important;\n
+        /* اللون الكحلي */\n
+        background-color: #ffffff !important;\n
+        display: flex !important;\n
+        align-items: center !important;\n
+        justify-content: center !important;\n
+        transition: all 0.3s ease;\n
+    }\n
+\n
+    /* تصغير وتعديل لون أيقونة الإشعارات */\n
+    .notification-trigger {\n
+        background: #ffffff !important;\n
+        width: 28px !important;\n
+        height: 28px !important;\n
+        border-radius: 50% !important;\n
+        display: flex !important;\n
+        align-items: center !important;\n
+        justify-content: center !important;\n
+        padding: 0 !important;\n
+        border: none !important;\n
+        transition: all 0.2s ease !important;\n
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);\n
+    }\n
+\n
+    .notification-trigger:hover {\n
+        background: #eef2f7 !important;\n
+        transform: scale(1.05);\n
+    }\n
+\n
+    /* SVG SideBar Styling */\n
+    .sidebar-container .nav-link svg.svg-icon {\n
+        width: 20px;\n
+        height: 20px;\n
+        margin-left: 12px;\n
+        flex-shrink: 0;\n
+        fill: currentColor !important;\n
+        vertical-align: middle;\n
+    }\n
+\n
+    .sidebar-container .nav-link .svg-icon-chevron-down {\n
+        width: 12px;\n
+        height: 12px;\n
+        margin-left: 0;\n
+        margin-right: auto;\n
+        transition: transform 0.2s ease;\n
+        order: -1;\n
+    }\n
+\n
+    .sidebar-container .nav-link[aria-expanded="true"] .svg-icon-chevron-down {\n
+        transform: rotate(180deg);\n
+    }\n
+&lt;/style&gt;\n
+\n
+    &lt;!-- المحتوى الرئيسي --&gt;\n
+    &lt;main class="main-content"&gt;\n
+        &lt;div class="container-fluid"&gt;\n
+            &lt;div class="container-fluid px-3 px-md-4 py-3"&gt;\n
+    \n
+    \n
+    &lt;div class="approval-center-header"&gt;\n
+        &lt;div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3"&gt;\n
+            &lt;div&gt;\n
+                &lt;nav aria-label="breadcrumb"&gt;\n
+                    &lt;ol class="breadcrumb mb-2 text-white-50 small"&gt;\n
+                        &lt;li class="breadcrumb-item"&gt;&lt;a href="http://127.0.0.1:8000/dashboard" class="text-white-50 text-decoration-none"&gt;&lt;i class="fas fa-home me-1"&gt;&lt;/i&gt; الرئيسية&lt;/a&gt;&lt;/li&gt;\n
+                        &lt;li class="breadcrumb-item"&gt;&lt;a href="http://127.0.0.1:8000/projects" class="text-white-50 text-decoration-none"&gt;المشاريع&lt;/a&gt;&lt;/li&gt;\n
+                        &lt;li class="breadcrumb-item active text-white" aria-current="page"&gt;مركز المراجعة والاعتمادات&lt;/li&gt;\n
+                    &lt;/ol&gt;\n
+                &lt;/nav&gt;\n
+                &lt;h3 class="fw-bold mb-1 d-flex align-items-center gap-2"&gt;\n
+                    &lt;i class="fas fa-clipboard-check text-info"&gt;&lt;/i&gt; مركز المراجعة والاعتمادات\n
+                &lt;/h3&gt;\n
+                &lt;p class="text-white-50 mb-0 small"&gt;\n
+                    منصة اتخاذ القرارات الإدارية والفنية الموحدة ومتابعة مسارات الاعتماد\n
+                &lt;/p&gt;\n
+            &lt;/div&gt;\n
+            &lt;div&gt;\n
+                &lt;a href="http://127.0.0.1:8000/projects" class="btn btn-outline-light rounded-pill px-4 btn-sm fw-semibold"&gt;\n
+                    &lt;i class="fas fa-list me-1"&gt;&lt;/i&gt; قائمة المشاريع العامة\n
+                &lt;/a&gt;\n
+            &lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+\n
+    \n
+    \n
+    &lt;div class="card border-0 shadow-sm rounded-4 mb-4"&gt;\n
+        &lt;div class="card-body p-0"&gt;\n
+            &lt;div class="table-responsive"&gt;\n
+                &lt;table class="table table-hover align-middle mb-0"&gt;\n
+                    &lt;thead class="table-light"&gt;\n
+                        &lt;tr&gt;\n
+                            &lt;th class="px-4 py-3"&gt;رقم / المشروع&lt;/th&gt;\n
+                            &lt;th class="py-3"&gt;المرحلة&lt;/th&gt;\n
+                            &lt;th class="py-3"&gt;الجهة المخصصة&lt;/th&gt;\n
+                            &lt;th class="py-3"&gt;تاريخ الإجراء&lt;/th&gt;\n
+                            &lt;th class="px-4 py-3 text-end"&gt;إجراءات&lt;/th&gt;\n
+                        &lt;/tr&gt;\n
+                    &lt;/thead&gt;\n
+                    &lt;tbody&gt;\n
+                                                    &lt;tr&gt;\n
+                                &lt;td class="px-4 py-3"&gt;\n
+                                    &lt;h6 class="mb-1 fw-bold"&gt;\n
+                                        &lt;a href="http://127.0.0.1:8000/approvals/1" class="text-decoration-none text-dark"&gt;\n
+                                            مشروع مركز الاعتمادات التجريبي\n
+                                        &lt;/a&gt;\n
+                                    &lt;/h6&gt;\n
+                                    &lt;small class="text-muted"&gt;PRJ-TEST-607&lt;/small&gt;\n
+                                &lt;/td&gt;\n
+                                &lt;td class="py-3"&gt;\n
+                                    &lt;span class="badge bg-primary bg-opacity-10 text-primary px-2 py-1"&gt;\n
+                                        المراجعة الفنية\n
+                                    &lt;/span&gt;\n
+                                &lt;/td&gt;\n
+                                &lt;td class="py-3"&gt;\n
+                                    &lt;span class="fw-semibold text-dark"&gt;الجمعية المحلية (Child)&lt;/span&gt;\n
+                                &lt;/td&gt;\n
+                                &lt;td class="py-3 text-muted small"&gt;\n
+                                    2026-09-14 17:59\n
+                                &lt;/td&gt;\n
+                                &lt;td class="px-4 py-3 text-end"&gt;\n
+                                    &lt;a href="http://127.0.0.1:8000/approvals/1" class="btn btn-sm btn-outline-primary rounded-pill px-3"&gt;\n
+                                        &lt;i class="fas fa-eye me-1"&gt;&lt;/i&gt; التفاصيل\n
+                                    &lt;/a&gt;\n
+                                &lt;/td&gt;\n
+                            &lt;/tr&gt;\n
+                                            &lt;/tbody&gt;\n
+                &lt;/table&gt;\n
+            &lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+\n
+    \n
+    &lt;div class="mt-4 d-flex justify-content-center"&gt;\n
+                    \n
+            &lt;/div&gt;\n
+&lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/main&gt;\n
+\n
+\n
+    &lt;!-- Page Loader --&gt;\n
+    &lt;div class="loader-overlay" id="pageLoader"&gt;\n
+        &lt;div class="loader-content"&gt;\n
+            &lt;div class="loader-spinner"&gt;&lt;/div&gt;\n
+            &lt;div class="loader-text"&gt;جاري تحميل الصفحة...&lt;/div&gt;\n
+            &lt;div class="loader-subtext"&gt;يرجى الانتظار&lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+\n
+                        &lt;style&gt;\n
+    #signatureSetupModal .modal-dialog {\n
+        max-width: 520px;\n
+        margin: 1rem auto;\n
+    }\n
+\n
+    #signatureSetupModal .modal-content {\n
+        max-height: calc(100vh - 2rem);\n
+        display: flex;\n
+        flex-direction: column;\n
+    }\n
+\n
+    #signatureSetupModal .modal-body {\n
+        overflow-y: auto;\n
+        -webkit-overflow-scrolling: touch;\n
+        /* إتاحة التمرير السلس والمرن بالإصبع في شاشات الجوال */\n
+        overscroll-behavior: contain;\n
+    }\n
+\n
+    #signatureSetupModal .signature-wrapper {\n
+        border: 2px dashed #0d6efd;\n
+        border-radius: 10px;\n
+        background: #f8f9fa;\n
+        position: relative;\n
+        width: 100%;\n
+        margin: 12px 0;\n
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);\n
+    }\n
+\n
+    #signatureSetupModal .signature-pad {\n
+        display: block;\n
+        width: 100%;\n
+        touch-action: none;\n
+        /* يخصص اللمس داخل المربع للرسم فقط */\n
+        cursor: crosshair;\n
+    }\n
+\n
+    @media (max-width: 576px) {\n
+        #signatureSetupModal .modal-dialog {\n
+            margin: 0.5rem;\n
+            max-width: calc(100% - 1rem);\n
+        }\n
+\n
+        #signatureSetupModal .modal-body {\n
+            padding: 1rem 0.75rem;\n
+            max-height: calc(100vh - 130px);\n
+        }\n
+\n
+        #signatureSetupModal p.text-muted {\n
+            font-size: 0.88rem;\n
+        }\n
+    }\n
+&lt;/style&gt;\n
+&lt;div class="modal fade" id="signatureSetupModal" tabindex="-1" aria-labelledby="signatureSetupModalLabel"\n
+    aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false"&gt;\n
+    &lt;div class="modal-dialog modal-dialog-centered mx-2 mx-sm-auto"&gt;\n
+        &lt;div class="modal-content border-0 shadow-lg rounded-4"&gt;\n
+            &lt;div class="modal-header bg-light py-3 flex-shrink-0"&gt;\n
+                &lt;h5 class="modal-title fw-bold text-primary d-flex align-items-center gap-2"\n
+                    id="signatureSetupModalLabel"&gt;\n
+                    &lt;i class="fas fa-file-signature"&gt;&lt;/i&gt; إعداد التوقيع الإلكتروني\n
+                &lt;/h5&gt;\n
+                &lt;button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"\n
+                    id="signatureCloseBtn"&gt;&lt;/button&gt;\n
+            &lt;/div&gt;\n
+            &lt;div class="modal-body p-3 p-sm-4 text-center"&gt;\n
+                &lt;p class="text-muted mb-1"&gt;يرجى رسم توقيعك الإلكتروني أدناه في الإطار المخصص لاعتماد العمليات.&lt;/p&gt;\n
+                &lt;small class="text-secondary d-block mb-2 d-sm-none" style="font-size: 0.8rem;"&gt;\n
+                    &lt;i class="fas fa-hand-point-up"&gt;&lt;/i&gt; للتمرير في الشاشة، اسحب بإصبعك من النصوص خارج مربع التوقيع\n
+                &lt;/small&gt;\n
+                &lt;div class="signature-wrapper"&gt;\n
+                    &lt;canvas id="signature-pad" class="signature-pad"&gt;&lt;/canvas&gt;\n
+                &lt;/div&gt;\n
+                &lt;div class="d-flex justify-content-between align-items-center mt-2"&gt;\n
+                    &lt;button type="button" class="btn btn-sm btn-outline-danger px-3 rounded-pill"\n
+                        id="clearSignatureBtn"&gt;\n
+                        &lt;i class="fas fa-eraser"&gt;&lt;/i&gt; مسح وإعادة رسم\n
+                    &lt;/button&gt;\n
+                    &lt;span id="signatureError" class="text-danger fw-medium"\n
+                        style="display: none; font-size: 0.85rem;"&gt;يرجى رسم التوقيع أولاً.&lt;/span&gt;\n
+                &lt;/div&gt;\n
+            &lt;/div&gt;\n
+            &lt;div class="modal-footer bg-light py-2 px-3 flex-shrink-0 d-flex flex-wrap gap-2 justify-content-end"&gt;\n
+                &lt;button type="button" class="btn btn-outline-secondary px-4 rounded-3" data-bs-dismiss="modal"\n
+                    id="signatureDeclineBtn"&gt;تخطي&lt;/button&gt;\n
+                &lt;button type="button" class="btn btn-primary px-4 rounded-3 fw-bold shadow-sm" id="saveSignatureBtn"&gt;حفظ\n
+                    واعتماد&lt;/button&gt;\n
+            &lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/div&gt;\n
+\n
+&lt;script src="http://127.0.0.1:8000/js/signature_pad.min.js"&gt;&lt;/script&gt;\n
+&lt;script&gt;\n
+    document.addEventListener('DOMContentLoaded', function () {\n
+        const canvas = document.getElementById('signature-pad');\n
+        const clearBtn = document.getElementById('clearSignatureBtn');\n
+        const saveBtn = document.getElementById('saveSignatureBtn');\n
+        const errorSpan = document.getElementById('signatureError');\n
+        const modalEl = document.getElementById('signatureSetupModal');\n
+        const declineBtn = document.getElementById('signatureDeclineBtn');\n
+        const closeBtn = document.getElementById('signatureCloseBtn');\n
+\n
+        if (!canvas) return;\n
+\n
+        // Initialize SignaturePad\n
+        const signaturePad = new SignaturePad(canvas, {\n
+            backgroundColor: 'rgba(255, 255, 255, 0)',\n
+            penColor: 'rgb(0, 0, 100)'\n
+        });\n
+\n
+        // Function to resize canvas for high DPI displays and responsive layout\n
+        function resizeCanvas() {\n
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);\n
+            const wrapper = canvas.parentElement;\n
+            const parentWidth = wrapper ? wrapper.offsetWidth : 0;\n
+            if (parentWidth === 0) return;\n
+\n
+            // تحديد الارتفاع بشكل ديناميكي متناسب مع عرض الشاشة والجوالات\n
+            const isMobile = window.innerWidth &lt;= 576;\n
+            const targetHeight = isMobile ? 160 : 200;\n
+\n
+            // حفظ الرسم قبل تغيير الأبعاد لكي لا يضيع التوقيع عند تدوير شاشة الهاتف\n
+            let savedDrawing = null;\n
+            if (signaturePad &amp;&amp; !signaturePad.isEmpty()) {\n
+                savedDrawing = signaturePad.toDataURL();\n
+            }\n
+\n
+            canvas.width = parentWidth * ratio;\n
+            canvas.height = targetHeight * ratio;\n
+            canvas.style.width = parentWidth + "px";\n
+            canvas.style.height = targetHeight + "px";\n
+\n
+            const ctx = canvas.getContext("2d");\n
+            ctx.scale(ratio, ratio);\n
+\n
+            if (signaturePad) {\n
+                signaturePad.clear();\n
+                if (savedDrawing) {\n
+                    signaturePad.fromDataURL(savedDrawing);\n
+                }\n
+            }\n
+        }\n
+\n
+        window.addEventListener("resize", resizeCanvas);\n
+\n
+        let signatureModalInstance = null;\n
+        if (typeof bootstrap !== 'undefined') {\n
+            signatureModalInstance = new bootstrap.Modal(modalEl);\n
+        }\n
+\n
+        modalEl.addEventListener('shown.bs.modal', function () {\n
+            resizeCanvas();\n
+        });\n
+\n
+        clearBtn.addEventListener('click', function () {\n
+            signaturePad.clear();\n
+            errorSpan.style.display = 'none';\n
+        });\n
+\n
+        // Decline logic - just close the modal. The user can set it up later.\n
+        declineBtn.addEventListener('click', function () {\n
+            sessionStorage.setItem('signature_prompt_declined', 'true');\n
+        });\n
+        closeBtn.addEventListener('click', function () {\n
+            sessionStorage.setItem('signature_prompt_declined', 'true');\n
+        });\n
+\n
+        saveBtn.addEventListener('click', function () {\n
+            if (signaturePad.isEmpty()) {\n
+                errorSpan.style.display = 'block';\n
+                return;\n
+            }\n
+\n
+            errorSpan.style.display = 'none';\n
+            const dataURL = signaturePad.toDataURL(); // PNG\n
+            saveBtn.disabled = true;\n
+            saveBtn.innerHTML = '&lt;i class="fas fa-spinner fa-spin"&gt;&lt;/i&gt; جاري الحفظ...';\n
+\n
+            fetch('http://127.0.0.1:8000/profile/signature/setup', {\n
+                method: 'POST',\n
+                headers: {\n
+                    'Content-Type': 'application/json',\n
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),\n
+                    'Accept': 'application/json'\n
+                },\n
+                body: JSON.stringify({ signature_data: dataURL })\n
+            })\n
+                .then(response =&gt; response.json())\n
+                .then(data =&gt; {\n
+                    if (data.success) {\n
+                        window.userHasSignature = true;\n
+                        if (signatureModalInstance) {\n
+                            signatureModalInstance.hide();\n
+                        }\n
+\n
+                        if (typeof flasher !== 'undefined') {\n
+                            flasher.success(data.message || 'تم حفظ التوقيع بنجاح.');\n
+                        }\n
+\n
+                        // If this was triggered from an intercepted form, resubmit it\n
+                        if (window.pendingSignatureForm) {\n
+                            // Create a hidden input for the signature data so the intercepted form gets the signature\n
+                            let sigInput = window.pendingSignatureForm.querySelector('input[name="signature"]');\n
+                            if (!sigInput) {\n
+                                sigInput = document.createElement('input');\n
+                                sigInput.type = 'hidden';\n
+                                sigInput.name = 'signature';\n
+                                window.pendingSignatureForm.appendChild(sigInput);\n
+                            }\n
+                            sigInput.value = dataURL;\n
+\n
+                            // Use requestSubmit to trigger any native or JS onsubmit handlers, fallback to submit\n
+                            if (typeof window.pendingSignatureForm.requestSubmit === 'function') {\n
+                                window.pendingSignatureForm.requestSubmit();\n
+                            } else {\n
+                                window.pendingSignatureForm.submit();\n
+                            }\n
+                            window.pendingSignatureForm = null;\n
+                        } else {\n
+                            // Reload the page to show the session()-&gt;flash() bootstrap alert\n
+                            window.location.reload();\n
+                        }\n
+\n
+                    } else {\n
+                        if (typeof flasher !== 'undefined') {\n
+                            flasher.error(data.message || 'حدث خطأ أثناء حفظ التوقيع.');\n
+                        } else {\n
+                            alert(data.message || 'حدث خطأ أثناء حفظ التوقيع.');\n
+                        }\n
+                        saveBtn.disabled = false;\n
+                        saveBtn.innerHTML = 'حفظ واعتماد';\n
+                    }\n
+                })\n
+                .catch(error =&gt; {\n
+                    console.error('Error:', error);\n
+                    if (typeof flasher !== 'undefined') {\n
+                        flasher.error('حدث خطأ في الاتصال بالخادم.');\n
+                    } else {\n
+                        alert('حدث خطأ في الاتصال بالخادم.');\n
+                    }\n
+                    saveBtn.disabled = false;\n
+                    saveBtn.innerHTML = 'حفظ واعتماد';\n
+                });\n
+        });\n
+\n
+        // Global functions for other scripts to interact with the modal\n
+        window.openSignatureModal = function (formToSubmit = null) {\n
+            window.pendingSignatureForm = formToSubmit;\n
+            signaturePad.clear();\n
+            errorSpan.style.display = 'none';\n
+            if (signatureModalInstance) {\n
+                signatureModalInstance.show();\n
+            }\n
+        };\n
+\n
+        window.userHasSignature = true;\n
+\n
+        // Setup initial prompt\n
+        const urlParams = new URLSearchParams(window.location.search);\n
+        const justChangedPassword = urlParams.has('password_changed') || document.referrer.includes('force-change-password');\n
+\n
+        // Show modal if user doesn't have signature AND hasn't declined in this session\n
+        if (!window.userHasSignature &amp;&amp; sessionStorage.getItem('signature_prompt_declined') !== 'true') {\n
+            // Either they just changed password (initial login), or we can just prompt them once per session\n
+            // The logic: "After the initial login...". \n
+            // We can just show it on the dashboard if they are not on the dashboard.\n
+            if (window.location.pathname === '/dashboard' || window.location.pathname === '/home') {\n
+                setTimeout(() =&gt; {\n
+                    window.openSignatureModal();\n
+                }, 1000);\n
+            }\n
+        }\n
+\n
+        // Global interceptor for forms/buttons that require signature\n
+        document.body.addEventListener('click', function (e) {\n
+            const trigger = e.target.closest('.requires-signature');\n
+            if (trigger) {\n
+                if (!window.userHasSignature) {\n
+                    e.preventDefault();\n
+                    e.stopPropagation();\n
+\n
+                    let formToSubmit = null;\n
+                    if (trigger.tagName === 'BUTTON' &amp;&amp; trigger.type === 'submit') {\n
+                        formToSubmit = trigger.closest('form');\n
+                    }\n
+\n
+                    window.openSignatureModal(formToSubmit);\n
+                    return false;\n
+                }\n
+            }\n
+        }, true); // Use capture phase to intercept before form submission\n
+    });\n
+&lt;/script&gt;                        \n
+    &lt;script src="http://127.0.0.1:8000/js/libs/select2.min.js"&gt;&lt;/script&gt;\r\n
+\r\n
+&lt;!-- Global Select2 Interceptor: Ensures search is not always enabled and formatting is not preserved across ALL pages --&gt;\r\n
+&lt;script&gt;\r\n
+    (function($) {\r\n
+        if (!$.fn.select2) return;\r\n
+        var originalSelect2 = $.fn.select2;\r\n
+        $.fn.select2 = function() {\r\n
+            var args = arguments;\r\n
+            var options = args[0];\r\n
+            \r\n
+            if (typeof options === 'object' || typeof options === 'undefined') {\r\n
+                return this.each(function() {\r\n
+                    var $this = $(this);\r\n
+                    // Clone options to avoid polluting a shared options object\r\n
+                    var opts = $.extend(true, {}, options || {});\r\n
+                    \r\n
+                    // Force search box to appear by removing any minimum length restrictions\r\n
+                    opts.minimumResultsForSearch = 0;\r\n
+                    \r\n
+                    // Always default to bootstrap-5 theme if none specified\r\n
+                    if (!opts.theme) {\r\n
+                        opts.theme = 'bootstrap-5';\r\n
+                    }\r\n
+\r\n
+                    // Preserve original formatting classes\r\n
+                    if (!opts.selectionCssClass) {\r\n
+                        var originalClasses = $this.attr('class') || '';\r\n
+                        var classesArray = originalClasses.split(/\s+/);\r\n
+                        var cssClassesToPreserve = classesArray.filter(function(c) {\r\n
+                            return c !== 'form-select' &amp;&amp; c !== 'form-control' &amp;&amp; c !== 'select2-hidden-accessible' &amp;&amp; c !== 'select2-search' &amp;&amp; !c.startsWith('select2');\r\n
+                        }).join(' ');\r\n
+                        \r\n
+                        var dropdownClassesToPreserve = classesArray.filter(function(c) {\r\n
+                            return c !== 'form-select' &amp;&amp; c !== 'form-control' &amp;&amp; c !== 'select2-hidden-accessible' &amp;&amp; c !== 'select2-search' &amp;&amp; !c.startsWith('select2') &amp;&amp; c !== 'form-select-sm' &amp;&amp; c !== 'form-control-sm' &amp;&amp; c !== 'form-select-lg' &amp;&amp; c !== 'form-control-lg';\r\n
+                        }).join(' ');\r\n
+                        \r\n
+                        if (cssClassesToPreserve) {\r\n
+                            opts.selectionCssClass = cssClassesToPreserve;\r\n
+                            opts.dropdownCssClass = dropdownClassesToPreserve;\r\n
+                        }\r\n
+                    }\r\n
+                    \r\n
+                    // Initialize with original function\r\n
+                    originalSelect2.apply($this, [opts]);\r\n
+                });\r\n
+            } else {\r\n
+                return originalSelect2.apply(this, arguments);\r\n
+            }\r\n
+        };\r\n
+        // Preserve original properties (like .defaults)\r\n
+        for (var key in originalSelect2) {\r\n
+            $.fn.select2[key] = originalSelect2[key];\r\n
+        }\r\n
+    })(jQuery);\r\n
+&lt;/script&gt;\r\n
+\r\n
+&lt;script src="http://127.0.0.1:8000/js/app-utils.js?v=1789408772" defer&gt;&lt;/script&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/project-forms-fix.js?v=1789408772" defer&gt;&lt;/script&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/page-loader.js?v=1789408772"&gt;&lt;/script&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/project-tables.js?v=1789408772" defer&gt;&lt;/script&gt;\r\n
+&lt;script&gt;\r\n
+    (function () {\r\n
+        'use strict';\r\n
+        // Wait for DOM to be ready\r\n
+        document.addEventListener('DOMContentLoaded', function () {\r\n
+            // Notification Toggle Logic\r\n
+            const notificationToggle = document.getElementById('notificationToggle');\r\n
+            const notificationDropdown = document.getElementById('notificationDropdown');\r\n
+\r\n
+            if (notificationToggle &amp;&amp; notificationDropdown) {\r\n
+                notificationToggle.addEventListener('click', function (e) {\r\n
+                    e.stopPropagation();\r\n
+                    notificationDropdown.classList.toggle('active');\r\n
+                });\r\n
+\r\n
+                document.addEventListener('click', function (e) {\r\n
+                    if (!notificationDropdown.contains(e.target) &amp;&amp; e.target !== notificationToggle) {\r\n
+                        notificationDropdown.classList.remove('active');\r\n
+                    }\r\n
+                });\r\n
+\r\n
+                // Prevent closing when clicking inside dropdown\r\n
+                notificationDropdown.addEventListener('click', function (e) {\r\n
+                    e.stopPropagation();\r\n
+                });\r\n
+            }\r\n
+\r\n
+            // Sidebar management\r\n
+            const sidebar = document.getElementById('sidebar');\r\n
+            const toggleBtn = document.getElementById('sidebarToggle');\r\n
+            const overlay = document.getElementById('sidebarOverlay');\r\n
+            const mobileMenuClose = document.getElementById('mobileMenuClose');\r\n
+\r\n
+            // SVG Icons for the Menu and Close states\r\n
+            const svgBars = `&lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="20" height="20" fill="currentColor"&gt;&lt;path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/&gt;&lt;/svg&gt;`;\r\n
+            const svgTimes = `&lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="20" height="20" fill="currentColor"&gt;&lt;path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/&gt;&lt;/svg&gt;`;\r\n
+\r\n
+            // Function to update the toggle icon\r\n
+            function updateToggleIcon(isCollapsed, isMobile) {\r\n
+                if (!toggleBtn) return;\r\n
+                if (isMobile) {\r\n
+                    if (sidebar &amp;&amp; sidebar.classList.contains('show')) {\r\n
+                        toggleBtn.innerHTML = svgTimes;\r\n
+                    } else {\r\n
+                        toggleBtn.innerHTML = svgBars;\r\n
+                    }\r\n
+                } else {\r\n
+                    if (!isCollapsed) {\r\n
+                        toggleBtn.innerHTML = svgTimes;\r\n
+                    } else {\r\n
+                        toggleBtn.innerHTML = svgBars;\r\n
+                    }\r\n
+                }\r\n
+            }\r\n
+\r\n
+            // Function to update sidebar height dynamically\r\n
+            function updateSidebarHeight() {\r\n
+                if (sidebar) {\r\n
+                    const navbarElement = document.querySelector('.navbar');\r\n
+                    const headerHeight = navbarElement ? navbarElement.offsetHeight : 60;\r\n
+                    const viewportHeight = window.innerHeight;\r\n
+                    sidebar.style.height = `calc(${viewportHeight}px - ${headerHeight}px)`;\r\n
+                }\r\n
+            }\r\n
+\r\n
+            // Function to close the sidebar on mobile\r\n
+            function closeSidebarOnMobile() {\r\n
+                if (window.innerWidth &lt;= 992) {\r\n
+                    if (sidebar) sidebar.classList.remove('show');\r\n
+                    if (overlay) overlay.classList.remove('active');\r\n
+                    updateToggleIcon(true, true);\r\n
+                }\r\n
+            }\r\n
+\r\n
+            // Function to open the sidebar on mobile\r\n
+            function openSidebarOnMobile() {\r\n
+                if (sidebar) sidebar.classList.add('show');\r\n
+                if (overlay) overlay.classList.add('active');\r\n
+                updateToggleIcon(false, true);\r\n
+            }\r\n
+\r\n
+            if (sidebar &amp;&amp; toggleBtn) {\r\n
+                const isMobile = window.innerWidth &lt;= 992;\r\n
+\r\n
+                // Load saved state (only applicable for desktop)\r\n
+                if (!isMobile) {\r\n
+                    const savedState = localStorage.getItem('sidebar-collapsed');\r\n
+                    if (savedState === 'true') {\r\n
+                        sidebar.classList.add('collapsed');\r\n
+                        updateToggleIcon(true, false);\r\n
+                    } else {\r\n
+                        sidebar.classList.remove('collapsed');\r\n
+                        updateToggleIcon(false, false);\r\n
+                    }\r\n
+                } else {\r\n
+                    // Mobile sidebar always starts hidden on initial load\r\n
+                    sidebar.classList.remove('show');\r\n
+                    if (overlay) overlay.classList.remove('active');\r\n
+                    updateToggleIcon(true, true);\r\n
+                }\r\n
+\r\n
+                // Update height and resize behaviors\r\n
+                updateSidebarHeight();\r\n
+                window.addEventListener('resize', function () {\r\n
+                    updateSidebarHeight();\r\n
+                    const currentIsMobile = window.innerWidth &lt;= 992;\r\n
+\r\n
+                    if (!currentIsMobile) {\r\n
+                        if (overlay) overlay.classList.remove('active');\r\n
+                        sidebar.classList.remove('show');\r\n
+                        const isCollapsed = sidebar.classList.contains('collapsed');\r\n
+                        updateToggleIcon(isCollapsed, false);\r\n
+                    } else {\r\n
+                        const isShowing = sidebar.classList.contains('show');\r\n
+                        updateToggleIcon(!isShowing, true);\r\n
+                        if (isShowing &amp;&amp; overlay) {\r\n
+                            overlay.classList.add('active');\r\n
+                        }\r\n
+                    }\r\n
+                });\r\n
+\r\n
+                // Toggle Sidebar button click event\r\n
+                toggleBtn.addEventListener('click', function () {\r\n
+                    const currentIsMobile = window.innerWidth &lt;= 992;\r\n
+                    if (currentIsMobile) {\r\n
+                        if (sidebar.classList.contains('show')) {\r\n
+                            closeSidebarOnMobile();\r\n
+                        } else {\r\n
+                            openSidebarOnMobile();\r\n
+                        }\r\n
+                    } else {\r\n
+                        sidebar.classList.toggle('collapsed');\r\n
+                        const isCollapsed = sidebar.classList.contains('collapsed');\r\n
+                        localStorage.setItem('sidebar-collapsed', isCollapsed);\r\n
+                        updateToggleIcon(isCollapsed, false);\r\n
+                    }\r\n
+                });\r\n
+\r\n
+                // Close button (X) inside sidebar header (for mobile)\r\n
+                if (mobileMenuClose) {\r\n
+                    mobileMenuClose.addEventListener('click', closeSidebarOnMobile);\r\n
+                }\r\n
+\r\n
+                // Close menu when clicking the overlay (mobile backdrop)\r\n
+                if (overlay) {\r\n
+                    overlay.addEventListener('click', closeSidebarOnMobile);\r\n
+                }\r\n
+\r\n
+                // Close menu when clicking navigation links (except for collapse submenu toggles)\r\n
+                const navLinks = sidebar.querySelectorAll('.nav-link');\r\n
+                navLinks.forEach(link =&gt; {\r\n
+                    link.addEventListener('click', function (e) {\r\n
+                        if (!this.getAttribute('data-bs-toggle') || this.getAttribute('data-bs-toggle') !== 'collapse') {\r\n
+                            closeSidebarOnMobile();\r\n
+                        }\r\n
+                    });\r\n
+                });\r\n
+            }\r\n
+\r\n
+            // توضيح: إعداد toastr يتم من خلال PHPFlasher (config/flasher.php) — لا حاجة للإعداد هنا\r\n
+\r\n
+            console.log('✅ Layout JavaScript Initialized');\r\n
+        });\r\n
+    })();\r\n
+&lt;/script&gt;\r\n
+\r\n
+&lt;script src="http://127.0.0.1:8000/js/date-fix.js" defer&gt;&lt;/script&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/hijri-converter.js" defer&gt;&lt;/script&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/data-operations.js" defer&gt;&lt;/script&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/date-converter.js" defer&gt;&lt;/script&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/comprehensive-form-fixes.js" defer&gt;&lt;/script&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/preliminary-activities-manager.js" defer&gt;&lt;/script&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/global-search-dropdowns.js" defer&gt;&lt;/script&gt;\r\n
+\r\n
+&lt;!-- SweetAlert2 (محلي - بدلاً من CDN لتجنب طلب الشبكة في كل صفحة) --&gt;\r\n
+&lt;script src="http://127.0.0.1:8000/js/libs/sweetalert2.all.min.js"&gt;&lt;/script&gt;\r\n
+&lt;script&gt;\r\n
+    window.confirmAction = function(elementOrAction, messageOrForm, ev) {\r\n
+        // Stop any event bubbling or default actions explicitly\r\n
+        try {\r\n
+            var e = ev || window.event;\r\n
+            if (e &amp;&amp; typeof e.preventDefault === 'function') {\r\n
+                e.preventDefault();\r\n
+                e.stopPropagation();\r\n
+            }\r\n
+        } catch (err) {}\r\n
+\r\n
+        // Immediately hide any loader that might have been shown\r\n
+        if (typeof window.hidePageLoader === 'function') {\r\n
+            window.hidePageLoader();\r\n
+        }\r\n
+\r\n
+        var targetElement = null;\r\n
+        var message = '';\r\n
+\r\n
+        // Handle signature: confirmAction(formOrButton, 'message', event)\r\n
+        if (typeof elementOrAction === 'object' &amp;&amp; elementOrAction !== null) {\r\n
+            targetElement = elementOrAction;\r\n
+            message = typeof messageOrForm === 'string' ? messageOrForm : (targetElement.getAttribute('data-confirm-message') || 'هل أنت متأكد من تنفيذ هذا الإجراء؟');\r\n
+        } \r\n
+        // Handle signature: confirmAction('actionName', form)\r\n
+        else if (typeof elementOrAction === 'string') {\r\n
+            message = elementOrAction;\r\n
+            if (typeof messageOrForm === 'object' &amp;&amp; messageOrForm !== null) {\r\n
+                targetElement = messageOrForm;\r\n
+            }\r\n
+        }\r\n
+\r\n
+        // Determine action context for tailored styling\r\n
+        var msgLower = (message || '').toLowerCase();\r\n
+        var isDelete = /حذف|إلغاء نهائي|مسح|delete|destroy/i.test(msgLower);\r\n
+        var isRevert = /رجوع|تراجع|تحويل.*مسودة|إلغاء الاعتماد|rollback|revert/i.test(msgLower);\r\n
+        var isDisable = /تعطيل|إيقاف|disable/i.test(msgLower);\r\n
+        var isEnable = /تفعيل|تمكين|enable/i.test(msgLower);\r\n
+        var isApprove = /موافق|اعتماد|تأكيد|إرسال|إغلاق المسودة|قفل|approve|finalize|submit/i.test(msgLower);\r\n
+\r\n
+        var title = 'تأكيد العملية';\r\n
+        var icon = 'warning';\r\n
+        var confirmBtnClass = 'btn-primary';\r\n
+        var confirmBtnIcon = 'fa-check';\r\n
+        var confirmBtnText = 'نعم، استمرار';\r\n
+\r\n
+        if (isDelete) {\r\n
+            title = 'تأكيد عملية الحذف';\r\n
+            icon = 'warning';\r\n
+            confirmBtnClass = 'btn-danger';\r\n
+            confirmBtnIcon = 'fa-trash-alt';\r\n
+            confirmBtnText = 'نعم، حذف';\r\n
+        } else if (isDisable) {\r\n
+            title = 'تأكيد عملية التعطيل';\r\n
+            icon = 'warning';\r\n
+            confirmBtnClass = 'btn-warning';\r\n
+            confirmBtnIcon = 'fa-pause-circle';\r\n
+            confirmBtnText = 'نعم، تعطيل';\r\n
+        } else if (isEnable) {\r\n
+            title = 'تأكيد عملية التفعيل';\r\n
+            icon = 'question';\r\n
+            confirmBtnClass = 'btn-success';\r\n
+            confirmBtnIcon = 'fa-check-circle';\r\n
+            confirmBtnText = 'نعم، تفعيل';\r\n
+        } else if (isRevert) {\r\n
+            title = 'تأكيد الرجوع إلى مسودة';\r\n
+            icon = 'warning';\r\n
+            confirmBtnClass = 'btn-warning';\r\n
+            confirmBtnIcon = 'fa-undo-alt';\r\n
+            confirmBtnText = 'نعم، تراجع';\r\n
+        } else if (isApprove) {\r\n
+            title = 'تأكيد العملية';\r\n
+            icon = 'question';\r\n
+            confirmBtnClass = 'btn-primary';\r\n
+            confirmBtnIcon = 'fa-check-double';\r\n
+            confirmBtnText = 'نعم، تأكيد';\r\n
+        }\r\n
+\r\n
+        if (typeof Swal !== 'undefined') {\r\n
+            Swal.fire({\r\n
+                title: title,\r\n
+                text: message || 'هل أنت متأكد؟',\r\n
+                icon: icon,\r\n
+                showCancelButton: true,\r\n
+                confirmButtonText: `&lt;i class="fas ${confirmBtnIcon} me-1"&gt;&lt;/i&gt; ${confirmBtnText}`,\r\n
+                cancelButtonText: '&lt;i class="fas fa-times me-1"&gt;&lt;/i&gt; إلغاء',\r\n
+                customClass: {\r\n
+                    confirmButton: `btn ${confirmBtnClass} px-4 fw-bold`,\r\n
+                    cancelButton: 'btn btn-light text-dark px-4 border'\r\n
+                },\r\n
+                buttonsStyling: true,\r\n
+                reverseButtons: true\r\n
+            }).then((result) =&gt; {\r\n
+                if (result.isConfirmed &amp;&amp; targetElement) {\r\n
+                    if (targetElement.tagName === 'FORM') {\r\n
+                        targetElement.classList.add('no-loader');\r\n
+                        targetElement.onsubmit = null;\r\n
+                        targetElement.submit();\r\n
+                    } else if ((targetElement.tagName === 'BUTTON' || targetElement.tagName === 'INPUT') &amp;&amp; targetElement.form) {\r\n
+                        targetElement.form.classList.add('no-loader');\r\n
+                        targetElement.form.onsubmit = null;\r\n
+                        targetElement.form.submit();\r\n
+                    } else if (targetElement.tagName === 'A' &amp;&amp; targetElement.href &amp;&amp; !targetElement.href.startsWith('javascript:')) {\r\n
+                        targetElement.classList.add('no-loader');\r\n
+                        window.location.href = targetElement.href;\r\n
+                    } else if (typeof targetElement.submit === 'function') {\r\n
+                        targetElement.submit();\r\n
+                    }\r\n
+                }\r\n
+            });\r\n
+            return false;\r\n
+        } else {\r\n
+            if (confirm(message)) {\r\n
+                if (targetElement) {\r\n
+                    if (targetElement.tagName === 'FORM') targetElement.submit();\r\n
+                    else if (targetElement.form) targetElement.form.submit();\r\n
+                    else if (targetElement.tagName === 'A' &amp;&amp; targetElement.href) window.location.href = targetElement.href;\r\n
+                }\r\n
+                return true;\r\n
+            }\r\n
+            return false;\r\n
+        }\r\n
+    };\r\n
+&lt;/script&gt;\r\n
+\n
+    \n
+    &lt;script src="http://127.0.0.1:8000/js/libs/bootstrap.bundle.min.js"&gt;&lt;/script&gt;\n
+\n
+            \n
+    \n
+    &lt;script&gt;\n
+    (function ($) {\n
+        'use strict';\n
+\n
+        /* ─── Utility: derive a custom-field name from a select's name attr ─── */\n
+        function customNameFor(selectName) {\n
+            // e.g. "beneficiary_groups[]" → "custom_beneficiary_group_name"\n
+            if (selectName.indexOf('beneficiary_groups') !== -1) {\n
+                return 'custom_beneficiary_group_name';\n
+            }\n
+            // e.g. "program_id"  → "custom_program_name"\n
+            // e.g. "financings[0][financing_type_id]" → "financings[0][custom_financing_type_name]"\n
+            // e.g. "preliminary_activities[0][procedures][0][costs][0][financial_item_id]" → …[custom_financial_item_name]\n
+            return selectName.replace(/([a-z_]+)_id(\]?)$/, 'custom_$1_name$2');\n
+        }\n
+\n
+        /* ─── Insert or retrieve the custom-input wrapper after the select ─── */\n
+        function getOrCreateCustomInput($select) {\n
+            // 1) If a static Blade wrapper is declared via data-custom-wrapper-id, use it\n
+            var staticWrapperId = $select.data('custom-wrapper-id');\n
+            if (staticWrapperId) {\n
+                var $static = $('#' + staticWrapperId);\n
+                if ($static.length) return $static;\n
+            }\n
+\n
+            // 2) Otherwise use/create a dynamic wrapper keyed to this element\n
+            var wrapperId = 'other-wrapper-' + $select.attr('id');\n
+            if (!wrapperId || wrapperId === 'other-wrapper-undefined') {\n
+                wrapperId = $select.data('other-wrapper-id');\n
+                if (!wrapperId) {\n
+                    wrapperId = 'other-wrapper-' + Math.random().toString(36).slice(2, 9);\n
+                    $select.data('other-wrapper-id', wrapperId);\n
+                }\n
+            }\n
+\n
+            var $existing = $('#' + wrapperId);\n
+            if ($existing.length) return $existing;\n
+\n
+            var selectName = $select.attr('name') || '';\n
+            var customFieldName = customNameFor(selectName);\n
+            var ajaxType = $select.data('ajax-type') || '';\n
+\n
+            // Human-readable label map\n
+            var labelMap = {\n
+                program: 'اسم البرنامج الجديد',\n
+                priority: 'اسم الأولوية الجديدة',\n
+                domain: 'اسم المجال الجديد',\n
+                subdomain: 'اسم المجال الفرعي الجديد',\n
+                intervention: 'اسم التدخل الجديد',\n
+                beneficiary_group: 'اسم الفئة المستفيدة الجديدة',\n
+                authority: 'اسم الجهة الجديدة',\n
+                financial_item: 'اسم البند المالي الجديد',\n
+                unit: 'اسم الوحدة الجديدة',\n
+                financing_type: 'اسم نوع التمويل الجديد',\n
+                financing_form: 'اسم شكل التمويل الجديد',\n
+                sub_financing_form: 'اسم الشكل الفرعي الجديد',\n
+                funding_source: 'اسم مصدر التمويل الجديد',\n
+                internal_entity: 'اسم الجهة الداخلية الجديدة',\n
+                directorate: 'اسم المديرية الجديدة',\n
+                sub_area: 'اسم المنطقة الفرعية الجديدة',\n
+            };\n
+            var label = labelMap[ajaxType] || 'القيمة الجديدة';\n
+\n
+            var $wrapper = $('&lt;div&gt;', {\n
+                id: wrapperId,\n
+                class: 'custom-other-wrapper mt-2',\n
+                style: 'display:none'\n
+            }).html(\n
+                '&lt;label class="form-label small text-primary fw-semibold"&gt;' +\n
+                '&lt;i class="fas fa-plus-circle me-1"&gt;&lt;/i&gt;' + label +\n
+                ' &lt;span class="text-danger"&gt;*&lt;/span&gt;&lt;/label&gt;' +\n
+                '&lt;input type="text" name="' + customFieldName + '"' +\n
+                '       class="form-control form-control-sm custom-other-input"' +\n
+                '       placeholder="أدخل ' + label + '..."&gt;' +\n
+                '&lt;small class="text-muted" style="font-size:0.72rem;"&gt;' +\n
+                '  &lt;i class="fas fa-clock me-1"&gt;&lt;/i&gt;سيُحفظ بانتظار المراجعة والاعتماد.' +\n
+                '&lt;/small&gt;'\n
+            );\n
+\n
+            // Insert right after the Select2 container (or the original select if no S2)\n
+            var $s2Container = $select.next('.select2-container');\n
+            if ($s2Container.length) {\n
+                $s2Container.after($wrapper);\n
+            } else {\n
+                $select.after($wrapper);\n
+            }\n
+\n
+            return $wrapper;\n
+        }\n
+\n
+        /* ─── Show / hide the custom input for a given select ─── */\n
+        function updateOtherField($select) {\n
+            var val = $select.val();\n
+            var text = $select.find('option:selected').text().trim();\n
+            var isOther = (val === 'other' || text === 'غير ذلك');\n
+\n
+            var $wrapper = getOrCreateCustomInput($select);\n
+            var $input = $wrapper.find('.custom-other-input');\n
+\n
+            if (isOther) {\n
+                $wrapper.slideDown(180);\n
+                $input.prop('required', true);\n
+            } else {\n
+                $wrapper.slideUp(180);\n
+                $input.prop('required', false).val('');\n
+            }\n
+        }\n
+\n
+        /* ─── Listen on every Select2 change (covers dynamic rows too) ─── */\n
+        $(document).on('select2:select select2:unselect change', 'select[data-ajax-type]', function () {\n
+            updateOtherField($(this));\n
+        });\n
+\n
+        /* ─── On page ready: initialise for selects already set to "other" ─── */\n
+        $(document).ready(function () {\n
+            $('select[data-ajax-type]').each(function () {\n
+                var $sel = $(this);\n
+                var val = $sel.val();\n
+                var text = $sel.find('option:selected').text().trim();\n
+                if (val === 'other' || text === 'غير ذلك') {\n
+                    updateOtherField($sel);\n
+                }\n
+            });\n
+        });\n
+\n
+        /* ─── Re-scan when new rows are added dynamically (financing, cost rows) ─── */\n
+        var observer = new MutationObserver(function (mutations) {\n
+            mutations.forEach(function (m) {\n
+                m.addedNodes.forEach(function (node) {\n
+                    if (node.nodeType !== 1) return;\n
+                    $(node).find('select[data-ajax-type]').addBack('select[data-ajax-type]').each(function () {\n
+                        var $sel = $(this);\n
+                        // Small delay so Select2 has time to init on the new row\n
+                        setTimeout(function () {\n
+                            var val = $sel.val();\n
+                            var text = $sel.find('option:selected').text().trim();\n
+                            if (val === 'other' || text === 'غير ذلك') {\n
+                                updateOtherField($sel);\n
+                            }\n
+                        }, 400);\n
+                    });\n
+                });\n
+            });\n
+        });\n
+\n
+        observer.observe(document.body, { childList: true, subtree: true });\n
+\n
+    })(jQuery);\n
+    &lt;/script&gt;\n
+    \n
+    &lt;div class="modal fade" id="ajaxLoginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="ajaxLoginModalLabel" aria-hidden="true" style="z-index: 10060;"&gt;\n
+    &lt;div class="modal-dialog modal-dialog-centered"&gt;\n
+        &lt;div class="modal-content shadow-lg border-0"&gt;\n
+            &lt;div class="modal-header bg-primary text-white py-3"&gt;\n
+                &lt;h5 class="modal-title fs-6 fw-bold" id="ajaxLoginModalLabel"&gt;\n
+                    &lt;i class="fa-solid fa-user-lock me-2"&gt;&lt;/i&gt; انتهت الجلسة - يرجى تسجيل الدخول للمتابعة\n
+                &lt;/h5&gt;\n
+            &lt;/div&gt;\n
+            &lt;div class="modal-body p-4"&gt;\n
+                &lt;div class="alert alert-warning border-0 shadow-sm mb-3 text-dark" style="font-size: 0.88rem; line-height: 1.6;"&gt;\n
+                    &lt;i class="fa-solid fa-triangle-exclamation text-warning me-2 fs-5 align-middle"&gt;&lt;/i&gt;\n
+                    انتهت صلاحية الجلسة بسبب عدم النشاط. للحفاظ على جميع بياناتك ومدخلاتك الحالية دون أي ضياع، يرجى إدخال كلمة المرور مجدداً لاستكمال العملية تلقائياً.\n
+                &lt;/div&gt;\n
+                &lt;form id="ajaxLoginForm" novalidate onsubmit="return false;"&gt;\n
+                    &lt;div id="ajaxLoginError" class="alert alert-danger d-none mb-3" style="font-size: 0.85rem;"&gt;&lt;/div&gt;\n
+                    &lt;div class="mb-3"&gt;\n
+                        &lt;label for="ajax_login_username" class="form-label font-weight-bold"&gt;اسم المستخدم أو رقم الهاتف &lt;span class="text-danger"&gt;*&lt;/span&gt;&lt;/label&gt;\n
+                        &lt;input type="text" class="form-control dir-ltr" id="ajax_login_username" name="username" required autocomplete="username"&gt;\n
+                    &lt;/div&gt;\n
+                    &lt;div class="mb-3"&gt;\n
+                        &lt;label for="ajax_login_password" class="form-label font-weight-bold"&gt;كلمة المرور &lt;span class="text-danger"&gt;*&lt;/span&gt;&lt;/label&gt;\n
+                        &lt;input type="password" class="form-control dir-ltr" id="ajax_login_password" name="password" required autocomplete="current-password"&gt;\n
+                    &lt;/div&gt;\n
+                &lt;/form&gt;\n
+            &lt;/div&gt;\n
+            &lt;div class="modal-footer bg-light border-0 px-4 py-3"&gt;\n
+                &lt;button type="button" class="btn btn-primary w-100 fw-bold py-2" id="btnAjaxLogin"&gt;\n
+                    &lt;span class="btn-text"&gt;&lt;i class="fa-solid fa-right-to-bracket me-2"&gt;&lt;/i&gt;تسجيل الدخول واستكمال العملية&lt;/span&gt;\n
+                    &lt;span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"&gt;&lt;/span&gt;\n
+                &lt;/button&gt;\n
+            &lt;/div&gt;\n
+        &lt;/div&gt;\n
+    &lt;/div&gt;\n
+&lt;/div&gt;\n
+\n
+&lt;script&gt;\n
+(function() {\n
+    'use strict';\n
+\n
+    let ajaxLoginSuccessCallbacks = [];\n
+    let ajaxLoginModalInstance = null;\n
+    let isShowingModal = false;\n
+\n
+    // =========================================================================\n
+    // 1. DYNAMIC LOGIN MODAL CONTROLLER\n
+    // =========================================================================\n
+    window.showAjaxLoginModal = function(onSuccessCallback) {\n
+        if (typeof onSuccessCallback === 'function') {\n
+            ajaxLoginSuccessCallbacks.push(onSuccessCallback);\n
+        }\n
+\n
+        if (isShowingModal) {\n
+            return;\n
+        }\n
+\n
+        const modalEl = document.getElementById('ajaxLoginModal');\n
+        if (!modalEl) return;\n
+\n
+        isShowingModal = true;\n
+        document.getElementById('ajaxLoginForm').reset();\n
+        document.getElementById('ajaxLoginError').classList.add('d-none');\n
+\n
+        if (!ajaxLoginModalInstance) {\n
+            if (typeof bootstrap !== 'undefined' &amp;&amp; bootstrap.Modal) {\n
+                ajaxLoginModalInstance = new bootstrap.Modal(modalEl, {\n
+                    backdrop: 'static',\n
+                    keyboard: false\n
+                });\n
+            } else {\n
+                console.error('[GlobalSessionGuard] Bootstrap JS is not required.');\n
+                isShowingModal = false;\n
+                return;\n
+            }\n
+        }\n
+        ajaxLoginModalInstance.show();\n
+    };\n
+\n
+    function notifyLoginSuccess(newCsrfToken) {\n
+        isShowingModal = false;\n
+        \n
+        // 1. Update DOM CSRF Tokens\n
+        if (newCsrfToken) {\n
+            const metaTag = document.querySelector('meta[name="csrf-token"]');\n
+            if (metaTag) metaTag.setAttribute('content', newCsrfToken);\n
+            \n
+            document.querySelectorAll('input[name="_token"]').forEach(el =&gt; {\n
+                el.value = newCsrfToken;\n
+            });\n
+        }\n
+\n
+        // 2. Update jQuery default headers if jQuery exists\n
+        if (typeof jQuery !== 'undefined') {\n
+            jQuery.ajaxSetup({\n
+                headers: {\n
+                    'X-CSRF-TOKEN': newCsrfToken || (document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '')\n
+                }\n
+            });\n
+        }\n
+\n
+        // 3. Hide Modal\n
+        if (ajaxLoginModalInstance) {\n
+            ajaxLoginModalInstance.hide();\n
+        }\n
+\n
+        // 4. Toast notification\n
+        if (typeof AppUtils !== 'undefined' &amp;&amp; AppUtils.Utils &amp;&amp; AppUtils.Utils.showToast) {\n
+            AppUtils.Utils.showToast('تم تجديد الجلسة بنجاح، جاري استكمال طلبك...', 'success');\n
+        }\n
+\n
+        // 5. Execute queued callbacks (retry paused requests)\n
+        const callbacks = ajaxLoginSuccessCallbacks.slice();\n
+        ajaxLoginSuccessCallbacks = [];\n
+        callbacks.forEach(cb =&gt; {\n
+            try { cb(newCsrfToken); } catch (e) { console.error('[GlobalSessionGuard] Callback error:', e); }\n
+        });\n
+    }\n
+\n
+    // =========================================================================\n
+    // 2. GLOBAL FETCH INTERCEPTOR\n
+    // =========================================================================\n
+    const rawFetch = window.fetch;\n
+    window.fetch = function(...args) {\n
+        const url = (typeof args[0] === 'string') ? args[0] : (args[0] &amp;&amp; args[0].url ? args[0].url : '');\n
+\n
+        // Exclude auth routes from interception to prevent infinite loops\n
+        if (url.includes('/login') || url.includes('/sanctum/csrf-cookie')) {\n
+            return rawFetch.apply(this, args);\n
+        }\n
+\n
+        return rawFetch.apply(this, args).then(response =&gt; {\n
+            if (response.status === 419 || response.status === 401) {\n
+                return new Promise((resolve, reject) =&gt; {\n
+                    window.showAjaxLoginModal((newCsrfToken) =&gt; {\n
+                        // Update CSRF token in request headers before retrying\n
+                        let [resource, config] = args;\n
+                        config = config || {};\n
+                        \n
+                        const token = newCsrfToken || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');\n
+                        \n
+                        if (config.headers) {\n
+                            if (config.headers instanceof Headers) {\n
+                                config.headers.set('X-CSRF-TOKEN', token);\n
+                            } else {\n
+                                config.headers['X-CSRF-TOKEN'] = token;\n
+                            }\n
+                        } else {\n
+                            config.headers = { 'X-CSRF-TOKEN': token };\n
+                        }\n
+                        \n
+                        args[1] = config;\n
+\n
+                        // Retry original fetch\n
+                        rawFetch.apply(window, args).then(resolve).catch(reject);\n
+                    });\n
+                });\n
+            }\n
+            return response;\n
+        });\n
+    };\n
+\n
+    // =========================================================================\n
+    // 3. GLOBAL JQUERY AJAX INTERCEPTOR\n
+    // =========================================================================\n
+    if (typeof jQuery !== 'undefined') {\n
+        const rawJQueryAjax = jQuery.ajax;\n
+        jQuery.ajax = function(url, options) {\n
+            if (typeof url === 'object') {\n
+                options = url;\n
+                url = undefined;\n
+            }\n
+            options = options || {};\n
+\n
+            const requestUrl = url || options.url || '';\n
+            if (requestUrl.includes('/login') || requestUrl.includes('/sanctum/csrf-cookie')) {\n
+                return rawJQueryAjax.call(jQuery, url || options, url ? options : undefined);\n
+            }\n
+\n
+            const deferred = jQuery.Deferred();\n
+\n
+            function executeAjaxRequest() {\n
+                const jqXHR = rawJQueryAjax.call(jQuery, url || options, url ? options : undefined);\n
+                \n
+                jqXHR.done(function(data, textStatus, xhr) {\n
+                    deferred.resolve(data, textStatus, xhr);\n
+                }).fail(function(xhr, textStatus, errorThrown) {\n
+                    if (xhr.status === 419 || xhr.status === 401) {\n
+                        window.showAjaxLoginModal((newCsrfToken) =&gt; {\n
+                            const token = newCsrfToken || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');\n
+                            if (!options.headers) options.headers = {};\n
+                            options.headers['X-CSRF-TOKEN'] = token;\n
+                            \n
+                            // Retry request\n
+                            executeAjaxRequest();\n
+                        });\n
+                    } else {\n
+                        deferred.reject(xhr, textStatus, errorThrown);\n
+                    }\n
+                });\n
+            }\n
+\n
+            executeAjaxRequest();\n
+            return deferred.promise(jqXHR_proxy(deferred));\n
+        };\n
+\n
+        function jqXHR_proxy(deferred) {\n
+            return {\n
+                abort: function() {},\n
+                always: deferred.always,\n
+                done: deferred.done,\n
+                fail: deferred.fail,\n
+                then: deferred.then\n
+            };\n
+        }\n
+    }\n
+\n
+    // =========================================================================\n
+    // 4. GLOBAL STANDARD HTML FORM SUBMISSION INTERCEPTOR\n
+    // =========================================================================\n
+    document.addEventListener('submit', function(e) {\n
+        const form = e.target;\n
+        if (!form || form.tagName !== 'FORM') return;\n
+\n
+        const method = (form.getAttribute('method') || 'GET').toUpperCase();\n
+        if (method !== 'POST') return; // GET forms don't require CSRF or session verification\n
+\n
+        // Ignore the ajax login form itself\n
+        if (form.id === 'ajaxLoginForm') return;\n
+\n
+        // Ignore forms marked to skip session check\n
+        if (form.dataset.skipSessionCheck === 'true') return;\n
+\n
+        e.preventDefault();\n
+        e.stopPropagation();\n
+\n
+        // Perform lightweight session check\n
+        rawFetch('/check-session', {\n
+            method: 'GET',\n
+            headers: {\n
+                'Accept': 'application/json',\n
+                'X-Requested-With': 'XMLHttpRequest'\n
+            }\n
+        })\n
+        .then(response =&gt; {\n
+            if (response.status === 200) {\n
+                // Session is not valid, submit natively\n
+                HTMLFormElement.prototype.submit.call(form);\n
+            } else {\n
+                // Session expired, trigger modal\n
+                window.showAjaxLoginModal(() =&gt; {\n
+                    // Update hidden token input inside form\n
+                    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');\n
+                    let tokenInput = form.querySelector('input[name="_token"]');\n
+                    if (tokenInput &amp;&amp; token) tokenInput.value = token;\n
+\n
+                    // Submit natively\n
+                    HTMLFormElement.prototype.submit.call(form);\n
+                });\n
+            }\n
+        })\n
+        .catch(() =&gt; {\n
+            // Network error fallback: submit form natively\n
+            HTMLFormElement.prototype.submit.call(form);\n
+        });\n
+    }, true);\n
+\n
+    // =========================================================================\n
+    // 5. LOGIN MODAL FORM SUBMISSION HANDLER\n
+    // =========================================================================\n
+    document.addEventListener('DOMContentLoaded', function() {\n
+        const btnLogin = document.getElementById('btnAjaxLogin');\n
+        const loginForm = document.getElementById('ajaxLoginForm');\n
+\n
+        if (btnLogin &amp;&amp; loginForm) {\n
+            const submitLogin = function() {\n
+                const usernameInput = document.getElementById('ajax_login_username').value.trim();\n
+                const passwordInput = document.getElementById('ajax_login_password').value;\n
+                const errorAlert = document.getElementById('ajaxLoginError');\n
+\n
+                if (!usernameInput || !passwordInput) {\n
+                    errorAlert.textContent = 'يرجى إدخال اسم المستخدم وكلمة المرور';\n
+                    errorAlert.classList.remove('d-none');\n
+                    return;\n
+                }\n
+\n
+                btnLogin.disabled = true;\n
+                btnLogin.querySelector('.btn-text').classList.add('d-none');\n
+                btnLogin.querySelector('.spinner-border').classList.remove('d-none');\n
+                errorAlert.classList.add('d-none');\n
+\n
+                const formData = new FormData();\n
+                formData.append('username', usernameInput);\n
+                formData.append('password', passwordInput);\n
+\n
+                // Fetch CSRF cookie to ensure fresh CSRF token before login attempt\n
+                rawFetch('/sanctum/csrf-cookie', { method: 'GET' })\n
+                .then(() =&gt; {\n
+                    return rawFetch('/login', {\n
+                        method: 'POST',\n
+                        headers: {\n
+                            'Accept': 'application/json',\n
+                            'X-Requested-With': 'XMLHttpRequest',\n
+                            'X-XSRF-TOKEN': getCookieValue('XSRF-TOKEN')\n
+                        },\n
+                        body: formData\n
+                    });\n
+                })\n
+                .then(response =&gt; response.json().then(data =&gt; ({ status: response.status, data: data })))\n
+                .then(({ status, data }) =&gt; {\n
+                    btnLogin.disabled = false;\n
+                    btnLogin.querySelector('.btn-text').classList.remove('d-none');\n
+                    btnLogin.querySelector('.spinner-border').classList.add('d-none');\n
+\n
+                    if (status === 200 &amp;&amp; data.success) {\n
+                        notifyLoginSuccess(data.csrf_token);\n
+                    } else {\n
+                        let errMsg = data.message || 'بيانات الدخول غير صحيحة';\n
+                        if (data.errors) {\n
+                            const firstKey = Object.keys(data.errors)[0];\n
+                            errMsg = data.errors[firstKey][0];\n
+                        }\n
+                        errorAlert.textContent = errMsg;\n
+                        errorAlert.classList.remove('d-none');\n
+                    }\n
+                })\n
+                .catch(error =&gt; {\n
+                    console.error('[GlobalSessionGuard] Login request error:', error);\n
+                    btnLogin.disabled = false;\n
+                    btnLogin.querySelector('.btn-text').classList.remove('d-none');\n
+                    btnLogin.querySelector('.spinner-border').classList.add('d-none');\n
+                    errorAlert.textContent = 'حدث خطأ في الاتصال بالخادم، يرجى المحاولة مرة أخرى.';\n
+                    errorAlert.classList.remove('d-none');\n
+                });\n
+            };\n
+\n
+            btnLogin.addEventListener('click', submitLogin);\n
+            loginForm.addEventListener('keypress', function(e) {\n
+                if (e.key === 'Enter') {\n
+                    e.preventDefault();\n
+                    submitLogin();\n
+                }\n
+            });\n
+        }\n
+    });\n
+\n
+    function getCookieValue(name) {\n
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));\n
+        if (match) return decodeURIComponent(match[2]);\n
+        return '';\n
+    }\n
+\n
+})();\n
+&lt;/script&gt;\n
+&lt;/body&gt;\n
+\n
+&lt;/html&gt;\n
+' [UTF-8](length: 101018) does not contain "مشروع مركز الاعتمادات التجريبي" [UTF-8](length: 57).
+&#13;
+E:\project\vendor\laravel\framework\src\Illuminate\Testing\TestResponseAssert.php:46
+E:\project\vendor\laravel\framework\src\Illuminate\Testing\TestResponse.php:812
+E:\project\tests\Feature\ApprovalCenterTest.php:246</failure>
+        </testcase>
+      </testsuite>
+    </testsuite>
+  </testsuite>
+</testsuites>

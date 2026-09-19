@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EntityResponsibilityType;
+use App\Enums\UserResponsibilityType;
 use App\Models\AuditLog;
 use App\Models\Authority;
 use App\Models\Directorate;
@@ -16,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -133,6 +136,7 @@ class UserController extends Controller
             'entity_id' => 'nullable|exists:internal_entities,id',
             'administrative_scope_id' => 'nullable|exists:internal_entities,id',
             'work' => 'nullable|string|max:255',
+            'responsibility' => ['nullable', Rule::in(array_column(UserResponsibilityType::cases(), 'value'))],
             'geographic_scopes' => 'nullable|array',
             'geographic_scopes.*.governorate_id' => ['nullable', function ($attribute, $value, $fail) {
                 if ($value !== 'all' && ! empty($value) && ! Governorate::where('id', $value)->exists()) {
@@ -166,6 +170,7 @@ class UserController extends Controller
                 'entity_id' => $request->entity_id,
                 'administrative_scope_id' => $request->administrative_scope_id,
                 'work' => $request->work,
+                'responsibility' => $request->responsibility ?: null,
                 'created_by' => auth()->id(),
             ]);
 
@@ -258,6 +263,7 @@ class UserController extends Controller
             'entity_id' => 'nullable|exists:internal_entities,id',
             'administrative_scope_id' => 'nullable|exists:internal_entities,id',
             'work' => 'nullable|string|max:255',
+            'responsibility' => ['nullable', Rule::in(array_column(UserResponsibilityType::cases(), 'value'))],
             'geographic_scopes' => 'nullable|array',
             'geographic_scopes.*.governorate_id' => ['nullable', function ($attribute, $value, $fail) {
                 if ($value !== 'all' && $value !== null && $value !== '' && ! Governorate::where('id', $value)->exists()) {
@@ -275,6 +281,26 @@ class UserController extends Controller
             return back()->withErrors($validator)->withInput();
         }
 
+        // Guard: prevent deactivating or changing entity/responsibility of a user
+        // who is currently configured as responsible for an enabled approval stage.
+        $isDeactivating = ($user->status === 'Active' && $request->status === 'Disabled');
+        $isChangingEntity = ($request->entity_id && (int) $request->entity_id !== (int) $user->entity_id);
+        $isChangingResp = ($request->responsibility !== ($user->responsibility?->value ?? null)
+            && $user->responsibility !== null);
+
+        if ($isDeactivating || $isChangingEntity || $isChangingResp) {
+            $user->loadMissing('responsibleApprovalStages.entity');
+            if ($user->responsibleApprovalStages->isNotEmpty()) {
+                $stageNames = $user->responsibleApprovalStages
+                    ->map(fn ($s) => ($s->entity?->name ?? "#{$s->entity_id}").' – '.(EntityResponsibilityType::tryFrom($s->stage)?->label() ?? $s->stage))
+                    ->join('، ');
+
+                return back()->with('error',
+                    "لا يمكن تعديل هذا المستخدم لأنه مسؤول فعلي عن المراحل التالية: [{$stageNames}]. يرجى إعادة تعيين تلك المراحل أولاً من صفحة مراحل الجهات."
+                )->withInput();
+            }
+        }
+
         $oldValues = $user->toArray();
 
         // استخدام المعاملة لضمان تناسق البيانات
@@ -289,6 +315,7 @@ class UserController extends Controller
                 'entity_id' => $request->entity_id,
                 'administrative_scope_id' => $request->administrative_scope_id,
                 'work' => $request->work,
+                'responsibility' => $request->responsibility ?: null,
                 'updated_by' => auth()->id(),
             ]);
 

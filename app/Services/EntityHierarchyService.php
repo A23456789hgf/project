@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Exceptions\ConfigurationException;
 use App\Models\Authority;
 use App\Models\Entity;
+use App\Models\EntityApprovalStage;
 use App\Models\InternalEntity;
 
 class EntityHierarchyService
@@ -11,6 +13,16 @@ class EntityHierarchyService
     protected static $entityCache = [];
 
     protected static $chainCache = [];
+
+    /**
+     * Clear static caches. Required between tests to prevent stale data
+     * from leaking across RefreshDatabase transactions.
+     */
+    public static function clearCache(): void
+    {
+        static::$entityCache = [];
+        static::$chainCache = [];
+    }
 
     /**
      * Find an entity by its name (unique identifier in users and projects)
@@ -143,36 +155,62 @@ class EntityHierarchyService
     }
 
     /**
-     * Expand each internal entity into the required approval workflow phases.
+     * Expand each internal entity into the required approval workflow phases
+     * by reading entity_approval_stages for each entity.
+     *
+     * Only stages that are explicitly configured (row exists) are included.
+     * Stages are included in stage_order ASC.
      *
      * @param  array<int, array{id:int, name:string}>  $chain
      * @return array<int, array<string, mixed>>
+     *
+     * @throws ConfigurationException When an entity has an enabled stage but no valid responsible user.
      */
     private function expandEntityChainIntoApprovalStages(array $chain): array
     {
-        $phases = [
-            'technical_review' => ['name_ar' => 'مراجعة فنية', 'name_en' => 'Technical Review'],
-            'financial_review' => ['name_ar' => 'مراجعة مالية', 'name_en' => 'Financial Review'],
-            'stage_approval' => ['name_ar' => 'اعتماد للمرحلة', 'name_en' => 'Stage Approval'],
-        ];
-
         $stages = [];
         $order = 1;
 
         foreach ($chain as $entityData) {
-            foreach ($phases as $phaseCode => $phase) {
+            $configuredStages = EntityApprovalStage::where('entity_id', $entityData['id'])
+                ->where('is_active', true)
+                ->with('responsibleUser')
+                ->ordered()
+                ->get();
+
+            // If the entity has no stages configured, skip it silently.
+            // Entities that have never been configured will not appear in the workflow.
+            foreach ($configuredStages as $stageConfig) {
+                $stageEnum = $stageConfig->stageEnum();
+                if (! $stageEnum) {
+                    continue;
+                }
+
+                // Guard: stage is enabled but no valid responsible user
+                if (! $stageConfig->hasValidResponsibleUser()) {
+                    throw new ConfigurationException(
+                        "الجهة: {$entityData['name']} | المرحلة: {$stageEnum->label()} | المشكلة: لم يتم تحديد مسؤول نشط لهذه المرحلة."
+                    );
+                }
+
+                $phaseCode = $stageEnum->phaseCode();
+
                 $stages[] = [
                     'order' => $order++,
                     'code' => 'entity_'.$entityData['id'].'_'.$phaseCode,
-                    'name_ar' => $entityData['name'].' - '.$phase['name_ar'],
-                    'name_en' => $entityData['name'].' - '.$phase['name_en'],
+                    'name_ar' => $entityData['name'].' - '.$stageEnum->label(),
+                    'name_en' => $entityData['name'].' - '.$stageEnum->value,
                     'entity_id' => $entityData['id'],
                     'entity_name' => $entityData['name'],
                     'phase' => $phaseCode,
-                    'phase_name_ar' => $phase['name_ar'],
-                    'phase_name_en' => $phase['name_en'],
+                    'phase_name_ar' => $stageEnum->label(),
+                    'phase_name_en' => $stageEnum->value,
                     'is_entity_stage' => true,
                     'is_implementation' => false,
+                    // Snapshot the responsible user id so future config changes
+                    // do not retroactively alter already-created ProjectApproval records.
+                    'responsible_user_id' => $stageConfig->responsible_user_id,
+                    'stage_type' => $stageEnum->value,
                 ];
             }
         }

@@ -157,9 +157,11 @@
                     ? ['parent_id' => request('parent_id')]
                     : [];
             @endphp
-            <a href="{{ route('authorities.create', $createParams) }}" class="btn btn-primary-compact shadow-sm">
+            @canany(['authorities.create', 'authorities.update'])
+<a href="{{ route('authorities.create', $createParams) }}" class="btn btn-primary-compact shadow-sm">
                 <x-icon name="plus" size="14" class="me-1" /> إضافة جهة
             </a>
+@endcanany
 
             @can('authorities.bulk-edit')
                 <button type="button" id="bulk-edit-btn" class="btn btn-warning btn-compact shadow-sm ms-2">
@@ -591,10 +593,12 @@
                                                 class="btn btn-icon btn-action-edit" title="تعديل">
                                                 <x-icon name="edit" size="14" />
                                             </a>
-                                            <a href="{{ route('authorities.create', ['parent_id' => $authority->id]) }}"
+                                            @canany(['authorities.create', 'authorities.update'])
+<a href="{{ route('authorities.create', ['parent_id' => $authority->id]) }}"
                                                 class="btn btn-icon btn-action-enable" title="إضافة تابعة">
                                                 <x-icon name="plus" size="14" />
                                             </a>
+@endcanany
                                             @can('authorities.delete')
                                                 <form action="{{ route('authorities.destroy', $authority->id) }}" method="POST"
                                                     class="d-inline" onsubmit="return confirmAction(this, 'هل تريد الحذف؟')">

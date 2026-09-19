@@ -83,6 +83,8 @@ class ApprovalService
             foreach ($stages as $stageData) {
                 $isFirst = ($stageData['order'] === 1);
 
+                $responsibleUserId = $stageData['responsible_user_id'] ?? null;
+
                 $approval = ProjectApproval::create([
                     'project_id' => $project->id,
                     'entity_id' => $stageData['entity_id'],
@@ -94,6 +96,11 @@ class ApprovalService
                     'created_by' => $user->id,
                     'financial_review_status' => ($stageData['phase'] === 'financial_review') ? 'pending' : null,
                     'technical_review_status' => ($stageData['phase'] === 'technical_review') ? 'pending' : null,
+                    // Snapshot the responsible user to preserve historic records
+                    // even if entity stage configuration changes in the future.
+                    'technical_reviewer_id' => ($stageData['phase'] === 'technical_review') ? $responsibleUserId : null,
+                    'financial_reviewer_id' => ($stageData['phase'] === 'financial_review') ? $responsibleUserId : null,
+                    'assigned_user_id' => ($stageData['phase'] === 'stage_approval') ? $responsibleUserId : null,
                 ]);
 
                 $createdApprovals->push($approval);
@@ -153,7 +160,6 @@ class ApprovalService
      */
     public function canUserActOnStep(User $user, ProjectApproval $step): bool
     {
-
         // Must match step's entity
         $userEntityId = (int) $user->entity_id;
         $stepEntityId = (int) $step->entity_id;
@@ -191,19 +197,37 @@ class ApprovalService
         }
         if ($step->phase === 'technical_review') {
             $assignedId = $step->technical_reviewer_id ?? $step->technical_review_user_id;
-            if (! $assignedId || (int) $assignedId !== (int) $user->id) {
-                return false;
+            if ($assignedId) {
+                if ((int) $assignedId !== (int) $user->id) {
+                    return false;
+                }
+            } else {
+                if ($userEntityId !== $stepEntityId) {
+                    return false;
+                }
             }
         } elseif ($step->phase === 'financial_review') {
             $assignedId = $step->financial_reviewer_id ?? $step->financial_review_user_id;
-            if (! $assignedId || (int) $assignedId !== (int) $user->id) {
-                return false;
+            if ($assignedId) {
+                if ((int) $assignedId !== (int) $user->id) {
+                    return false;
+                }
+            } else {
+                if ($userEntityId !== $stepEntityId) {
+                    return false;
+                }
             }
         } else {
             // All other phases (stage approvals, etc.) must be explicitly assigned to the user
             $assignedId = $step->assigned_user_id;
-            if (! $assignedId || (int) $assignedId !== (int) $user->id) {
-                return false;
+            if ($assignedId) {
+                if ((int) $assignedId !== (int) $user->id) {
+                    return false;
+                }
+            } else {
+                if ($userEntityId !== $stepEntityId) {
+                    return false;
+                }
             }
         }
 
@@ -225,8 +249,6 @@ class ApprovalService
         return DB::transaction(function () use ($project, $user, $notes, $attachment) {
             $activeStep = $this->getActiveStep($project);
 
-
-            
             if (! $activeStep || ! $activeStep->isActive()) {
                 throw new InvalidWorkflowTransitionException('لا يمكن تنفيذ الاعتماد؛ لا توجد مرحلة نشطة لهذا المشروع.');
             }
@@ -390,6 +412,18 @@ class ApprovalService
 
             return $activeStep;
         });
+    }
+
+    /**
+     * Reject the project (wrapper for rejectActiveStep).
+     *
+     * @throws WorkflowValidationException
+     * @throws InvalidWorkflowTransitionException
+     * @throws UnauthorizedWorkflowActionException
+     */
+    public function rejectProject(Project $project, User $user, string $reason, ?string $attachment = null): ProjectApproval
+    {
+        return $this->rejectActiveStep($project, $user, $reason, $attachment);
     }
 
     // =========================================================================
@@ -600,15 +634,16 @@ class ApprovalService
     /**
      * Record a consultation/referral without altering active step or approval chain
      */
-    public function recordConsultation(Project $project, User $user, int $referredEntityId, string $referralText, ?array $attachments = null): ProjectReferral
+    public function recordConsultation(Project $project, User $user, int $referredEntityId, string $referralText, ?array $attachments = null, ?int $referredUserId = null): ProjectReferral
     {
-        return DB::transaction(function () use ($project, $user, $referredEntityId, $referralText, $attachments) {
+        return DB::transaction(function () use ($project, $user, $referredEntityId, $referralText, $attachments, $referredUserId) {
             $referral = ProjectReferral::create([
                 'project_id' => $project->id,
                 'drop' => $project->current_stage,
                 'referring_entity_id' => $user->entity_id ?? $project->creator_entity_id,
                 'referring_user_id' => $user->id,
                 'referred_entity_id' => $referredEntityId,
+                'referred_user_id' => $referredUserId,
                 'referral_text' => $referralText,
                 'referral_attachments' => $attachments,
                 'status' => 'pending',

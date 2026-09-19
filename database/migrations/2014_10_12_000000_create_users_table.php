@@ -24,7 +24,9 @@ return new class extends Migration
             $table->enum('status', ['Active', 'Disabled'])->default('Active'); // حالة الحساب
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
+            $table->boolean('is_admin')->default(false)->comment('Admin flag');
             $table->timestamps();
+            $table->boolean('is_active')->default(true)->comment('User active status');
         });
     }
 

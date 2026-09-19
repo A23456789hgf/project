@@ -563,13 +563,31 @@ class EnsureRoutePermission
             'value-chain-members.update' => 'value_chain_members.edit',
             'value-chain-members.destroy' => 'value_chain_members.delete',
 
-            // 37. Type Entity — Missing Mappings
-            'type-entity.index' => 'configuration.view',
-            'type-entity.create' => 'configuration.create',
-            'type-entity.store' => 'configuration.create',
-            'type-entity.edit' => 'configuration.edit',
-            'type-entity.update' => 'configuration.edit',
-            'type-entity.destroy' => 'configuration.delete',
+            // 37. Type Entity & Configuration Specific Mappings
+            'type-entity.index' => 'type-entity.view',
+            'type-entity.create' => 'type-entity.create',
+            'type-entity.store' => 'type-entity.create',
+            'type-entity.edit' => 'type-entity.edit',
+            'type-entity.update' => 'type-entity.edit',
+            'type-entity.destroy' => 'type-entity.delete',
+            'type-entity.export' => 'type-entity.export',
+
+            // 38. Main Guides & Mothers
+            'main-guides.index' => 'main-guides.view',
+            'main-guides.create' => 'main-guides.create',
+            'main-guides.store' => 'main-guides.create',
+            'main-guides.show' => 'main-guides.view',
+            'main-guides.edit' => 'main-guides.edit',
+            'main-guides.update' => 'main-guides.edit',
+            'main-guides.destroy' => 'main-guides.delete',
+
+            'mothers.index' => 'mothers.view',
+            'mothers.create' => 'mothers.create',
+            'mothers.store' => 'mothers.create',
+            'mothers.show' => 'mothers.view',
+            'mothers.edit' => 'mothers.edit',
+            'mothers.update' => 'mothers.edit',
+            'mothers.destroy' => 'mothers.delete',
         ];
 
         if (isset($specialMappings[$routeName])) {

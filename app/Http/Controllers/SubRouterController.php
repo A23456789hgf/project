@@ -10,6 +10,7 @@ class SubRouterController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', SubRouter::class);
         $subRouters = SubRouter::with('mainRouter')->get();
 
         return view('configuration.sub_routers.index', compact('subRouters'));
@@ -17,6 +18,7 @@ class SubRouterController extends Controller
 
     public function create()
     {
+        $this->authorize('create', SubRouter::class);
         $mainRouters = MainRouter::all();
 
         return view('configuration.sub_routers.create', compact('mainRouters'));
@@ -24,6 +26,7 @@ class SubRouterController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', SubRouter::class);
         $request->validate([
             'main_router_id' => 'required|exists:main_routers,id',
             'sub_router' => 'required|max:255',
@@ -38,6 +41,7 @@ class SubRouterController extends Controller
 
     public function edit($id)
     {
+        $this->authorize('update', SubRouter::class);
         $subRouter = SubRouter::findOrFail($id);
         $mainRouters = MainRouter::all();
 
@@ -46,6 +50,7 @@ class SubRouterController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorize('update', SubRouter::class);
         $request->validate([
             'main_router_id' => 'required|exists:main_routers,id',
             'sub_router' => 'required|max:255',
@@ -61,6 +66,7 @@ class SubRouterController extends Controller
 
     public function destroy($id)
     {
+        $this->authorize('delete', SubRouter::class);
         $subRouter = SubRouter::findOrFail($id);
         $subRouter->delete();
 

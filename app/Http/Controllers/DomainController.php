@@ -10,6 +10,7 @@ class DomainController extends Controller
     // عرض قائمة المجالات
     public function index()
     {
+        $this->authorize('viewAny', Domain::class);
         $query = Domain::query();
 
         // Apply entity visibility filter
@@ -23,6 +24,8 @@ class DomainController extends Controller
     // عرض صفحة إنشاء مجال جديد
     public function create()
     {
+        $this->authorize('create', Domain::class);
+
         return view('configuration.domains.create');
     }
 
@@ -37,6 +40,7 @@ class DomainController extends Controller
     // تخزين مجال جديد
     public function store(Request $request)
     {
+        $this->authorize('create', Domain::class);
         $validated = $request->validate([
             'name' => 'required|unique:domains,name',
             'is_active' => 'sometimes|boolean',
@@ -57,6 +61,7 @@ class DomainController extends Controller
     // تحديث بيانات المجال
     public function update(Request $request, $id)
     {
+        $this->authorize('update', Domain::class);
         $domain = Domain::findOrFail($id);
 
         $validated = $request->validate([
@@ -75,6 +80,7 @@ class DomainController extends Controller
     // حذف المجال
     public function destroy($id)
     {
+        $this->authorize('delete', Domain::class);
         $domain = Domain::findOrFail($id);
         $domain->delete();
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Entity;
 use Illuminate\Support\Facades\Storage;
 
 class EntityController extends Controller
@@ -9,6 +10,7 @@ class EntityController extends Controller
     // دالة عرض البيانات
     public function index()
     {
+        $this->authorize('viewAny', Entity::class);
         // قراءة ملف JSON من مجلد storage/app/data
         $json = Storage::get('data/entities.json');
 

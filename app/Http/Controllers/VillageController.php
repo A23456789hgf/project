@@ -22,6 +22,7 @@ class VillageController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Village::class);
         $query = Village::with('governorate', 'directorate', 'subArea');
 
         // فلترة متعددة المستويات
@@ -90,6 +91,7 @@ class VillageController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Village::class);
         $governorates = Governorate::getCachedAll();
         $directorates = collect();
         $subAreas = collect();
@@ -102,6 +104,7 @@ class VillageController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Village::class);
         $request->validate([
             'governorate_id' => 'required|exists:governorates,id',
             'directorate_id' => 'required|exists:directorates,id',
@@ -123,6 +126,7 @@ class VillageController extends Controller
 
     public function show(Village $village)
     {
+        $this->authorize('view', Village::class);
         $village->load(['governorate', 'directorate', 'subArea']);
 
         return view('configuration.villages.show', compact('village'));
@@ -130,6 +134,7 @@ class VillageController extends Controller
 
     public function edit(Village $village)
     {
+        $this->authorize('update', Village::class);
         $governorates = Governorate::getCachedAll();
         $directorates = Directorate::where('governorate_id', $village->governorate_id)->get();
         $subAreas = SubArea::where('directorate_id', $village->directorate_id)->get();
@@ -142,6 +147,7 @@ class VillageController extends Controller
 
     public function update(Request $request, Village $village)
     {
+        $this->authorize('update', Village::class);
         $request->validate([
             'governorate_id' => 'required|exists:governorates,id',
             'directorate_id' => 'required|exists:directorates,id',
@@ -163,6 +169,7 @@ class VillageController extends Controller
 
     public function destroy(Village $village)
     {
+        $this->authorize('delete', Village::class);
         $village->delete();
 
         return redirect()->route('villages.index')->with('success', 'تم حذف القرية بنجاح');
@@ -231,6 +238,7 @@ class VillageController extends Controller
 
     public function downloadTemplate(Request $request)
     {
+        $this->authorize('import', Village::class);
         $format = $request->get('format', 'xls'); // Default to XLS
 
         $templateData = [
@@ -250,6 +258,7 @@ class VillageController extends Controller
 
     public function previewImport(Request $request)
     {
+        $this->authorize('import', Village::class);
         // Increase limits for reading large files
         set_time_limit(600); // 10 minutes
         ini_set('memory_limit', '512M'); // 512MB memory
@@ -280,6 +289,7 @@ class VillageController extends Controller
 
     public function processImport(Request $request)
     {
+        $this->authorize('import', Village::class);
         // Increase execution time and memory for very large imports (150MB+)
         set_time_limit(900); // 15 minutes
         ini_set('memory_limit', '1024M'); // 1GB memory
@@ -522,6 +532,7 @@ class VillageController extends Controller
 
     public function undoImport($fileName)
     {
+        $this->authorize('import', Village::class);
         // البحث عن السجلات المستوردة بواسطة اسم الملف
         $importedRecords = Village::where('import_batch', $fileName)->get();
 
@@ -539,6 +550,7 @@ class VillageController extends Controller
      */
     public function exportExcel()
     {
+        $this->authorize('export', Village::class);
         $startTime = microtime(true);
 
         try {

@@ -26,10 +26,10 @@ class ReferralController extends Controller
             // A normal user only sees topics they created or where they have an assigned activity
             $topicsQuery->where(function ($q) use ($user) {
                 $q->where('created_by', $user->id)
-                  ->orWhereHas('activities', function ($aq) use ($user) {
-                      $aq->where('to_user_id', $user->id)
-                         ->orWhere('from_user_id', $user->id);
-                  });
+                    ->orWhereHas('activities', function ($aq) use ($user) {
+                        $aq->where('to_user_id', $user->id)
+                            ->orWhere('from_user_id', $user->id);
+                    });
             });
         }
 

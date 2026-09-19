@@ -27,15 +27,13 @@ class ProjectReferralPolicy
             return true;
         }
 
-        if ((int) $referral->referred_user_id === $user->id) {
+        // Actionable: Needs response
+        if ($referral->isPending() && (int) $referral->referred_user_id === $user->id) {
             return true;
         }
 
-        if ((int) $referral->referring_user_id === $user->id) {
-            return true;
-        }
-
-        if ((int) $referral->responding_user_id === $user->id) {
+        // Actionable: Needs closing
+        if ($referral->status === 'responded' && $user->id === (int) $referral->referring_user_id) {
             return true;
         }
 
@@ -81,9 +79,7 @@ class ProjectReferralPolicy
             return true;
         }
 
-        $userEntityId = (int) ($user->entity_id ?? 0);
-
-        return ($userEntityId > 0 && $userEntityId === (int) $referral->referring_entity_id) ||
-               $user->id === (int) $referral->referring_user_id;
+        return $referral->isResponded()
+            && $user->id === (int) $referral->referring_user_id;
     }
 }

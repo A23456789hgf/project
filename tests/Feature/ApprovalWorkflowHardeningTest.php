@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Enums\ApprovalStepStatus;
+use App\Enums\EntityResponsibilityType;
 use App\Enums\ProjectStatus;
 use App\Enums\ReturnTarget;
 use App\Exceptions\InvalidWorkflowTransitionException;
 use App\Exceptions\WorkflowValidationException;
+use App\Models\EntityApprovalStage;
 use App\Models\InternalEntity;
 use App\Models\Permission;
 use App\Models\Project;
@@ -112,7 +114,7 @@ class ApprovalWorkflowHardeningTest extends TestCase
      */
     protected function createUserForEntity(InternalEntity $entity, string $namePrefix = 'User'): User
     {
-        return User::withoutGlobalScopes()->create([
+        $user = User::withoutGlobalScopes()->create([
             'name' => "{$namePrefix} - {$entity->name}",
             'username' => strtolower($namePrefix).'_'.uniqid(),
             'user_id' => 'UID_'.uniqid(),
@@ -122,7 +124,53 @@ class ApprovalWorkflowHardeningTest extends TestCase
             'entity_id' => $entity->id,
             'role_id' => $this->reviewerRole->id,
             'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
         ]);
+
+        foreach ([
+            EntityResponsibilityType::TechnicalReview,
+            EntityResponsibilityType::FinancialReview,
+            EntityResponsibilityType::Approval,
+        ] as $type) {
+            EntityApprovalStage::updateOrCreate([
+                'entity_id' => $entity->id,
+                'stage' => $type->value,
+            ], [
+                'stage_order' => $type->stageOrder(),
+                'responsible_user_id' => $user->id,
+            ]);
+        }
+
+        return $user;
+    }
+
+    protected function seedStagesForChain(InternalEntity $entity): void
+    {
+        $current = $entity;
+        while ($current) {
+            if ($current->approvalStages()->count() === 0) {
+                $user = User::withoutGlobalScopes()->where('entity_id', $current->id)->where('status', 'Active')->first();
+                if (! $user) {
+                    $user = $this->createUserForEntity($current, 'AutoUser');
+                }
+                foreach ([
+                    EntityResponsibilityType::TechnicalReview,
+                    EntityResponsibilityType::FinancialReview,
+                    EntityResponsibilityType::Approval,
+                ] as $type) {
+                    EntityApprovalStage::firstOrCreate([
+                        'entity_id' => $current->id,
+                        'stage' => $type->value,
+                    ], [
+                        'stage_order' => $type->stageOrder(),
+                        'responsible_user_id' => $user->id,
+                    ]);
+                }
+            }
+            $current = $current->parent_id
+                ? InternalEntity::withoutGlobalScopes()->find($current->parent_id)
+                : null;
+        }
     }
 
     /**
@@ -130,6 +178,8 @@ class ApprovalWorkflowHardeningTest extends TestCase
      */
     protected function createDraftProject(InternalEntity $creatorEntity, User $creatorUser): Project
     {
+        $this->seedStagesForChain($creatorEntity);
+
         return Project::withoutGlobalScopes()->create([
             'project_name' => 'مشروع تجريبي لاختبار التحصين - '.uniqid(),
             'form_number' => 'PRJ-'.rand(10000, 99999),

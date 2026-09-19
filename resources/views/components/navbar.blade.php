@@ -763,6 +763,12 @@
                                     الجهات الداخلية
                                 </a>
                             </li>
+                            <li class="nav-item auth-perm-internal-entities-sidebar">
+                                <a class="nav-link {{ request()->routeIs('admin.entity-stages.*') ? 'active' : '' }}"
+                                    href="{{ route('admin.entity-stages.index') }}">
+                                    مراحل المراجعة والاعتماد
+                                </a>
+                            </li>
                         @endcan
                         @can('authorities.sidebar')
                             <li class="nav-item auth-perm-authorities-sidebar">

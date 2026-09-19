@@ -10,6 +10,7 @@ class MainGuideController extends Controller
     // عرض جميع السجلات
     public function index()
     {
+        $this->authorize('viewAny', MainGuide::class);
         $guides = MainGuide::all();
 
         return view('configuration.main_guides.index', compact('guides'));
@@ -18,12 +19,15 @@ class MainGuideController extends Controller
     // عرض نموذج الإضافة
     public function create()
     {
+        $this->authorize('create', MainGuide::class);
+
         return view('configuration.main_guides.create');
     }
 
     // حفظ السجل الجديد
     public function store(Request $request)
     {
+        $this->authorize('create', MainGuide::class);
         $request->validate([
             'main_guide' => 'required|unique:main_guides|max:255',
         ]);
@@ -37,6 +41,7 @@ class MainGuideController extends Controller
     // عرض السجل
     public function show($id)
     {
+        $this->authorize('view', MainGuide::class);
         $guide = MainGuide::findOrFail($id);
 
         return view('configuration.main_guides.show', compact('guide'));
@@ -45,6 +50,7 @@ class MainGuideController extends Controller
     // عرض نموذج التعديل
     public function edit($id)
     {
+        $this->authorize('update', MainGuide::class);
         $guide = MainGuide::findOrFail($id);
 
         return view('configuration.main_guides.edit', compact('guide'));
@@ -53,6 +59,7 @@ class MainGuideController extends Controller
     // تحديث السجل
     public function update(Request $request, $id)
     {
+        $this->authorize('update', MainGuide::class);
         $request->validate([
             'main_guide' => 'required|unique:main_guides,main_guide,'.$id.'|max:255',
         ]);
@@ -67,6 +74,7 @@ class MainGuideController extends Controller
     // حذف السجل
     public function destroy($id)
     {
+        $this->authorize('delete', MainGuide::class);
         $guide = MainGuide::findOrFail($id);
         $guide->delete();
 

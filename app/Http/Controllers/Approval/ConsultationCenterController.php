@@ -27,7 +27,6 @@ class ConsultationCenterController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $userEntityId = (int) ($user?->entity_id ?? 0);
         $isAdmin = $user && method_exists($user, 'isAdmin') ? $user->isAdmin() : false;
 
         // Base query restricted to user's entity interactions (unless admin)
@@ -41,104 +40,56 @@ class ConsultationCenterController extends Controller
 
         if (! $isAdmin) {
             if ($user) {
-                $baseReferralsQuery->where(function ($q) use ($user) {
-                    $q->where('referred_user_id', $user->id)
-                        ->orWhere('referring_user_id', $user->id);
-                });
+                $baseReferralsQuery->actionableFor($user);
             } else {
                 $baseReferralsQuery->whereRaw('1 = 0');
             }
         }
 
-        // 1. Statistics (6 metrics including myAction)
-        // A: My Action (Pending incoming referrals requiring action)
-        $myActionCountQuery = (clone $baseReferralsQuery)->where('status', 'pending');
-        if (! $isAdmin) {
-            if ($user) {
-                $myActionCountQuery->where('referred_user_id', $user->id);
-            } else {
-                $myActionCountQuery->whereRaw('1 = 0');
-            }
-        }
-        $myActionCount = $myActionCountQuery->count();
-
-        // B: Incoming referrals
-        $incomingCountQuery = (clone $baseReferralsQuery);
-        if (! $isAdmin) {
-            if ($user) {
-                $incomingCountQuery->where('referred_user_id', $user->id);
-            } else {
-                $incomingCountQuery->whereRaw('1 = 0');
-            }
-        }
-        $incomingCount = $incomingCountQuery->count();
-
-        // C: Sent referrals
-        $sentCountQuery = (clone $baseReferralsQuery);
-        if (! $isAdmin) {
-            if ($user) {
-                $sentCountQuery->where('referring_user_id', $user->id);
-            } else {
-                $sentCountQuery->whereRaw('1 = 0');
-            }
-        }
-        $sentCount = $sentCountQuery->count();
-
-        // D: Waiting response (pending)
-        $pendingCount = (clone $baseReferralsQuery)->where('status', 'pending')->count();
-
-        // E: Responded
-        $respondedCount = (clone $baseReferralsQuery)->where('status', 'responded')->count();
-
-        // F: Closed
-        $closedCount = (clone $baseReferralsQuery)->where('status', 'closed')->count();
-
-        // 2. Tab Resolution
-        $activeTab = $request->get('tab', 'my_action');
-        if (in_array($activeTab, ['my_action', 'my_actions', 'action_required'], true)) {
-            $activeTab = 'my_action';
-        } elseif (in_array($activeTab, ['referrals_incoming', 'inbox', 'incoming'], true)) {
-            $activeTab = 'incoming';
-        } elseif (in_array($activeTab, ['referrals_sent', 'outbox', 'sent'], true)) {
-            $activeTab = 'sent';
-        } elseif (in_array($activeTab, ['referrals_completed', 'archive', 'completed'], true)) {
-            $activeTab = 'completed';
-        }
-
-        if (! in_array($activeTab, ['my_action', 'incoming', 'sent', 'completed'], true)) {
-            $activeTab = 'my_action';
-        }
-
-        // 3. Tab Filter
+        // 1. Statistics & Tabs (Admin Only)
+        $myActionCount = 0;
+        $incomingCount = 0;
+        $sentCount = 0;
+        $pendingCount = 0;
+        $respondedCount = 0;
+        $closedCount = 0;
+        $activeTab = 'my_action';
         $query = clone $baseReferralsQuery;
 
-        if ($activeTab === 'my_action') {
-            if (! $isAdmin) {
-                if ($user) {
-                    $query->where('referred_user_id', $user->id);
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
+        if ($isAdmin) {
+            $myActionCountQuery = (clone $baseReferralsQuery)->where('status', 'pending');
+            $myActionCount = $myActionCountQuery->count();
+
+            $incomingCountQuery = (clone $baseReferralsQuery);
+            $incomingCount = $incomingCountQuery->count();
+
+            $sentCountQuery = (clone $baseReferralsQuery);
+            $sentCount = $sentCountQuery->count();
+
+            $pendingCount = (clone $baseReferralsQuery)->where('status', 'pending')->count();
+            $respondedCount = (clone $baseReferralsQuery)->where('status', 'responded')->count();
+            $closedCount = (clone $baseReferralsQuery)->where('status', 'closed')->count();
+
+            $activeTab = $request->get('tab', 'my_action');
+            if (in_array($activeTab, ['my_action', 'my_actions', 'action_required'], true)) {
+                $activeTab = 'my_action';
+            } elseif (in_array($activeTab, ['referrals_incoming', 'inbox', 'incoming'], true)) {
+                $activeTab = 'incoming';
+            } elseif (in_array($activeTab, ['referrals_sent', 'outbox', 'sent'], true)) {
+                $activeTab = 'sent';
+            } elseif (in_array($activeTab, ['referrals_completed', 'archive', 'completed'], true)) {
+                $activeTab = 'completed';
             }
-            $query->where('status', 'pending');
-        } elseif ($activeTab === 'incoming') {
-            if (! $isAdmin) {
-                if ($user) {
-                    $query->where('referred_user_id', $user->id);
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
+
+            if (! in_array($activeTab, ['my_action', 'incoming', 'sent', 'completed'], true)) {
+                $activeTab = 'my_action';
             }
-        } elseif ($activeTab === 'sent') {
-            if (! $isAdmin) {
-                if ($user) {
-                    $query->where('referring_user_id', $user->id);
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
+
+            if ($activeTab === 'my_action') {
+                $query->where('status', 'pending');
+            } elseif ($activeTab === 'completed') {
+                $query->whereIn('status', ['responded', 'returned', 'closed']);
             }
-        } elseif ($activeTab === 'completed') {
-            $query->whereIn('status', ['responded', 'returned', 'closed']);
         }
 
         // 4. Dynamic Filters
@@ -153,7 +104,7 @@ class ConsultationCenterController extends Controller
             });
         }
 
-        if ($request->filled('entity_id')) {
+        if ($isAdmin && $request->filled('entity_id')) {
             $entityId = (int) $request->entity_id;
             $query->where(function ($q) use ($entityId) {
                 $q->where('referred_entity_id', $entityId)
@@ -161,15 +112,15 @@ class ConsultationCenterController extends Controller
             });
         }
 
-        if ($request->filled('status')) {
+        if ($isAdmin && $request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('date_from')) {
+        if ($isAdmin && $request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
         }
 
-        if ($request->filled('date_to')) {
+        if ($isAdmin && $request->filled('date_to')) {
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
@@ -189,7 +140,8 @@ class ConsultationCenterController extends Controller
             'respondedCount',
             'closedCount',
             'activeTab',
-            'entities'
+            'entities',
+            'isAdmin'
         ));
 
     }

@@ -15,9 +15,11 @@
             </div>
             
             <div class="d-flex gap-2">
-                <a href="{{ route('associations.create') }}" class="btn btn-success px-4 rounded-3 fw-bold shadow-sm">
+                @canany(['associations.create', 'associations.update'])
+<a href="{{ route('associations.create') }}" class="btn btn-success px-4 rounded-3 fw-bold shadow-sm">
                     <i class="fas fa-plus me-1"></i> إضافة جمعية جديدة
                 </a>
+@endcanany
             </div>
         </div>
 

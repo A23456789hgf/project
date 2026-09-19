@@ -92,6 +92,20 @@
                 </select>
             </div>
 
+            {{-- مسؤولية الموافقات --}}
+            <div class="col-md-6">
+                <label class="form-label fw-bold">مسؤولية الموافقات</label>
+                <select name="responsibility" class="form-select select2-search @error('responsibility') is-invalid @enderror">
+                    <option value="">-- بدون مسؤولية في دورة الموافقات --</option>
+                    @foreach(\App\Enums\UserResponsibilityType::options() as $val => $label)
+                        <option value="{{ $val }}" @selected(old('responsibility', $user->responsibility?->value) === $val)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('responsibility') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                <div class="form-text text-muted">يُستخدم لتحديد دور المستخدم في مراحل الموافقات (فنية / مالية / اعتماد).</div>
+            </div>
+
+
             {{-- النطاق الجغرافي --}}
             <div class="col-12">
                 @include('user.partials.geographic_management_table', [

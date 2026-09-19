@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\ApprovalStepStatus;
+use App\Enums\EntityResponsibilityType;
 use App\Enums\ProjectStatus;
+use App\Models\EntityApprovalStage;
 use App\Models\InternalEntity;
 use App\Models\Permission;
 use App\Models\Project;
@@ -141,7 +143,7 @@ class ProjectApprovalControllerTest extends TestCase
             'password' => bcrypt('password'),
             'entity_id' => $this->childEntity->id,
             'role_id' => $reviewerRole->id,
-            'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
         ]);
 
         $this->childReviewer = User::withoutGlobalScopes()->create([
@@ -154,6 +156,7 @@ class ProjectApprovalControllerTest extends TestCase
             'entity_id' => $this->childEntity->id,
             'role_id' => $reviewerRole->id,
             'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
         ]);
 
         $this->parentReviewer = User::withoutGlobalScopes()->create([
@@ -166,6 +169,7 @@ class ProjectApprovalControllerTest extends TestCase
             'entity_id' => $this->parentEntity->id,
             'role_id' => $reviewerRole->id,
             'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
         ]);
 
         $this->outsiderUser = User::withoutGlobalScopes()->create([
@@ -178,6 +182,7 @@ class ProjectApprovalControllerTest extends TestCase
             'entity_id' => $this->otherEntity->id,
             'role_id' => $reviewerRole->id,
             'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
         ]);
 
         $this->adminUser = User::withoutGlobalScopes()->create([
@@ -189,6 +194,46 @@ class ProjectApprovalControllerTest extends TestCase
             'password' => bcrypt('password'),
             'role_id' => $adminRole->id,
             'signature_path' => 'signatures/test_signature.png',
+            'status' => 'Active',
+        ]);
+
+        // Entity Approval Stages Configuration
+        EntityApprovalStage::create([
+            'entity_id' => $this->childEntity->id,
+            'stage' => EntityResponsibilityType::TechnicalReview->value,
+            'stage_order' => 1,
+            'responsible_user_id' => $this->childReviewer->id,
+        ]);
+        EntityApprovalStage::create([
+            'entity_id' => $this->childEntity->id,
+            'stage' => EntityResponsibilityType::FinancialReview->value,
+            'stage_order' => 2,
+            'responsible_user_id' => $this->childReviewer->id,
+        ]);
+        EntityApprovalStage::create([
+            'entity_id' => $this->childEntity->id,
+            'stage' => EntityResponsibilityType::Approval->value,
+            'stage_order' => 3,
+            'responsible_user_id' => $this->childReviewer->id,
+        ]);
+
+        EntityApprovalStage::create([
+            'entity_id' => $this->parentEntity->id,
+            'stage' => EntityResponsibilityType::TechnicalReview->value,
+            'stage_order' => 1,
+            'responsible_user_id' => $this->parentReviewer->id,
+        ]);
+        EntityApprovalStage::create([
+            'entity_id' => $this->parentEntity->id,
+            'stage' => EntityResponsibilityType::FinancialReview->value,
+            'stage_order' => 2,
+            'responsible_user_id' => $this->parentReviewer->id,
+        ]);
+        EntityApprovalStage::create([
+            'entity_id' => $this->parentEntity->id,
+            'stage' => EntityResponsibilityType::Approval->value,
+            'stage_order' => 3,
+            'responsible_user_id' => $this->parentReviewer->id,
         ]);
     }
 
@@ -470,6 +515,7 @@ class ProjectApprovalControllerTest extends TestCase
         $response = $this->actingAs($this->childReviewer)
             ->postJson(route('projects.approval.referral', $project), [
                 'referred_entity_id' => $this->otherEntity->id,
+                'referred_user_id' => $this->outsiderUser->id,
                 'referral_text' => 'نرجو إبداء الرأي الفني والاستشاري حول المخططات',
             ]);
 

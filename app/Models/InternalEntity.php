@@ -71,6 +71,15 @@ class InternalEntity extends Model
     }
 
     /**
+     * The configured approval stages for this entity.
+     * Each row represents an ENABLED stage with its responsible user.
+     */
+    public function approvalStages()
+    {
+        return $this->hasMany(EntityApprovalStage::class, 'entity_id')->orderBy('stage_order');
+    }
+
+    /**
      * Get all children (descendants) of this entity recursively
      * Uses DB directly to avoid lazy loading issues
      */
@@ -212,6 +221,11 @@ class InternalEntity extends Model
     public function users()
     {
         return $this->hasMany(User::class, 'entity_id');
+    }
+
+    public function responsibilities()
+    {
+        return $this->hasMany(EntityResponsibility::class, 'internal_entity_id');
     }
 
     public function sentCorrespondences()

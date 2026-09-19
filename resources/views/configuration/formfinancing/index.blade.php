@@ -15,9 +15,11 @@
             
             <div class="d-flex gap-2">
                 @can('formfinancing.create')
-                <a href="{{ route('formfinancing.create') }}" class="btn btn-success px-4 rounded-3 fw-bold shadow-sm auth-perm-formfinancing-create">
+                @canany(['form-financing.create', 'form-financing.update'])
+<a href="{{ route('formfinancing.create') }}" class="btn btn-success px-4 rounded-3 fw-bold shadow-sm auth-perm-formfinancing-create">
                     <i class="fas fa-plus me-1"></i> إضافة جديد
                 </a>
+@endcanany
                 @endcan
             </div>
         </div>

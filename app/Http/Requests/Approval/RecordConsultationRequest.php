@@ -34,6 +34,7 @@ class RecordConsultationRequest extends FormRequest
     {
         return [
             'referred_entity_id' => 'required|integer|exists:internal_entities,id',
+            'referred_user_id' => 'required|integer|exists:users,id',
             'referral_text' => 'required|string|min:10|max:3000',
             'attachments' => 'nullable|array',
             'attachments.*' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,ppt,pptx,xls,xlsx,txt,csv|max:20480',

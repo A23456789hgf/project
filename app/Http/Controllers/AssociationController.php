@@ -11,6 +11,7 @@ class AssociationController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Association::class);
         $query = Association::with(['governorate', 'district']);
 
         // البحث
@@ -33,6 +34,7 @@ class AssociationController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Association::class);
         $governorates = Governorate::getCachedAll();
 
         return view('configuration.association.create', compact('governorates'));
@@ -40,6 +42,7 @@ class AssociationController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Association::class);
         $validated = $request->validate([
             'name' => 'required|unique:associations|max:255',
             'governorate_id' => 'required|exists:governorates,id',
@@ -58,6 +61,7 @@ class AssociationController extends Controller
 
     public function edit(Association $association)
     {
+        $this->authorize('update', Association::class);
         $governorates = Governorate::getCachedAll();
         $districts = District::where('governorate_id', $association->governorate_id)->get();
 
@@ -66,6 +70,7 @@ class AssociationController extends Controller
 
     public function update(Request $request, Association $association)
     {
+        $this->authorize('update', Association::class);
         $validated = $request->validate([
             'name' => 'required|max:255|unique:associations,name,'.$association->id,
             'governorate_id' => 'required|exists:governorates,id',
@@ -84,6 +89,7 @@ class AssociationController extends Controller
 
     public function destroy(Association $association)
     {
+        $this->authorize('delete', Association::class);
         $association->delete();
 
         return redirect()->route('associations.index')->with('success', 'تم حذف الجمعية بنجاح');

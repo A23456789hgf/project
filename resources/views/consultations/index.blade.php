@@ -136,6 +136,7 @@
         </a>
     </div>
 
+    @if(isset($isAdmin) && $isAdmin)
     {{-- Statistics Cards (5 Required Metrics) --}}
     <div class="row g-3 mb-4">
         {{-- Stat 1: Incoming --}}
@@ -323,147 +324,90 @@
             </form>
         </div>
     </div>
+    @endif
 
-    {{-- Content Area: Cards View --}}
-    <div class="row g-4">
-        @forelse($referrals as $referral)
-            @php
-                $isPending = ($referral->status === 'pending');
-                $isResponded = ($referral->status === 'responded');
-                $isReturned = ($referral->status === 'returned');
-                $isClosed = ($referral->status === 'closed');
 
-                $cardClass = 'card-pending';
-                if ($isResponded) {
-                    $cardClass = 'card-responded';
-                } elseif ($isReturned) {
-                    $cardClass = 'card-returned';
-                } elseif ($isClosed) {
-                    $cardClass = 'card-closed';
-                }
-
-                // Compute wait duration
-                $waitingDuration = '-';
-                if ($referral->created_at) {
-                    if ($referral->responded_at) {
-                        $waitingDuration = $referral->created_at->diffForHumans($referral->responded_at, true);
-                    } else {
-                        $waitingDuration = $referral->created_at->diffForHumans(null, true);
-                    }
-                }
-            @endphp
-            <div class="col-12 col-lg-6 col-xl-4">
-                <div class="card consultation-record-card h-100 shadow-sm d-flex flex-column {{ $cardClass }}">
-                    <div class="card-body p-4 flex-grow-1">
-                        
-                        {{-- Card Header: Status Badge + Wait Duration --}}
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                            <div>
-                                @if($isPending)
-                                    <span class="badge bg-warning text-dark px-3 py-1.5 rounded-pill fw-bold shadow-sm">
-                                        <i class="fas fa-clock me-1"></i> بانتظار الرد
-                                    </span>
-                                @elseif($isResponded)
-                                    <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-3 py-1.5 rounded-pill fw-semibold">
-                                        <i class="fas fa-check-circle me-1"></i> تم الرد
-                                    </span>
-                                @elseif($isReturned)
-                                    <span class="badge bg-secondary bg-opacity-15 text-secondary border border-secondary border-opacity-25 px-3 py-1.5 rounded-pill fw-semibold">
-                                        <i class="fas fa-undo me-1"></i> تم الإرجاع
-                                    </span>
-                                @elseif($isClosed)
-                                    <span class="badge bg-dark px-3 py-1.5 rounded-pill fw-semibold">
-                                        <i class="fas fa-lock me-1"></i> مغلقة
-                                    </span>
-                                @endif
-                            </div>
-
-                            {{-- Waiting Duration Badge --}}
-                            <div class="text-muted small fw-semibold">
-                                <i class="far fa-hourglass me-1 text-secondary"></i> مدة الانتظار: <span class="text-dark fw-bold">{{ $waitingDuration }}</span>
-                            </div>
-                        </div>
-
-                        {{-- Project Name & Code --}}
-                        <h5 class="fw-bold text-dark mb-1">
-                            <a href="{{ route('consultations.show', $referral) }}" class="text-decoration-none text-dark hover-primary">
-                                {{ $referral->project?->project_name ?? 'مشروع #'.$referral->project_id }}
-                            </a>
-                        </h5>
-                        <div class="text-muted small mb-3">
-                            <i class="fas fa-hashtag text-secondary me-1"></i>
-                            <span>{{ $referral->project?->form_number ?: 'PRJ-'.$referral->project_id }}</span>
-                        </div>
-
-                        {{-- Metadata Container --}}
-                        <div class="bg-light rounded-3 p-3 border mb-3 small">
-                            {{-- Referring Entity --}}
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="text-muted"><i class="fas fa-share text-secondary me-1"></i> الجهة المحيلة:</span>
-                                <strong class="text-dark">{{ $referral->referringEntity?->name ?? 'غير محدد' }}</strong>
-                            </div>
-
-                            {{-- Consulted Entity --}}
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="text-muted"><i class="fas fa-building text-primary me-1"></i> الجهة المستشارة:</span>
-                                <span class="text-primary fw-semibold">{{ $referral->referredEntity?->name ?? 'غير محدد' }}</span>
-                            </div>
-
-                            {{-- Referral Date --}}
-                            <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2">
-                                <span class="text-muted"><i class="far fa-calendar-alt text-secondary me-1"></i> تاريخ الإحالة:</span>
-                                <span dir="ltr" class="text-secondary">{{ $referral->created_at?->format('Y-m-d h:i A') ?? '-' }}</span>
-                            </div>
-
-                            {{-- Response Date if responded --}}
-                            @if($referral->responded_at)
-                                <div class="d-flex align-items-center justify-content-between mt-1">
-                                    <span class="text-muted"><i class="fas fa-check text-success me-1"></i> تاريخ الرد:</span>
-                                    <span dir="ltr" class="text-success fw-semibold">{{ $referral->responded_at->format('Y-m-d h:i A') }}</span>
-                                </div>
-                            @endif
-                        </div>
-
-                        {{-- Subject / Referral Text preview --}}
-                        @if(!empty($referral->referral_text))
-                            <div class="p-2.5 bg-light rounded-3 border small text-muted mb-2">
-                                <div class="fw-semibold text-secondary mb-1"><i class="fas fa-comment-dots text-primary opacity-75 me-1"></i> نص الاستشارة:</div>
-                                <p class="mb-0 text-dark" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">
-                                    {{ $referral->referral_text }}
-                                </p>
-                            </div>
-                        @endif
-
-                    </div>
-
-                    {{-- Card Footer with Actions --}}
-                    <div class="card-footer bg-white border-top p-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                        <small class="text-muted">
-                            <i class="far fa-clock me-1"></i> {{ $referral->updated_at?->diffForHumans() ?? $referral->created_at?->diffForHumans() }}
-                        </small>
-                        
-                        <div class="d-flex align-items-center gap-2">
-                            {{-- View Consultation Detail Button --}}
-                            <a href="{{ route('consultations.show', $referral) }}" class="btn btn-primary btn-sm rounded-pill px-3.5 fw-bold shadow-sm">
-                                <i class="fas fa-eye me-1"></i> عرض الاستشارة
-                            </a>
-                        </div>
-                    </div>
-                </div>
+    {{-- Content Area: Table View --}}
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="px-4 py-3">رقم / المشروع</th>
+                            <th class="py-3">الحالة</th>
+                            <th class="py-3">الجهة المحيلة / المستشارة</th>
+                            <th class="py-3">مدة الانتظار</th>
+                            <th class="px-4 py-3 text-end">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($referrals as $referral)
+                            @php
+                                $isPending = ($referral->status === 'pending');
+                                $isResponded = ($referral->status === 'responded');
+                                $isReturned = ($referral->status === 'returned');
+                                $isClosed = ($referral->status === 'closed');
+                                
+                                $waitingDuration = '-';
+                                if ($referral->created_at) {
+                                    if ($referral->responded_at) {
+                                        $waitingDuration = $referral->created_at->diffForHumans($referral->responded_at, true);
+                                    } else {
+                                        $waitingDuration = $referral->created_at->diffForHumans(null, true);
+                                    }
+                                }
+                            @endphp
+                            <tr>
+                                <td class="px-4 py-3">
+                                    <h6 class="mb-1 fw-bold">
+                                        <a href="{{ route('consultations.show', $referral) }}" class="text-decoration-none text-dark">
+                                            {{ $referral->project?->project_name ?? 'مشروع #'.$referral->project_id }}
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted">{{ $referral->project?->form_number ?: 'PRJ-'.$referral->project_id }}</small>
+                                </td>
+                                <td class="py-3">
+                                    @if($isPending)
+                                        <span class="badge bg-warning text-dark px-3 py-1.5 rounded-pill shadow-sm"><i class="fas fa-clock me-1"></i> بانتظار الرد</span>
+                                    @elseif($isResponded)
+                                        <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-3 py-1.5 rounded-pill"><i class="fas fa-check-circle me-1"></i> تم الرد</span>
+                                    @elseif($isReturned)
+                                        <span class="badge bg-secondary bg-opacity-15 text-secondary border border-secondary border-opacity-25 px-3 py-1.5 rounded-pill"><i class="fas fa-undo me-1"></i> تم الإرجاع</span>
+                                    @elseif($isClosed)
+                                        <span class="badge bg-dark px-3 py-1.5 rounded-pill"><i class="fas fa-lock me-1"></i> مغلقة</span>
+                                    @endif
+                                </td>
+                                <td class="py-3">
+                                    <div class="small">
+                                        <div class="mb-1"><span class="text-muted">من:</span> <span class="fw-semibold">{{ $referral->referringEntity?->name ?? 'غير محدد' }}</span></div>
+                                        <div><span class="text-muted">إلى:</span> <span class="text-primary fw-semibold">{{ $referral->referredEntity?->name ?? 'غير محدد' }}</span></div>
+                                    </div>
+                                </td>
+                                <td class="py-3 text-muted small fw-semibold">
+                                    <i class="far fa-hourglass text-secondary me-1"></i> {{ $waitingDuration }}
+                                </td>
+                                <td class="px-4 py-3 text-end">
+                                    <a href="{{ route('consultations.show', $referral) }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm">
+                                        <i class="fas fa-eye me-1"></i> التفاصيل
+                                    </a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <i class="fas fa-comments fs-2 mb-3 opacity-50"></i>
+                                        <h5 class="fw-bold text-dark">لا توجد استشارات حالياً</h5>
+                                        <p class="mb-0 small">لا توجد استشارات أو إحالات تتطلب إجراءك في الوقت الحالي.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
-        @empty
-            <div class="col-12">
-                <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
-                    <div class="mb-3">
-                        <div class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle" style="width: 80px; height: 80px;">
-                            <i class="fas fa-comments text-muted fs-2"></i>
-                        </div>
-                    </div>
-                    <h5 class="fw-bold text-dark mb-1">لا توجد استشارات أو إحالات في هذا التبويب</h5>
-                    <p class="text-muted small mb-0">لم يتم العثور على أي استشارات أو إحالات مطابقة للمعايير المحددة أو التصفية.</p>
-                </div>
-            </div>
-        @endforelse
+        </div>
     </div>
 
     {{-- Pagination --}}

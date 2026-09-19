@@ -45,6 +45,7 @@ class UnitController extends Controller
     // عرض كل الوحدات
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Unit::class);
         $this->syncExternalUnits();
 
         $query = Unit::query();
@@ -392,11 +393,14 @@ class UnitController extends Controller
     // =====================================
     public function create()
     {
+        $this->authorize('create', Unit::class);
+
         return view('configuration.unit.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', Unit::class);
         $request->validate([
             'unit_name' => 'required|string|max:255|unique:units,unit_name',
         ], [
@@ -426,6 +430,7 @@ class UnitController extends Controller
 
     public function edit($id)
     {
+        $this->authorize('update', Unit::class);
         $unit = Unit::findOrFail($id);
 
         return view('configuration.unit.edit', compact('unit'));
@@ -433,6 +438,7 @@ class UnitController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorize('update', Unit::class);
         $request->validate([
             'unit_name' => 'required|string|max:255|unique:units,unit_name,'.$id,
         ], [
@@ -463,6 +469,7 @@ class UnitController extends Controller
 
     public function destroy($id)
     {
+        $this->authorize('delete', Unit::class);
         try {
             DB::beginTransaction();
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityAssignmentController;
+use App\Http\Controllers\Admin\EntityApprovalStageController;
 use App\Http\Controllers\Admin\UIShowcaseController;
 use App\Http\Controllers\Api\ErpUomController;
 use App\Http\Controllers\Approval\ApprovalCenterController;
@@ -1294,6 +1295,14 @@ Route::middleware('auth')->group(function () {
             Route::post('/preview-import', [InternalEntityController::class, 'previewImport'])->name('preview-import');
             Route::post('/process-import', [InternalEntityController::class, 'processImport'])->name('process-import');
         });
+    });
+
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::patch('entity-stages/{stage}/toggle', [EntityApprovalStageController::class, 'toggleActive'])->name('entity-stages.toggle');
+        Route::get('entity-stages/eligible-users', [EntityApprovalStageController::class, 'getEligibleUsers'])->name('entity-stages.eligible-users');
+        Route::resource('entity-stages', EntityApprovalStageController::class)
+            ->except(['show'])
+            ->parameters(['entity-stages' => 'entity']);
     });
 
     // ========================================

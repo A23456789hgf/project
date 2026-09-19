@@ -349,6 +349,7 @@ class ProjectApprovalController extends Controller
         try {
             $user = auth()->user();
             $referredEntityId = (int) $request->input('referred_entity_id');
+            $referredUserId = (int) $request->input('referred_user_id');
             $referralText = $request->input('referral_text');
             $attachments = [];
 
@@ -379,7 +380,8 @@ class ProjectApprovalController extends Controller
                 $user,
                 $referredEntityId,
                 $referralText,
-                count($attachments) > 0 ? $attachments : null
+                count($attachments) > 0 ? $attachments : null,
+                $referredUserId
             );
 
             if ($request->wantsJson() || $request->ajax()) {
